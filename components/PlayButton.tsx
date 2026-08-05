@@ -6,7 +6,7 @@ import { VOICE_CONFIG } from "@/lib/voiceConfig";
 
 interface PlayButtonProps {
   text: string;
-  voice?: string; // kept for backwards compat, unused
+  voice?: string;
   label?: string;
   lang?: Language;
   size?: "sm" | "md";
@@ -36,6 +36,80 @@ const langStyles: Record<
   },
 };
 
+// Preferred voice names per language, ordered by quality (best first)
+const PREFERRED_VOICES: Record<Language, string[]> = {
+  zh: [
+    "Xiaoxiao",         // Microsoft Neural (Edge/Chrome)
+    "Yunyang",          // Microsoft Neural (Edge/Chrome)
+    "Ting-Ting",        // Apple Premium (iOS/macOS)
+    "婷婷",              // Apple Chinese name
+    "Sinji",            // Apple zh-HK
+    "Google",           // Chrome fallback
+  ],
+  en: [
+    "Jenny",            // Microsoft Neural
+    "Aria",             // Microsoft Neural
+    "Samantha",         // Apple Premium (iOS/macOS)
+    "Daniel",           // Apple UK
+    "Karen",            // Apple AU
+    "Google US",        // Chrome
+  ],
+  fr: [
+    "Audrey",           // Apple fr-FR enhanced (best on iOS)
+    "Aurélie",          // Apple fr-FR enhanced / Siri
+    "Amélie",           // Apple fr-FR standard
+    "Thomas",           // Apple fr-FR standard
+    "Denise",           // Microsoft Neural (Edge/Chrome)
+    "Henri",            // Microsoft Neural (Edge/Chrome)
+    "Google français",  // Chrome fallback
+  ],
+};
+
+/**
+ * Pick the best available voice for a language.
+ * Priority: explicit preferred names → Enhanced/Premium → Neural/Natural → first match.
+ * For French, strictly match fr-FR to avoid Canadian French (fr-CA).
+ */
+function pickBestVoice(
+  voices: SpeechSynthesisVoice[],
+  langCode: string,
+  lang: Language
+): SpeechSynthesisVoice | null {
+  // For French, use exact match to avoid fr-CA; for others, use startsWith
+  const matching = voices.filter((v) =>
+    lang === "fr" ? v.lang === "fr-FR" : v.lang.startsWith(langCode)
+  );
+  if (matching.length === 0) return null;
+
+  // 1. Try preferred voice names in order
+  const preferred = PREFERRED_VOICES[lang] || [];
+  for (const name of preferred) {
+    const found = matching.find((v) => v.name.includes(name));
+    if (found) return found;
+  }
+
+  // 2. Try quality keywords (cross-platform)
+  const qualityKeywords = [
+    "Enhanced",
+    "Premium",
+    "Natural",
+    "Neural",
+    "Wavenet",
+    "Studio",
+  ];
+  for (const kw of qualityKeywords) {
+    const found = matching.find((v) => v.name.includes(kw));
+    if (found) return found;
+  }
+
+  // 3. Prefer localService voices (usually better quality on Apple devices)
+  const local = matching.find((v) => v.localService);
+  if (local) return local;
+
+  // 4. Fallback to first match
+  return matching[0];
+}
+
 export default function PlayButton({
   text,
   label,
@@ -44,10 +118,19 @@ export default function PlayButton({
 }: PlayButtonProps) {
   const [status, setStatus] = useState<"idle" | "playing">("idle");
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
 
-  // Clean up on unmount
+  // Pre-load voices (important for iOS Safari where getVoices() is async)
   useEffect(() => {
+    const loadVoices = () => {
+      const v = window.speechSynthesis.getVoices();
+      if (v.length > 0) voicesRef.current = v;
+    };
+
+    loadVoices();
+    window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
     return () => {
+      window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
       window.speechSynthesis.cancel();
     };
   }, []);
@@ -58,36 +141,33 @@ export default function PlayButton({
   }, []);
 
   const handleClick = useCallback(() => {
-    // If already playing, stop
     if (status === "playing") {
       stopCurrent();
       setStatus("idle");
       return;
     }
 
-    // Cancel any ongoing speech
     window.speechSynthesis.cancel();
 
+    const langCode = lang ? VOICE_CONFIG[lang].lang : "en-US";
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = lang ? VOICE_CONFIG[lang].lang : "en-US";
-    utterance.rate = lang === "fr" ? 0.85 : 0.9;
+    utterance.lang = langCode;
+
+    // Slightly slower rate for French to aid comprehension;
+    // standard rate for others
+    utterance.rate = lang === "fr" ? 0.85 : 0.95;
     utterance.pitch = 1.0;
 
-    // Try to pick a high-quality voice for the language
-    const voices = window.speechSynthesis.getVoices();
-    const matchingVoices = voices.filter((v) =>
-      v.lang.startsWith(utterance.lang)
-    );
-    // Prefer voices with "Natural", "Neural", or "Enhanced" in the name
-    const preferred =
-      matchingVoices.find(
-        (v) =>
-          v.name.includes("Natural") ||
-          v.name.includes("Neural") ||
-          v.name.includes("Enhanced")
-      ) || matchingVoices[0];
-    if (preferred) {
-      utterance.voice = preferred;
+    // Pick the best voice
+    const voices =
+      voicesRef.current.length > 0
+        ? voicesRef.current
+        : window.speechSynthesis.getVoices();
+    const bestVoice = lang
+      ? pickBestVoice(voices, langCode, lang)
+      : voices.find((v) => v.lang.startsWith(langCode)) || null;
+    if (bestVoice) {
+      utterance.voice = bestVoice;
     }
 
     utterance.onstart = () => setStatus("playing");
@@ -107,10 +187,7 @@ export default function PlayButton({
     window.speechSynthesis.speak(utterance);
   }, [text, lang, status, stopCurrent]);
 
-  // Display label
   const displayLabel = label ?? (lang ? VOICE_CONFIG[lang].label : "🔊");
-
-  // Style
   const style = lang ? langStyles[lang] : langStyles.en;
   const sizeClasses =
     size === "sm"
@@ -131,11 +208,19 @@ export default function PlayButton({
       aria-label={`朗读 ${displayLabel}`}
     >
       {status === "playing" ? (
-        <svg className="w-3 h-3 animate-pulse" fill="currentColor" viewBox="0 0 24 24">
+        <svg
+          className="w-3 h-3 animate-pulse"
+          fill="currentColor"
+          viewBox="0 0 24 24"
+        >
           <path d="M11.5 3.75a.75.75 0 011.08.02l5.25 5.5a.75.75 0 010 1.04l-5.25 5.5a.75.75 0 11-1.08-1.04L15.94 12H4.75a.75.75 0 010-1.5H15.94L11.5 6.53a.75.75 0 010-1.04l-.02-.02a.75.75 0 01.02-1.72z" />
         </svg>
       ) : (
-        <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+        <svg
+          className="w-3 h-3"
+          fill="currentColor"
+          viewBox="0 0 24 24"
+        >
           <path d="M11.5 3.75a.75.75 0 011.08.02l5.25 5.5a.75.75 0 010 1.04l-5.25 5.5a.75.75 0 11-1.08-1.04L15.94 12H4.75a.75.75 0 010-1.5H15.94L11.5 6.53a.75.75 0 010-1.04l-.02-.02a.75.75 0 01.02-1.72z" />
         </svg>
       )}
