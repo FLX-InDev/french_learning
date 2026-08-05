@@ -12,7 +12,7 @@ interface PlayButtonProps {
   size?: "sm" | "md";
 }
 
-type TTSProvider = "webspeech" | "read-aloud-cf";
+type TTSProvider = "webspeech" | "backend";
 
 const langStyles: Record<
   Language,
@@ -141,7 +141,7 @@ export default function PlayButton({
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
 
-  // read-aloud-cf audio ref
+  // read-aloud backend audio ref
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Fetch TTS provider config on mount (once)
@@ -149,9 +149,9 @@ export default function PlayButton({
     fetch("/api/tts/config")
       .then((res) => res.json())
       .then((data) => {
-        if (data.provider === "read-aloud-cf" && data.available) {
-          setProvider("read-aloud-cf");
-          console.log("[PlayButton] TTS 方案: read-aloud-cf");
+        if (data.provider !== "webspeech" && data.available) {
+          setProvider("backend");
+          console.log(`[PlayButton] TTS 方案: ${data.provider} (后端)`);
         } else {
           console.log("[PlayButton] TTS 方案: Web Speech API");
         }
@@ -194,7 +194,7 @@ export default function PlayButton({
   }, []);
 
   const stopCurrent = useCallback(() => {
-    if (provider === "read-aloud-cf") {
+    if (provider === "backend") {
       stopAudio();
     } else {
       stopWebSpeech();
@@ -255,7 +255,7 @@ export default function PlayButton({
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
         console.error(
-          "[PlayButton] read-aloud-cf 请求失败:",
+          "[PlayButton] read-aloud 请求失败:",
           response.status,
           errorData?.error || response.statusText
         );
@@ -274,7 +274,7 @@ export default function PlayButton({
         setStatus("idle");
       };
       audio.onerror = () => {
-        console.warn("[PlayButton] read-aloud-cf 音频播放出错");
+        console.warn("[PlayButton] read-aloud 音频播放出错");
         URL.revokeObjectURL(url);
         audioRef.current = null;
         setStatus("idle");
@@ -283,7 +283,7 @@ export default function PlayButton({
       audioRef.current = audio;
       await audio.play();
     } catch (err) {
-      console.error("[PlayButton] read-aloud-cf 调用出错:", err);
+      console.error("[PlayButton] read-aloud 调用出错:", err);
       setStatus("idle");
     }
   }, [text, lang]);
@@ -297,7 +297,7 @@ export default function PlayButton({
       return;
     }
 
-    if (provider === "read-aloud-cf") {
+    if (provider === "backend") {
       playReadAloudCF();
     } else {
       playWebSpeech();

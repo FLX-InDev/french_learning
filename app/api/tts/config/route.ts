@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
  * Returns the TTS provider configuration for the client.
  *
  * - TTS_PROVIDER empty/unset → "webspeech" (browser Web Speech API)
- * - TTS_PROVIDER=read-aloud-cf → uses the read-aloud-cf backend proxy
+ * - TTS_PROVIDER=任意非空值（如 read-aloud-sf）→ uses the read-aloud backend proxy
  */
 export async function GET() {
   const provider = process.env.TTS_PROVIDER?.trim() || "webspeech";
