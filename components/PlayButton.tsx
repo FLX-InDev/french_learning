@@ -12,6 +12,8 @@ interface PlayButtonProps {
   size?: "sm" | "md";
 }
 
+type TTSProvider = "webspeech" | "read-aloud-cf";
+
 const langStyles: Record<
   Language,
   { bg: string; hover: string; text: string; ring: string }
@@ -35,6 +37,10 @@ const langStyles: Record<
     ring: "ring-green-200",
   },
 };
+
+// ────────────────────────────────────────────
+// Web Speech API — voice selection helpers
+// ────────────────────────────────────────────
 
 // Preferred voice names per language, ordered by quality (best first)
 // Top entries are exact iOS voice names confirmed on iPad Safari.
@@ -78,12 +84,10 @@ function pickBestVoice(
   langCode: string,
   lang: Language
 ): SpeechSynthesisVoice | null {
-  // For French, use exact match to avoid fr-CA; for others, use startsWith
   const matching = voices.filter((v) =>
     lang === "fr" ? v.lang === "fr-FR" : v.lang.startsWith(langCode)
   );
 
-  // Debug: log available voices for this language (helps iOS troubleshooting)
   if (matching.length > 0) {
     console.log(
       `[PlayButton] ${lang} 可用语音 (${matching.length}):`,
@@ -96,7 +100,6 @@ function pickBestVoice(
     return null;
   }
 
-  // 1. Try preferred voice names in order
   const preferred = PREFERRED_VOICES[lang] || [];
   for (const name of preferred) {
     const found = matching.find((v) => v.name.includes(name));
@@ -106,28 +109,24 @@ function pickBestVoice(
     }
   }
 
-  // 2. Try quality keywords (cross-platform)
   const qualityKeywords = [
-    "Enhanced",
-    "Premium",
-    "Natural",
-    "Neural",
-    "Wavenet",
-    "Studio",
+    "Enhanced", "Premium", "Natural", "Neural", "Wavenet", "Studio",
   ];
   for (const kw of qualityKeywords) {
     const found = matching.find((v) => v.name.includes(kw));
     if (found) return found;
   }
 
-  // 3. Prefer localService voices (usually better quality on Apple devices)
   const local = matching.find((v) => v.localService);
   if (local) return local;
 
-  // 4. Fallback to first match
   console.log(`[PlayButton] ${lang} 回退到第一个语音: "${matching[0].name}" [${matching[0].lang}]`);
   return matching[0];
 }
+
+// ────────────────────────────────────────────
+// Component
+// ────────────────────────────────────────────
 
 export default function PlayButton({
   text,
@@ -135,12 +134,37 @@ export default function PlayButton({
   lang,
   size = "md",
 }: PlayButtonProps) {
-  const [status, setStatus] = useState<"idle" | "playing">("idle");
+  const [status, setStatus] = useState<"idle" | "playing" | "loading">("idle");
+  const [provider, setProvider] = useState<TTSProvider>("webspeech");
+
+  // Web Speech API refs
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
 
-  // Pre-load voices (important for iOS Safari where getVoices() is async)
+  // read-aloud-cf audio ref
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Fetch TTS provider config on mount (once)
   useEffect(() => {
+    fetch("/api/tts/config")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.provider === "read-aloud-cf" && data.available) {
+          setProvider("read-aloud-cf");
+          console.log("[PlayButton] TTS 方案: read-aloud-cf");
+        } else {
+          console.log("[PlayButton] TTS 方案: Web Speech API");
+        }
+      })
+      .catch(() => {
+        console.log("[PlayButton] 无法获取 TTS 配置，使用 Web Speech API");
+      });
+  }, []);
+
+  // Pre-load Web Speech voices (important for iOS Safari)
+  useEffect(() => {
+    if (provider !== "webspeech") return;
+
     const loadVoices = () => {
       const v = window.speechSynthesis.getVoices();
       if (v.length > 0) voicesRef.current = v;
@@ -152,32 +176,42 @@ export default function PlayButton({
       window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
       window.speechSynthesis.cancel();
     };
-  }, []);
+  }, [provider]);
 
-  const stopCurrent = useCallback(() => {
+  // ── Stop handlers ──
+
+  const stopWebSpeech = useCallback(() => {
     window.speechSynthesis.cancel();
     utteranceRef.current = null;
   }, []);
 
-  const handleClick = useCallback(() => {
-    if (status === "playing") {
-      stopCurrent();
-      setStatus("idle");
-      return;
+  const stopAudio = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
     }
+  }, []);
 
+  const stopCurrent = useCallback(() => {
+    if (provider === "read-aloud-cf") {
+      stopAudio();
+    } else {
+      stopWebSpeech();
+    }
+  }, [provider, stopAudio, stopWebSpeech]);
+
+  // ── Play handlers ──
+
+  const playWebSpeech = useCallback(() => {
     window.speechSynthesis.cancel();
 
     const langCode = lang ? VOICE_CONFIG[lang].lang : "en-US";
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = langCode;
-
-    // Slightly slower rate for French to aid comprehension;
-    // standard rate for others
     utterance.rate = lang === "fr" ? 0.85 : 0.95;
     utterance.pitch = 1.0;
 
-    // Pick the best voice
     const voices =
       voicesRef.current.length > 0
         ? voicesRef.current
@@ -196,7 +230,7 @@ export default function PlayButton({
     };
     utterance.onerror = (e) => {
       if (e.error !== "canceled") {
-        console.warn("[PlayButton] 语音播放出错:", e.error);
+        console.warn("[PlayButton] Web Speech 播放出错:", e.error);
       }
       utteranceRef.current = null;
       setStatus("idle");
@@ -204,7 +238,85 @@ export default function PlayButton({
 
     utteranceRef.current = utterance;
     window.speechSynthesis.speak(utterance);
-  }, [text, lang, status, stopCurrent]);
+  }, [text, lang]);
+
+  const playReadAloudCF = useCallback(async () => {
+    const voiceName = lang ? VOICE_CONFIG[lang].cfVoice : "en-US-JennyNeural";
+
+    setStatus("loading");
+
+    try {
+      const response = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, voice: voiceName }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        console.error(
+          "[PlayButton] read-aloud-cf 请求失败:",
+          response.status,
+          errorData?.error || response.statusText
+        );
+        setStatus("idle");
+        return;
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+
+      audio.onplay = () => setStatus("playing");
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        audioRef.current = null;
+        setStatus("idle");
+      };
+      audio.onerror = () => {
+        console.warn("[PlayButton] read-aloud-cf 音频播放出错");
+        URL.revokeObjectURL(url);
+        audioRef.current = null;
+        setStatus("idle");
+      };
+
+      audioRef.current = audio;
+      await audio.play();
+    } catch (err) {
+      console.error("[PlayButton] read-aloud-cf 调用出错:", err);
+      setStatus("idle");
+    }
+  }, [text, lang]);
+
+  // ── Main click handler ──
+
+  const handleClick = useCallback(() => {
+    if (status === "playing" || status === "loading") {
+      stopCurrent();
+      setStatus("idle");
+      return;
+    }
+
+    if (provider === "read-aloud-cf") {
+      playReadAloudCF();
+    } else {
+      playWebSpeech();
+    }
+  }, [status, provider, stopCurrent, playWebSpeech, playReadAloudCF]);
+
+  // ── Cleanup on unmount ──
+
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis?.cancel();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
+  // ── Render ──
 
   const displayLabel = label ?? (lang ? VOICE_CONFIG[lang].label : "🔊");
   const style = lang ? langStyles[lang] : langStyles.en;
@@ -213,6 +325,8 @@ export default function PlayButton({
       ? "px-1.5 py-0.5 text-xs gap-0.5"
       : "px-2 py-1 text-xs gap-1";
 
+  const isActive = status === "playing" || status === "loading";
+
   return (
     <button
       onClick={handleClick}
@@ -220,13 +334,33 @@ export default function PlayButton({
         inline-flex items-center rounded-md font-medium
         transition-all duration-150 shrink-0
         ${style.bg} ${style.hover} ${style.text}
-        ${status === "playing" ? `ring-2 ${style.ring}` : ""}
+        ${isActive ? `ring-2 ${style.ring}` : ""}
         ${sizeClasses}
       `}
       title={`朗读: ${text}`}
       aria-label={`朗读 ${displayLabel}`}
     >
-      {status === "playing" ? (
+      {status === "loading" ? (
+        <svg
+          className="w-3 h-3 animate-spin"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="4"
+          />
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+          />
+        </svg>
+      ) : status === "playing" ? (
         <svg
           className="w-3 h-3 animate-pulse"
           fill="currentColor"
