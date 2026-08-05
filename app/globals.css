@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-zh: #E74C3C;
+  --color-en: #3498DB;
+  --color-fr: #27AE60;
+}
+
+body {
+  @apply bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 min-h-screen;
+  font-family: "Noto Sans SC", "Noto Sans", system-ui, sans-serif;
+}
+
+/* Smooth scroll for the whole page */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-purple-200 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-purple-300;
+}
