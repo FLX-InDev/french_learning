@@ -37,25 +37,28 @@ const langStyles: Record<
 };
 
 // Preferred voice names per language, ordered by quality (best first)
+// Top entries are exact iOS voice names confirmed on iPad Safari.
 const PREFERRED_VOICES: Record<Language, string[]> = {
   zh: [
-    "Xiaoxiao",         // Microsoft Neural (Edge/Chrome)
+    "Yun",              // Apple zh-CN (iOS "云" voice) — TOP PICK
     "Yunyang",          // Microsoft Neural (Edge/Chrome)
+    "Xiaoxiao",         // Microsoft Neural (Edge/Chrome)
     "Ting-Ting",        // Apple Premium (iOS/macOS)
     "婷婷",              // Apple Chinese name
     "Sinji",            // Apple zh-HK
     "Google",           // Chrome fallback
   ],
   en: [
+    "Stephanie",        // Apple en-US (iOS, optimized quality) — TOP PICK
+    "Samantha",         // Apple Premium (iOS/macOS)
     "Jenny",            // Microsoft Neural
     "Aria",             // Microsoft Neural
-    "Samantha",         // Apple Premium (iOS/macOS)
     "Daniel",           // Apple UK
     "Karen",            // Apple AU
     "Google US",        // Chrome
   ],
   fr: [
-    "Audrey",           // Apple fr-FR enhanced (best on iOS)
+    "Audrey",           // Apple fr-FR enhanced (best on iOS) — TOP PICK
     "Aurélie",          // Apple fr-FR enhanced / Siri
     "Amélie",           // Apple fr-FR standard
     "Thomas",           // Apple fr-FR standard
@@ -79,13 +82,28 @@ function pickBestVoice(
   const matching = voices.filter((v) =>
     lang === "fr" ? v.lang === "fr-FR" : v.lang.startsWith(langCode)
   );
-  if (matching.length === 0) return null;
+
+  // Debug: log available voices for this language (helps iOS troubleshooting)
+  if (matching.length > 0) {
+    console.log(
+      `[PlayButton] ${lang} 可用语音 (${matching.length}):`,
+      matching.map((v) => `${v.name} [${v.lang}]`).join(", ")
+    );
+  }
+
+  if (matching.length === 0) {
+    console.warn(`[PlayButton] ${lang}: 没有找到匹配 ${langCode} 的语音`);
+    return null;
+  }
 
   // 1. Try preferred voice names in order
   const preferred = PREFERRED_VOICES[lang] || [];
   for (const name of preferred) {
     const found = matching.find((v) => v.name.includes(name));
-    if (found) return found;
+    if (found) {
+      console.log(`[PlayButton] ${lang} 选中语音: "${found.name}" [${found.lang}] (匹配: "${name}")`);
+      return found;
+    }
   }
 
   // 2. Try quality keywords (cross-platform)
@@ -107,6 +125,7 @@ function pickBestVoice(
   if (local) return local;
 
   // 4. Fallback to first match
+  console.log(`[PlayButton] ${lang} 回退到第一个语音: "${matching[0].name}" [${matching[0].lang}]`);
   return matching[0];
 }
 
