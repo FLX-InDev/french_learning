@@ -6,7 +6,7 @@
 
 ### 1. Fork 项目
 
-访问 https://github.com/lnl1988/read-aloud-cf ，点击右上角 **Fork** 按钮。
+访问 https://github.com/FLX-InDev/french-learning ，点击右上角 **Fork** 按钮。
 
 ### 2. 在 Vercel 中部署
 
