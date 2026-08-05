@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 
+// Force dynamic rendering — must read env vars at request time, not build time
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/tts/config
  * Returns the TTS provider configuration for the client.
