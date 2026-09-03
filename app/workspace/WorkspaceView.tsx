@@ -5,13 +5,25 @@ import Link from "next/link";
 import type { Sentence, Story } from "@/lib/parser";
 import { VOICE_CONFIG } from "@/lib/voiceConfig";
 import {
+  scorePronunciation,
+  type Candidate,
+  type SpeechScore,
+} from "@/lib/pronunciation";
+import {
+  getSpeechRecognitionCtor,
+  isSpeechRecognitionSupported,
+} from "@/lib/speechRecognition";
+import {
   buildSeed,
   buildPool,
   shuffle,
   generateQuiz,
+  generateSpeakQuiz,
+  PASS_SCORE,
   REWARDS,
   type QuizMode,
   type QuizQuestion,
+  type SpeakLang,
   type StudySession,
   type WorkspaceState,
 } from "@/lib/workspace";
@@ -103,6 +115,19 @@ export default function WorkspaceView({
     "idle" | "playing" | "unsupported"
   >("idle");
   const audioElRef = useRef<HTMLAudioElement | null>(null);
+  // ── 跟读打分 ──
+  const [speakResults, setSpeakResults] = useState<(SpeechScore | null)[]>([]);
+  const [recState, setRecState] = useState<
+    "idle" | "recording" | "denied" | "unsupported" | "error"
+  >("idle");
+  const [recMsg, setRecMsg] = useState<string>("");
+  const [asrSupported, setAsrSupported] = useState<boolean | null>(null);
+  const [useTtsBackend, setUseTtsBackend] = useState(false);
+  const [lastSpeakSummary, setLastSpeakSummary] = useState<{
+    avg: number;
+    passed: number;
+    total: number;
+  } | null>(null);
   const [liveReview, setLiveReview] = useState(false);
 
   // 初始化：优先读 localStorage，否则用真实内容造示例
@@ -120,6 +145,37 @@ export default function WorkspaceView({
     }
     setWs(loaded);
   }, [stories, sentences]);
+
+  // 能力检测：浏览器是否支持语音识别（决定跟读题型是否可用）
+  useEffect(() => {
+    setAsrSupported(isSpeechRecognitionSupported());
+  }, []);
+
+  // TTS 方案检测：read-aloud-sf 可用则走后端，否则回退浏览器内置语音
+  useEffect(() => {
+    fetch("/api/tts/config")
+      .then((r) => r.json())
+      .then((d) => {
+        setUseTtsBackend(d.provider !== "webspeech" && !!d.available);
+      })
+      .catch(() => setUseTtsBackend(false));
+  }, []);
+
+  // 浏览器内置语音合成（read-aloud-sf 不可用时的回退）
+  function speakWithWebSpeech(text: string, lang: SpeakLang) {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      setAudioState("unsupported");
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = VOICE_CONFIG[lang].lang;
+    u.rate = lang === "fr" ? 0.85 : 0.95;
+    u.onend = () => setAudioState("idle");
+    u.onerror = () => setAudioState("idle");
+    setAudioState("playing");
+    window.speechSynthesis.speak(u);
+  }
 
   function persist(next: WorkspaceState) {
     setWs(next);
@@ -206,24 +262,31 @@ export default function WorkspaceView({
     persist(seed);
   }
 
-  // 改为调用 read-aloud-sf 后端（经 /api/tts 代理），与句子/故事页 PlayButton 一致
-  // voice 用 Cloudflare 神经语音 fr-FR-DeniseNeural
-  async function playFr(text: string) {
+  // 播放原音：优先走 read-aloud-sf 后端（经 /api/tts 代理），
+  // 后端不可用或请求失败时回退浏览器内置语音合成。
+  // voice 用 Cloudflare 神经语音（fr-FR-DeniseNeural / en-US-JennyNeural）
+  async function playText(text: string, lang: SpeakLang = "fr") {
     // 先停掉上一段尚未结束的音频，避免叠加
     if (audioElRef.current) {
       audioElRef.current.pause();
       audioElRef.current = null;
     }
+
+    if (!useTtsBackend) {
+      speakWithWebSpeech(text, lang);
+      return;
+    }
+
     setAudioState("playing");
     try {
       const res = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, voice: VOICE_CONFIG.fr.cfVoice }),
+        body: JSON.stringify({ text, voice: VOICE_CONFIG[lang].cfVoice }),
       });
       if (!res.ok) {
-        console.error("[playFr] read-aloud 请求失败:", res.status);
-        setAudioState("idle");
+        console.error("[playText] read-aloud 请求失败，回退浏览器语音:", res.status);
+        speakWithWebSpeech(text, lang);
         return;
       }
       const blob = await res.blob();
@@ -242,14 +305,34 @@ export default function WorkspaceView({
       audioElRef.current = audio;
       await audio.play();
     } catch (err) {
-      console.error("[playFr] read-aloud 调用出错:", err);
-      setAudioState("idle");
+      console.error("[playText] read-aloud 调用出错，回退浏览器语音:", err);
+      speakWithWebSpeech(text, lang);
     }
   }
+
+  /** 法语播放（选择题/听力题/点评卡片沿用） */
+  function playFr(text: string) {
+    return playText(text, "fr");
+  }
   function startLiveQuiz() {
+    if (liveMode === "speak") {
+      if (!asrSupported) return;
+      const qs = generateSpeakQuiz(pool, 4);
+      setLiveQuestions(qs);
+      setLiveAnswers(qs.map(() => null));
+      setSpeakResults(qs.map(() => null));
+      setRevealed(new Set());
+      setLiveSubmitted(false);
+      setLiveReview(false);
+      setRecState("idle");
+      setRecMsg("");
+      setLiveOpen(true);
+      return;
+    }
     const qs = generateQuiz(pool, 4, liveMode);
     setLiveQuestions(qs);
     setLiveAnswers(qs.map(() => null));
+    setSpeakResults([]);
     setRevealed(new Set());
     setLiveSubmitted(false);
     setLiveReview(false);
@@ -319,9 +402,134 @@ export default function WorkspaceView({
     };
     let pts = addPoints(ws.points, 10, "完成新测验");
     if (acc >= 80) pts = addPoints(pts, 5, "高正确率奖励");
-    const sessions = [...ws.sessions.filter((s) => s.date !== t), newSession];
+    // 按 id 去重（而非按日期），避免同一天的不同类型测验互相覆盖
+    const sessions = [
+      ...ws.sessions.filter((s) => s.id !== newSession.id),
+      newSession,
+    ];
     persist({ ...ws, sessions, points: pts });
     setLiveSubmitted(true);
+  }
+
+  // ── 跟读打分：录音并按词级比对得出分数与建议 ──
+  function recognize(i: number) {
+    const q = liveQuestions[i];
+    if (!q || !q.targetLang || !q.targetText) return;
+
+    const Ctor = getSpeechRecognitionCtor();
+    if (!Ctor) {
+      setRecState("unsupported");
+      setRecMsg("当前浏览器不支持语音识别，建议使用 Chrome / Edge。");
+      return;
+    }
+
+    const rec = new Ctor();
+    rec.lang = q.targetLang === "fr" ? "fr-FR" : "en-US";
+    rec.interimResults = false;
+    rec.continuous = false;
+    rec.maxAlternatives = 5;
+
+    setRecState("recording");
+    setRecMsg("");
+
+    rec.onresult = (event) => {
+      const cands: Candidate[] = [];
+      for (let r = 0; r < event.results.length; r++) {
+        const res = event.results[r];
+        if (!res.isFinal) continue;
+        for (let a = 0; a < res.length; a++) {
+          cands.push({
+            transcript: res[a].transcript,
+            confidence: res[a].confidence,
+          });
+        }
+      }
+
+      const result = scorePronunciation(
+        q.targetText as string,
+        cands,
+        q.targetLang as SpeakLang
+      );
+
+      setSpeakResults((prev) =>
+        prev.map((v, idx) => (idx === i ? result : v))
+      );
+      // 回填题目：及格记 correctIndex（视为通过），不及格记 null（不进错题本）
+      setLiveQuestions((prev) =>
+        prev.map((qq, idx) =>
+          idx === i
+            ? {
+                ...qq,
+                score: result.score,
+                transcript: result.transcript,
+                feedback: result.feedback,
+                userIndex: result.score >= PASS_SCORE ? qq.correctIndex : null,
+              }
+            : qq
+        )
+      );
+      setRecState("idle");
+    };
+
+    rec.onerror = (event) => {
+      const code = event.error;
+      if (code === "not-allowed" || code === "service-not-allowed") {
+        setRecState("denied");
+        setRecMsg("麦克风权限被拒绝，请在浏览器设置中允许使用麦克风后重试。");
+      } else if (code === "network") {
+        setRecState("error");
+        setRecMsg("识别服务不可用，请检查网络连接后重试。");
+      } else if (code === "no-speech") {
+        setRecState("error");
+        setRecMsg("没有检测到语音，请靠近麦克风再试一次。");
+      } else {
+        setRecState("error");
+        setRecMsg("识别失败：" + (code || "未知错误"));
+      }
+    };
+
+    rec.onend = () => {
+      setRecState((s) => (s === "recording" ? "idle" : s));
+    };
+
+    try {
+      rec.start();
+    } catch {
+      setRecState("error");
+      setRecMsg("无法启动录音，请检查麦克风权限。");
+    }
+  }
+
+  function submitSpeak() {
+    if (!ws) return;
+    if (speakResults.some((r) => r === null)) return;
+    const scores = speakResults.map((r) => (r ? r.score : 0));
+    const avg = Math.round(
+      scores.reduce((s, n) => s + n, 0) / (scores.length || 1)
+    );
+    const passed = scores.filter((s) => s >= PASS_SCORE).length;
+    const t = todayStr();
+
+    const newSession: StudySession = {
+      id: "s_live_" + t + "_speak",
+      date: t,
+      durationMin: 8,
+      contentRef: { type: "mixed", title: "跟读打分小测验" },
+      quiz: {
+        title: "跟读 · " + t,
+        questions: liveQuestions,
+      },
+      reviewed: false,
+    };
+    let pts = addPoints(ws.points, 10, "完成跟读测验");
+    if (avg >= 80) pts = addPoints(pts, 5, "发音优秀奖励");
+    const sessions = [
+      ...ws.sessions.filter((s) => s.id !== newSession.id),
+      newSession,
+    ];
+    persist({ ...ws, sessions, points: pts });
+    setLiveSubmitted(true);
+    setLastSpeakSummary({ avg, passed, total: scores.length });
   }
 
   // Esc 关闭弹窗
@@ -579,9 +787,36 @@ export default function WorkspaceView({
           >
             🔊 听力题（听→选义）
           </button>
+          <button
+            disabled={!asrSupported}
+            className={
+              "text-sm px-4 py-2 rounded-full font-medium transition " +
+              (liveMode === "speak"
+                ? "bg-purple-600 text-white"
+                : asrSupported
+                ? "bg-purple-50 text-purple-600 hover:bg-purple-100"
+                : "bg-gray-100 text-gray-400 cursor-not-allowed")
+            }
+            onClick={() => asrSupported && setLiveMode("speak")}
+            title={
+              !asrSupported
+                ? "当前浏览器不支持语音识别，建议使用 Chrome / Edge"
+                : undefined
+            }
+          >
+            🎤 跟读打分（听→说→评分）
+          </button>
         </div>
-        <button className="btn-primary" onClick={startLiveQuiz}>
-          开始{liveMode === "listen" ? "听力" : "选择"}测验
+        <button
+          className="btn-primary"
+          onClick={startLiveQuiz}
+          disabled={liveMode === "speak" && !asrSupported}
+        >
+          {liveMode === "speak"
+            ? "开始跟读打分"
+            : liveMode === "listen"
+            ? "开始听力测验"
+            : "开始选择测验"}
         </button>
       </section>
 
@@ -1115,11 +1350,15 @@ function LiveQuizModal({
   submitted,
   revealed,
   audioState,
+  recState,
+  recMsg,
+  speakResults,
   title,
   onPlay,
   onAnswer,
   onToggleReveal,
   onSubmit,
+  onRecognize,
   onClose,
 }: {
   mode: QuizMode;
@@ -1128,17 +1367,29 @@ function LiveQuizModal({
   submitted: boolean;
   revealed: Set<number>;
   audioState: "idle" | "playing" | "unsupported";
+  recState?: "idle" | "recording" | "denied" | "unsupported" | "error";
+  recMsg?: string;
+  speakResults?: (SpeechScore | null)[];
   title?: string;
-  onPlay: (text: string) => void;
+  onPlay: (text: string, lang?: SpeakLang) => void;
   onAnswer: (i: number, o: number) => void;
   onToggleReveal: (i: number) => void;
   onSubmit: () => void;
+  onRecognize?: (i: number) => void;
   onClose: () => void;
 }) {
   const labels = ["A", "B", "C", "D"];
+  const isSpeak = mode === "speak";
+  // 跟读题：提交条件是全部识别完毕（无 null）
+  const allAnswered = isSpeak
+    ? (speakResults ?? []).every((r) => r !== null)
+    : answers.every((a) => a !== null);
+  // 已识别题数
+  const recognizedCount = isSpeak
+    ? (speakResults ?? []).filter((r) => r !== null).length
+    : 0;
   const score = questions.filter((q, i) => answers[i] === q.correctIndex).length;
   const acc = questions.length ? Math.round((score / questions.length) * 100) : 0;
-  const allAnswered = answers.every((a) => a !== null);
   const earned = 10 + (acc >= 80 ? 5 : 0);
 
   return (
@@ -1147,7 +1398,11 @@ function LiveQuizModal({
         <div>
           <div className="text-lg font-bold text-gray-800">
             {title ??
-              (mode === "listen" ? "🔊 听力小测验" : "🎯 选择题小测验")}
+              (mode === "listen"
+                ? "🔊 听力小测验"
+                : mode === "speak"
+                ? "🎤 跟读打分"
+                : "🎯 选择题小测验")}
           </div>
           <div className="text-xs text-gray-500 mt-0.5">
             共 {questions.length} 题 · 从真实学习内容出题
@@ -1163,22 +1418,63 @@ function LiveQuizModal({
 
       {submitted ? (
         <div className="bg-purple-50 rounded-xl p-4 mb-4 text-center">
-          <div className="text-2xl font-extrabold text-purple-600">
-            {score} / {questions.length}
-          </div>
-          <div className="text-xs text-gray-500">
-            答对题数 · 正确率 {acc}%
-          </div>
-          <div className="text-sm font-bold text-pink-500 mt-1">
-            获得积分 +{earned}
-          </div>
-          <div className="text-xs text-gray-500 mt-1">
-            已记录到「今日学习成果」，可在下方点评。
-          </div>
+          {isSpeak ? (
+            <>
+              <div className="text-2xl font-extrabold text-purple-600">
+                {Math.round(
+                  (questions
+                    .filter((q) => q.score != null)
+                    .reduce((s, q) => s + (q.score ?? 0), 0) /
+                    (questions.length || 1))
+                )}
+                / 100
+              </div>
+              <div className="text-xs text-gray-500">平均发音得分</div>
+              <div className="text-sm font-bold text-pink-500 mt-1">
+                获得积分 +15
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                已记录到「今日学习成果」，可在下方点评。
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-2xl font-extrabold text-purple-600">
+                {score} / {questions.length}
+              </div>
+              <div className="text-xs text-gray-500">
+                答对题数 · 正确率 {acc}%
+              </div>
+              <div className="text-sm font-bold text-pink-500 mt-1">
+                获得积分 +{earned}
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                已记录到「今日学习成果」，可在下方点评。
+              </div>
+            </>
+          )}
         </div>
       ) : (
         <div className="bg-purple-50 rounded-xl p-3 mb-4 text-sm text-gray-600">
-          {mode === "listen" ? (
+          {isSpeak ? (
+            <>
+              播放原音，然后点击「录音」跟读。系统会对发音打分并给建议。
+              {recState === "recording" && (
+                <span className="ml-2 text-red-500 animate-pulse">
+                  ● 正在录音…
+                </span>
+              )}
+              {recState === "denied" && (
+                <span className="ml-2 text-red-500">（麦克风权限被拒绝）</span>
+              )}
+              {recState === "unsupported" && (
+                <span className="ml-2 text-red-500">
+                  （浏览器不支持语音识别，请使用 Chrome/Edge）
+                </span>
+              )}
+              {recMsg && <span className="ml-2 text-red-500">{recMsg}</span>}
+            </>
+          ) : mode === "listen" ? (
             <>
               点击 ▶ 听法语发音，选出正确中文意思；答题后可「显示原文」对照。
               {audioState === "unsupported" && (
@@ -1195,6 +1491,23 @@ function LiveQuizModal({
 
       <div className="space-y-3">
         {questions.map((q, i) => {
+          if (isSpeak) {
+            const result = speakResults?.[i] ?? null;
+            return (
+              <SpeakQuizCard
+                key={i}
+                index={i}
+                total={questions.length}
+                recognizedCount={recognizedCount}
+                q={q}
+                result={result}
+                recState={recState ?? "idle"}
+                onPlay={onPlay}
+                onRecognize={onRecognize}
+                submitted={submitted}
+              />
+            );
+          }
           const hidden = mode === "listen" && !revealed.has(i) && !submitted;
           return (
             <div key={i} className="bg-purple-50 rounded-xl p-3">
@@ -1301,6 +1614,171 @@ function LiveQuizModal({
         <button className="btn-primary w-full mt-4" onClick={onClose}>
           完成
         </button>
+      )}
+    </div>
+  );
+}
+
+// ── 跟读打分题型 ───────────────────────────────────────────────
+
+function SpeakQuizCard({
+  index,
+  total,
+  recognizedCount,
+  q,
+  result,
+  recState,
+  onPlay,
+  onRecognize,
+  submitted,
+}: {
+  index: number;
+  total: number;
+  recognizedCount: number;
+  q: QuizQuestion;
+  result: SpeechScore | null;
+  recState: "idle" | "recording" | "denied" | "unsupported" | "error";
+  onPlay: (text: string, lang?: SpeakLang) => void;
+  onRecognize?: (i: number) => void;
+  submitted: boolean;
+}) {
+  const langLabel = q.targetLang === "en" ? "EN" : "FR";
+  const langColor = q.targetLang === "en" ? "blue" : "green";
+  const isRecording = recState === "recording" && !submitted;
+  const scoreColor =
+    result == null
+      ? "text-gray-400"
+      : result.score >= 80
+      ? "text-green-600"
+      : result.score >= 60
+      ? "text-yellow-600"
+      : "text-red-600";
+
+  return (
+    <div className="bg-purple-50 rounded-xl p-3">
+      {/* 题号 + 进度 */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="w-5 h-5 rounded-full bg-purple-500 text-white flex items-center justify-center text-xs font-bold shrink-0">
+            {index + 1}
+          </span>
+          <span className="text-xs text-gray-500">
+            {recognizedCount}/{total} 已识别
+          </span>
+        </div>
+        {result != null && (
+          <span className={`text-lg font-extrabold ${scoreColor}`}>
+            {result.score}
+            <span className="text-xs font-normal text-gray-500 ml-0.5">分</span>
+          </span>
+        )}
+      </div>
+
+      {/* 目标句 */}
+      <div className="text-sm font-semibold text-gray-800 mb-1">
+        <span
+          className={`font-bold px-1.5 py-0.5 rounded bg-${langColor}-50 text-${langColor}-600 mr-2`}
+        >
+          {langLabel}
+        </span>
+        {q.targetText}
+      </div>
+
+      {/* 翻译 */}
+      {q.targetLang === "fr" ? (
+        <div className="text-xs text-gray-500 italic mb-2">「{q.zh}」</div>
+      ) : (
+        <div className="text-xs text-gray-500 italic mb-2">{q.fr}</div>
+      )}
+
+      {/* 播放原音 */}
+      <div className="flex items-center gap-2 mb-2">
+        <button
+          className="w-8 h-8 rounded-full bg-purple-600 text-white text-xs flex items-center justify-center shrink-0"
+          onClick={() => onPlay(q.targetText ?? "", q.targetLang)}
+          disabled={isRecording}
+          title="播放原音"
+        >
+          {isRecording ? "◼" : "▶"}
+        </button>
+        <button
+          className={`flex-1 text-sm py-2 rounded-full font-medium transition ${
+            isRecording
+              ? "bg-red-500 text-white animate-pulse"
+              : "bg-purple-100 text-purple-700 hover:bg-purple-200"
+          }`}
+          onClick={() => onRecognize?.(index)}
+          disabled={isRecording}
+        >
+          {isRecording
+            ? "● 正在录音…"
+            : result == null
+            ? "🎤 开始录音"
+            : "🔄 重新录音"}
+        </button>
+      </div>
+
+      {/* 识别结果 */}
+      {result != null && result.transcript && (
+        <div className="text-xs text-gray-600 mb-1">
+          <span className="font-semibold">识别：</span>
+          「{result.transcript}」
+        </div>
+      )}
+
+      {/* 评分与反馈 */}
+      {result != null && (
+        <div className="text-xs text-gray-600 space-y-0.5">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">匹配词：</span>
+            {result.matched.length > 0 ? (
+              result.matched.map((w) => (
+                <span
+                  key={w}
+                  className="px-1.5 py-0.5 rounded bg-green-100 text-green-700"
+                >
+                  {w}
+                </span>
+              ))
+            ) : (
+              <span className="text-gray-400">（无）</span>
+            )}
+          </div>
+          {result.missing.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">漏读：</span>
+              {result.missing.map((w) => (
+                <span
+                  key={w}
+                  className="px-1.5 py-0.5 rounded bg-red-100 text-red-600"
+                >
+                  {w}
+                </span>
+              ))}
+            </div>
+          )}
+          {result.extra.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">多读：</span>
+              {result.extra.map((w) => (
+                <span
+                  key={w}
+                  className="px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700"
+                >
+                  {w}
+                </span>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center gap-2 pt-1">
+            <span className="font-semibold">建议：</span>
+            {result.feedback.slice(0, 2).map((tip) => (
+              <span key={tip} className="text-gray-500">
+                · {tip}
+              </span>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

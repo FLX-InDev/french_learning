@@ -2,17 +2,29 @@ import type { Sentence, Story } from "./parser";
 
 // ─── Types ───────────────────────────────────────────────────────
 
-export type QuizMode = "choice" | "listen";
+export type QuizMode = "choice" | "listen" | "speak";
+
+/** 跟读打分的目标语言 */
+export type SpeakLang = "fr" | "en";
+
+/** 跟读及格线：达到即视为通过（并用于是否计入错题本） */
+export const PASS_SCORE = 60;
 
 export type QuizQuestion = {
   fr: string;
   en: string;
   zh: string;
-  options: string[]; // 4 个 zh 候选
+  options: string[]; // 4 个 zh 候选（跟读题为空数组）
   correctIndex: number;
   userIndex: number | null;
   explanation: string; // «fr» 意思是「zh」（EN: en）
-  mode: QuizMode; // 出题方式：选择题 / 听力题
+  mode: QuizMode; // 出题方式：选择题 / 听力题 / 跟读题
+  // ── 仅跟读题（mode === "speak"）使用 ──
+  targetLang?: SpeakLang; // 本句要求跟读的语言
+  targetText?: string; // 跟读的目标文本（= fr 或 en）
+  score?: number | null; // 0-100 发音得分
+  transcript?: string; // 语音识别出的文本
+  feedback?: string[]; // 发音建议
 };
 
 export type ContentRef = {
@@ -109,6 +121,46 @@ export function generateQuiz(
       userIndex: null,
       explanation: `« ${s.fr} » 意思是「${s.zh}」（EN: ${s.en}）`,
       mode,
+    };
+  });
+}
+
+/**
+ * 跟读打分出题：从真实内容池随机抽句，随机指定跟读法语或英语。
+ * 语言做均衡打乱（fr/en 交替后 shuffle），避免整卷恰好同为一种语言。
+ * 跟读题没有选项：options 为空、correctIndex 固定 0；
+ * userIndex 在打分后回填（及格记 0，不及格记 null —— 后者不会进入错题本）。
+ */
+export function generateSpeakQuiz(
+  pool: Sentence[],
+  count = 4
+): QuizQuestion[] {
+  if (pool.length === 0) return [];
+  const n = Math.min(count, pool.length);
+  const picked = shuffle(pool).slice(0, n);
+
+  // 均衡语言：fr/en 交替铺满后打乱，保证尽量混合
+  const langs: SpeakLang[] = [];
+  for (let i = 0; i < n; i++) langs.push(i % 2 === 0 ? "fr" : "en");
+  const shuffledLangs = shuffle(langs);
+
+  return picked.map((s, i) => {
+    const lang = shuffledLangs[i];
+    const targetText = lang === "fr" ? s.fr : s.en;
+    return {
+      fr: s.fr,
+      en: s.en,
+      zh: s.zh,
+      options: [],
+      correctIndex: 0,
+      userIndex: null,
+      explanation: `« ${s.fr} » 意思是「${s.zh}」（EN: ${s.en}）`,
+      mode: "speak" as QuizMode,
+      targetLang: lang,
+      targetText,
+      score: null,
+      transcript: "",
+      feedback: [],
     };
   });
 }
