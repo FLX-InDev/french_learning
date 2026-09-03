@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Sentence, Story } from "@/lib/parser";
+import { VOICE_CONFIG } from "@/lib/voiceConfig";
 import {
   buildSeed,
   buildPool,
@@ -101,6 +102,7 @@ export default function WorkspaceView({
   const [audioState, setAudioState] = useState<
     "idle" | "playing" | "unsupported"
   >("idle");
+  const audioElRef = useRef<HTMLAudioElement | null>(null);
   const [liveReview, setLiveReview] = useState(false);
 
   // 初始化：优先读 localStorage，否则用真实内容造示例
@@ -204,20 +206,45 @@ export default function WorkspaceView({
     persist(seed);
   }
 
-  // 浏览器内置语音合成（无需服务端，离线可用）
-  function playFr(text: string) {
-    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-      setAudioState("unsupported");
-      return;
+  // 改为调用 read-aloud-sf 后端（经 /api/tts 代理），与句子/故事页 PlayButton 一致
+  // voice 用 Cloudflare 神经语音 fr-FR-DeniseNeural
+  async function playFr(text: string) {
+    // 先停掉上一段尚未结束的音频，避免叠加
+    if (audioElRef.current) {
+      audioElRef.current.pause();
+      audioElRef.current = null;
     }
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.lang = "fr-FR";
-    u.rate = 0.9;
-    u.onend = () => setAudioState("idle");
-    u.onerror = () => setAudioState("idle");
     setAudioState("playing");
-    window.speechSynthesis.speak(u);
+    try {
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, voice: VOICE_CONFIG.fr.cfVoice }),
+      });
+      if (!res.ok) {
+        console.error("[playFr] read-aloud 请求失败:", res.status);
+        setAudioState("idle");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        audioElRef.current = null;
+        setAudioState("idle");
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        audioElRef.current = null;
+        setAudioState("idle");
+      };
+      audioElRef.current = audio;
+      await audio.play();
+    } catch (err) {
+      console.error("[playFr] read-aloud 调用出错:", err);
+      setAudioState("idle");
+    }
   }
   function startLiveQuiz() {
     const qs = generateQuiz(pool, 4, liveMode);
