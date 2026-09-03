@@ -66,17 +66,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Stream the audio back to the client
+    // Stream the audio back to the client.
+    // NOTE: pipe the bytes through a ReadableStream rather than returning the
+    // ArrayBuffer/Blob body directly — more robust for binary under `next start`.
     const audioBuffer = await response.arrayBuffer();
-
-    return new NextResponse(audioBuffer, {
-      status: 200,
-      headers: {
-        "Content-Type": "audio/mpeg",
-        "Content-Length": audioBuffer.byteLength.toString(),
-        "Cache-Control": "public, max-age=3600",
-      },
-    });
+    const uint8 = new Uint8Array(audioBuffer);
+    return new NextResponse(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(uint8);
+          controller.close();
+        },
+      }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "audio/mpeg",
+          "Content-Length": String(uint8.byteLength),
+          "Cache-Control": "public, max-age=3600",
+        },
+      }
+    );
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") {
       return NextResponse.json(
