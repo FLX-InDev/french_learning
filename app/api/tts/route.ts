@@ -29,12 +29,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Build the upstream URL — read-aloud-cf uses /api/synthesis
+    // Build the upstream URL — read-aloud-sf uses /api/synthesis
     const url = new URL("/api/synthesis", TTS_API_URL);
     url.searchParams.set("text", text);
     url.searchParams.set("voiceName", voice);
 
-    // Call read-aloud-cf with a timeout
+    // Call read-aloud-sf with a timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
       Accept: "audio/mpeg",
     };
 
-    // read-aloud-cf expects token as a query parameter
+    // read-aloud-sf expects token as a query parameter
     if (TTS_API_TOKEN) {
       url.searchParams.set("token", TTS_API_TOKEN);
     }

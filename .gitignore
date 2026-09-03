@@ -30,3 +30,6 @@ Thumbs.db
 
 # Debug
 npm-debug.log*
+
+# WorkBuddy local state
+.workbuddy/

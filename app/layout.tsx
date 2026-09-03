@@ -42,6 +42,12 @@ export default function RootLayout({
               >
                 📖 故事
               </a>
+              <a
+                href="/workspace"
+                className="text-gray-600 hover:text-purple-600 transition-colors px-3 py-1.5 rounded-full hover:bg-purple-50"
+              >
+                📊 工作台
+              </a>
             </div>
           </div>
         </nav>

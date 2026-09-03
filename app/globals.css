@@ -2,6 +2,24 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer components {
+  .btn-primary {
+    @apply min-h-[44px] px-5 py-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium transition hover:shadow-lg;
+  }
+  .btn-primary:disabled {
+    @apply bg-gray-200 text-gray-400 cursor-not-allowed shadow-none;
+  }
+  .btn-secondary {
+    @apply min-h-[44px] px-4 py-2 rounded-full bg-purple-50 text-purple-600 font-medium transition hover:bg-purple-100;
+  }
+  .btn-pill {
+    @apply min-h-[38px] px-4 py-1.5 rounded-full bg-purple-600 text-white text-sm font-medium;
+  }
+  .btn-pill:disabled {
+    @apply bg-gray-200 text-gray-400 cursor-not-allowed;
+  }
+}
+
 :root {
   --color-zh: #E74C3C;
   --color-en: #3498DB;
