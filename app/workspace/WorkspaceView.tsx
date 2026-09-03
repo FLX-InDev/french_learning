@@ -815,6 +815,7 @@ export default function WorkspaceView({
               session={activeQuiz}
               onClose={() => setActiveQuizId(null)}
               onReview={() => markReviewed(activeQuiz.id)}
+              onPlay={playFr}
             />
           </div>
         </div>
@@ -944,10 +945,12 @@ function QuizModal({
   session,
   onClose,
   onReview,
+  onPlay,
 }: {
   session: StudySession;
   onClose: () => void;
   onReview: () => void;
+  onPlay: (text: string) => void;
 }) {
   const r = quizResult(session);
   return (
@@ -999,21 +1002,36 @@ function QuizModal({
       </div>
       <div className="space-y-3">
         {session.quiz.questions.map((q, i) => (
-          <QuestionCard key={i} q={q} index={i} />
+          <QuestionCard key={i} q={q} index={i} onPlay={onPlay} />
         ))}
       </div>
     </div>
   );
 }
 
-function QuestionCard({ q, index }: { q: QuizQuestion; index: number }) {
+function QuestionCard({
+  q,
+  index,
+  onPlay,
+}: {
+  q: QuizQuestion;
+  index: number;
+  onPlay: (text: string) => void;
+}) {
   const labels = ["A", "B", "C", "D"];
   return (
     <div className="bg-purple-50 rounded-xl p-3">
-      <div className="font-semibold text-sm text-gray-800 mb-2 flex gap-2">
+      <div className="font-semibold text-sm text-gray-800 mb-2 flex items-center gap-2">
         <span className="w-5 h-5 rounded-full bg-purple-500 text-white flex items-center justify-center text-xs shrink-0">
           {index + 1}
         </span>
+        <button
+          className="shrink-0 w-8 h-8 rounded-full bg-purple-600 text-white text-xs flex items-center justify-center hover:bg-purple-700 transition"
+          onClick={() => onPlay(q.fr)}
+          title="播放法语发音"
+        >
+          🔊
+        </button>
         <span className="italic">« {q.fr} » 是什么意思？</span>
       </div>
       <div className="space-y-1.5">
