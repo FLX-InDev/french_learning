@@ -20,6 +20,8 @@ tsconfig.tsbuildinfo
 .env.production.local
 
 # IDE
+.workbuddy/
+.freebuff/
 .vscode/
 .idea/
 *.swp
@@ -31,6 +33,3 @@ Thumbs.db
 
 # Debug
 npm-debug.log*
-
-# WorkBuddy local state
-.workbuddy/
