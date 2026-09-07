@@ -52,3 +52,58 @@ html {
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-purple-300;
 }
+
+/* Phase 3：拼词答错轻微摇摆（PRD §7.3.3 答错不打叉，用「再试一次」引导） */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+
+/* Phase 4：撒花（≤1.5s 自动结束，PRD §7.3.4）与星星弹出 keyframes */
+@keyframes confetti-fall {
+  0% {
+    transform: translate(0, -20px) rotate(0deg);
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--confetti-drift, 0px), 105vh) rotate(540deg);
+    opacity: 0;
+  }
+}
+
+@keyframes star-pop {
+  0% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.35);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 答对即时反馈：✅ 弹性放大（PRD §7.3.3，≤300ms 出现） */
+@keyframes feedback-pop {
+  0% {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  55% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}

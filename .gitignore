@@ -21,8 +21,10 @@ tsconfig.tsbuildinfo
 
 # IDE
 .workbuddy/
+.codebuddy/
 .freebuff/
 .vscode/
+.zcode/
 .idea/
 *.swp
 *.swo
@@ -33,3 +35,6 @@ Thumbs.db
 
 # Debug
 npm-debug.log*
+
+# Docs
+docs/

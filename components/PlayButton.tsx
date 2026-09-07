@@ -2,7 +2,14 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { Language } from "@/lib/voiceConfig";
-import { VOICE_CONFIG } from "@/lib/voiceConfig";
+import {
+  NORMAL_SPEECH_RATE,
+  VOICE_CONFIG,
+  playbackRate,
+  utteranceRate,
+} from "@/lib/voiceConfig";
+import { pickBestVoice } from "@/lib/webSpeechVoice";
+import { useAppState } from "@/components/AppStateProvider";
 
 interface PlayButtonProps {
   text: string;
@@ -39,90 +46,9 @@ const langStyles: Record<
 };
 
 // ────────────────────────────────────────────
-// Web Speech API — voice selection helpers
+// Web Speech API — voice selection: moved to lib/webSpeechVoice.ts
+// （与 lib/audioManager.ts 共用同一套挑选策略，T3.6）
 // ────────────────────────────────────────────
-
-// Preferred voice names per language, ordered by quality (best first)
-// Top entries are exact iOS voice names confirmed on iPad Safari.
-const PREFERRED_VOICES: Record<Language, string[]> = {
-  zh: [
-    "Yun",              // Apple zh-CN (iOS "云" voice) — TOP PICK
-    "Yunyang",          // Microsoft Neural (Edge/Chrome)
-    "Xiaoxiao",         // Microsoft Neural (Edge/Chrome)
-    "Ting-Ting",        // Apple Premium (iOS/macOS)
-    "婷婷",              // Apple Chinese name
-    "Sinji",            // Apple zh-HK
-    "Google",           // Chrome fallback
-  ],
-  en: [
-    "Stephanie",        // Apple en-US (iOS, optimized quality) — TOP PICK
-    "Samantha",         // Apple Premium (iOS/macOS)
-    "Jenny",            // Microsoft Neural
-    "Aria",             // Microsoft Neural
-    "Daniel",           // Apple UK
-    "Karen",            // Apple AU
-    "Google US",        // Chrome
-  ],
-  fr: [
-    "Audrey",           // Apple fr-FR enhanced (best on iOS) — TOP PICK
-    "Aurélie",          // Apple fr-FR enhanced / Siri
-    "Amélie",           // Apple fr-FR standard
-    "Thomas",           // Apple fr-FR standard
-    "Denise",           // Microsoft Neural (Edge/Chrome)
-    "Henri",            // Microsoft Neural (Edge/Chrome)
-    "Google français",  // Chrome fallback
-  ],
-};
-
-/**
- * Pick the best available voice for a language.
- * Priority: explicit preferred names → Enhanced/Premium → Neural/Natural → first match.
- * For French, strictly match fr-FR to avoid Canadian French (fr-CA).
- */
-function pickBestVoice(
-  voices: SpeechSynthesisVoice[],
-  langCode: string,
-  lang: Language
-): SpeechSynthesisVoice | null {
-  const matching = voices.filter((v) =>
-    lang === "fr" ? v.lang === "fr-FR" : v.lang.startsWith(langCode)
-  );
-
-  if (matching.length > 0) {
-    console.log(
-      `[PlayButton] ${lang} 可用语音 (${matching.length}):`,
-      matching.map((v) => `${v.name} [${v.lang}]`).join(", ")
-    );
-  }
-
-  if (matching.length === 0) {
-    console.warn(`[PlayButton] ${lang}: 没有找到匹配 ${langCode} 的语音`);
-    return null;
-  }
-
-  const preferred = PREFERRED_VOICES[lang] || [];
-  for (const name of preferred) {
-    const found = matching.find((v) => v.name.includes(name));
-    if (found) {
-      console.log(`[PlayButton] ${lang} 选中语音: "${found.name}" [${found.lang}] (匹配: "${name}")`);
-      return found;
-    }
-  }
-
-  const qualityKeywords = [
-    "Enhanced", "Premium", "Natural", "Neural", "Wavenet", "Studio",
-  ];
-  for (const kw of qualityKeywords) {
-    const found = matching.find((v) => v.name.includes(kw));
-    if (found) return found;
-  }
-
-  const local = matching.find((v) => v.localService);
-  if (local) return local;
-
-  console.log(`[PlayButton] ${lang} 回退到第一个语音: "${matching[0].name}" [${matching[0].lang}]`);
-  return matching[0];
-}
 
 // ────────────────────────────────────────────
 // Component
@@ -136,6 +62,9 @@ export default function PlayButton({
 }: PlayButtonProps) {
   const [status, setStatus] = useState<"idle" | "playing" | "loading">("idle");
   const [provider, setProvider] = useState<TTSProvider>("webspeech");
+  // 全局语速（家长中心设置：0.75 慢速 / 0.9 正常，F5.2）
+  const { state } = useAppState();
+  const speechRate = state?.settings.speechRate ?? NORMAL_SPEECH_RATE;
 
   // Web Speech API refs
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
@@ -209,7 +138,7 @@ export default function PlayButton({
     const langCode = lang ? VOICE_CONFIG[lang].lang : "en-US";
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = langCode;
-    utterance.rate = lang === "fr" ? 0.85 : 0.95;
+    utterance.rate = utteranceRate(lang ?? "en", speechRate);
     utterance.pitch = 1.0;
 
     const voices =
@@ -238,7 +167,7 @@ export default function PlayButton({
 
     utteranceRef.current = utterance;
     window.speechSynthesis.speak(utterance);
-  }, [text, lang]);
+  }, [text, lang, speechRate]);
 
   const playReadAloudCF = useCallback(async () => {
     const voiceName = lang ? VOICE_CONFIG[lang].cfVoice : "en-US-JennyNeural";
@@ -249,7 +178,7 @@ export default function PlayButton({
       const response = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, voice: voiceName }),
+        body: JSON.stringify({ text, voice: voiceName, rate: speechRate }),
       });
 
       if (!response.ok) {
@@ -266,6 +195,8 @@ export default function PlayButton({
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
+      // 后端音频用播放速率实现全局语速（read-aloud-sf 不接受语速参数）
+      audio.playbackRate = playbackRate(speechRate);
 
       audio.onplay = () => setStatus("playing");
       audio.onended = () => {
@@ -286,7 +217,7 @@ export default function PlayButton({
       console.error("[PlayButton] read-aloud 调用出错:", err);
       setStatus("idle");
     }
-  }, [text, lang]);
+  }, [text, lang, speechRate]);
 
   // ── Main click handler ──
 

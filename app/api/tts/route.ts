@@ -13,7 +13,13 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { text, voice } = await request.json();
+    // rate 为客户端全局语速（0.75 慢速 / 0.9 正常）。
+    // read-aloud-sf 的 /api/synthesis 不接受语速参数，语速由客户端用
+    // audio.playbackRate 实现；这里接收并校验，便于后续换用支持语速的上游。
+    const { text, voice, rate } = await request.json();
+    if (rate !== undefined && typeof rate !== "number") {
+      return NextResponse.json({ error: "rate 参数不合法" }, { status: 400 });
+    }
 
     // Validate parameters
     if (!text || typeof text !== "string") {

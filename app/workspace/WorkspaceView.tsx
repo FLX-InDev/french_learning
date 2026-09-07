@@ -3,7 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Sentence, Story } from "@/lib/parser";
-import { VOICE_CONFIG } from "@/lib/voiceConfig";
+import {
+  NORMAL_SPEECH_RATE,
+  VOICE_CONFIG,
+  playbackRate,
+  utteranceRate,
+} from "@/lib/voiceConfig";
 import {
   scorePronunciation,
   type Candidate,
@@ -14,86 +19,49 @@ import {
   isSpeechRecognitionSupported,
 } from "@/lib/speechRecognition";
 import {
-  buildSeed,
+  addDays,
+  addPoints,
   buildPool,
-  shuffle,
+  computeLongestStreak,
+  computeStreak,
+  createInitialState,
+  exportBackup,
+  fmt,
   generateQuiz,
   generateSpeakQuiz,
-  PASS_SCORE,
+  importBackup,
+  mdLabel,
+  quizResult,
+  shuffle,
+  todayStr,
   REWARDS,
+  SUBJECT_LABELS,
+  type AppState,
   type QuizMode,
   type QuizQuestion,
   type SpeakLang,
   type StudySession,
-  type WorkspaceState,
 } from "@/lib/workspace";
-
-const PREFIX = "wb_frws_";
-
-function fmt(d: Date) {
-  return (
-    d.getFullYear() +
-    "-" +
-    String(d.getMonth() + 1).padStart(2, "0") +
-    "-" +
-    String(d.getDate()).padStart(2, "0")
-  );
-}
-function todayStr() {
-  return fmt(new Date());
-}
-function mdLabel(s: string) {
-  const p = s.split("-");
-  return p[1] + "月" + p[2] + "日";
-}
-function addDays(d: Date, n: number) {
-  const x = new Date(d);
-  x.setDate(x.getDate() + n);
-  return x;
-}
-function quizResult(s: StudySession) {
-  const qs = s.quiz.questions;
-  let c = 0;
-  for (const q of qs) if (q.userIndex === q.correctIndex) c++;
-  return {
-    score: c,
-    total: qs.length,
-    acc: qs.length ? Math.round((c / qs.length) * 100) : 0,
-  };
-}
-function accColor(a: number) {
-  return a >= 80 ? "#16A34A" : a >= 60 ? "#D97706" : "#EF4444";
-}
-function computeStreak(checkins: string[]) {
-  let d = new Date();
-  if (!checkins.includes(todayStr())) d = addDays(d, -1);
-  let s = 0;
-  while (checkins.includes(fmt(d))) {
-    s++;
-    d = addDays(d, -1);
-  }
-  return s;
-}
-function computeLongestStreak(checkins: string[]) {
-  if (checkins.length === 0) return 0;
-  const uniq = checkins
-    .filter((c, i) => checkins.indexOf(c) === i)
-    .sort();
-  let best = 1;
-  let cur = 1;
-  let prev: string | null = null;
-  for (const ds of uniq) {
-    if (prev) {
-      const diff = Math.round(
-        (new Date(ds).getTime() - new Date(prev).getTime()) / 86400000
-      );
-      cur = diff === 1 ? cur + 1 : 1;
-      best = Math.max(best, cur);
-    }
-    prev = ds;
-  }
-  return best;
-}
+import { isPronunciationPass, type Subject } from "@/lib/levels";
+import {
+  generateMathQuestion,
+  mulberry32,
+  seedFromString,
+  toChoiceQuizQuestion,
+  type MathKind,
+} from "@/lib/mathGenerator";
+import {
+  generateLogicQuestion,
+  logicToChoiceQuestion,
+  toQuizQuestion as logicToQuizQuestion,
+  type LogicKind,
+} from "@/lib/logicEngine";
+import { useAppState } from "@/components/AppStateProvider";
+// ── 拆分出的展示组件（见 components/workspace/）──
+import { LiveQuizModal } from "@/components/workspace/LiveQuizModal";
+import { QuizModal } from "@/components/workspace/QuizModal";
+import { StatCard } from "@/components/workspace/StatCard";
+import { TodayResult } from "@/components/workspace/TodayResult";
 
 export default function WorkspaceView({
   stories,
@@ -102,7 +70,8 @@ export default function WorkspaceView({
   stories: Story[];
   sentences: Sentence[];
 }) {
-  const [ws, setWs] = useState<WorkspaceState | null>(null);
+  // 状态树 v2：由全局 AppStateProvider 提供（localStorage + 迁移 + 持久化）
+  const { state: ws, update } = useAppState();
   const [activeQuizId, setActiveQuizId] = useState<string | null>(null);
   const [pool] = useState(() => buildPool(stories, sentences));
   const [liveOpen, setLiveOpen] = useState(false);
@@ -129,22 +98,10 @@ export default function WorkspaceView({
     total: number;
   } | null>(null);
   const [liveReview, setLiveReview] = useState(false);
-
-  // 初始化：优先读 localStorage，否则用真实内容造示例
-  useEffect(() => {
-    let loaded: WorkspaceState | null = null;
-    try {
-      const raw = localStorage.getItem(PREFIX + "state");
-      if (raw) loaded = JSON.parse(raw);
-    } catch {}
-    if (!loaded) {
-      loaded = buildSeed(stories, sentences);
-      try {
-        localStorage.setItem(PREFIX + "state", JSON.stringify(loaded));
-      } catch {}
-    }
-    setWs(loaded);
-  }, [stories, sentences]);
+  // 错题本学科过滤（all / language / math / logic）
+  const [mistakeFilter, setMistakeFilter] = useState<"all" | Subject>("all");
+  // 全局语速：家长中心设置（0.75 慢速 / 0.9 正常），TTS 双轨同步生效
+  const speechRate = ws?.settings.speechRate ?? NORMAL_SPEECH_RATE;
 
   // 能力检测：浏览器是否支持语音识别（决定跟读题型是否可用）
   useEffect(() => {
@@ -170,30 +127,17 @@ export default function WorkspaceView({
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.lang = VOICE_CONFIG[lang].lang;
-    u.rate = lang === "fr" ? 0.85 : 0.95;
+    u.rate = utteranceRate(lang, speechRate);
     u.onend = () => setAudioState("idle");
     u.onerror = () => setAudioState("idle");
     setAudioState("playing");
     window.speechSynthesis.speak(u);
   }
 
-  function persist(next: WorkspaceState) {
-    setWs(next);
-    try {
-      localStorage.setItem(PREFIX + "state", JSON.stringify(next));
-    } catch {}
+  /** 写入全局状态树（由 Provider 统一持久化） */
+  function persist(next: AppState) {
+    update(() => next);
   }
-  function addPoints(
-    p: WorkspaceState["points"],
-    delta: number,
-    reason: string
-  ) {
-    return {
-      total: p.total + delta,
-      history: [...p.history, { date: todayStr(), delta, reason }],
-    };
-  }
-
   function doCheckin() {
     if (!ws) return;
     const t = todayStr();
@@ -227,39 +171,33 @@ export default function WorkspaceView({
     );
     persist({ ...ws, sessions, points: addPoints(ws.points, 5, "测验点评") });
   }
+  /** 导出 v2 备份（含 profile / 星星 / 养成 / 设置，F16 升级）*/
   function exportJson() {
     if (!ws) return;
-    const blob = new Blob([JSON.stringify(ws, null, 2)], {
+    const blob = new Blob([exportBackup(ws)], {
       type: "application/json",
     });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "french-workspace-backup.json";
+    a.download = "french-learning-backup-v2.json";
     a.click();
   }
+  /** 导入：同时接受 v1 与 v2 备份；失败不破坏现有状态 */
   function importJson(file: File) {
     const rd = new FileReader();
     rd.onload = () => {
-      try {
-        const d = JSON.parse(rd.result as string);
-        if (d.sessions && d.checkins && d.points)
-          persist({
-            sessions: d.sessions,
-            checkins: d.checkins,
-            points: d.points,
-            redeemed: d.redeemed || [],
-          });
-      } catch {}
+      const next = importBackup(String(rd.result ?? ""));
+      if (!next) {
+        alert("文件格式不正确，未改动现有数据");
+        return;
+      }
+      persist(next);
     };
     rd.readAsText(file);
   }
   function clearAll() {
     if (!confirm("确定清空全部学习数据？此操作不可撤销。")) return;
-    const seed = buildSeed(stories, sentences);
-    try {
-      localStorage.removeItem(PREFIX + "state");
-    } catch {}
-    persist(seed);
+    persist(createInitialState(ws?.profile.level ?? "L3"));
   }
 
   // 播放原音：优先走 read-aloud-sf 后端（经 /api/tts 代理），
@@ -282,7 +220,11 @@ export default function WorkspaceView({
       const res = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, voice: VOICE_CONFIG[lang].cfVoice }),
+        body: JSON.stringify({
+          text,
+          voice: VOICE_CONFIG[lang].cfVoice,
+          rate: speechRate,
+        }),
       });
       if (!res.ok) {
         console.error("[playText] read-aloud 请求失败，回退浏览器语音:", res.status);
@@ -292,6 +234,7 @@ export default function WorkspaceView({
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const audio = new Audio(url);
+      audio.playbackRate = playbackRate(speechRate);
       audio.onended = () => {
         URL.revokeObjectURL(url);
         audioElRef.current = null;
@@ -339,11 +282,72 @@ export default function WorkspaceView({
     setLiveOpen(true);
   }
   function startReview() {
-    if (mistakes.length === 0) return;
-    const qs = shuffle(mistakes.map((m) => ({ ...m.q, userIndex: null }))).slice(
-      0,
-      6
-    );
+    if (visibleMistakes.length === 0) return;
+    const lvl = ws?.profile.level ?? "L3";
+    const t = todayStr();
+
+    // ── 数学错题：同知识点重生成全新题目（PRD §7.10.8「防背答案」）──
+    if (mistakeFilter === "math") {
+      const rng = mulberry32(seedFromString(`review_math_${t}`));
+      const kinds = Array.from(
+        new Set(
+          visibleMistakes
+            .map((m) => m.q.kind)
+            .filter((k): k is string => !!k)
+        )
+      );
+      const useKinds = kinds.length > 0 ? kinds : (["add"] as string[]);
+      const qs = useKinds.slice(0, 6).map((kind, i) => {
+        const mq = generateMathQuestion({
+          level: lvl,
+          kind: kind as MathKind,
+          rng,
+          seedTag: `review_${t}`,
+          index: i,
+        });
+        return toChoiceQuizQuestion(mq, rng);
+      });
+      setLiveQuestions(qs);
+      setLiveAnswers(qs.map(() => null));
+      setSpeakResults([]);
+      setRevealed(new Set());
+      setLiveSubmitted(false);
+      setLiveMode("choice");
+      setLiveReview(true);
+      setLiveOpen(true);
+      return;
+    }
+
+    // ── 逻辑错题：同能力域/题型重生成（pattern/oddOne 带候选；其余单选项重放）──
+    if (mistakeFilter === "logic") {
+      const rng = mulberry32(seedFromString(`review_logic_${t}`));
+      const kinds = Array.from(
+        new Set(
+          visibleMistakes
+            .map((m) => m.q.kind)
+            .filter((k): k is LogicKind => !!k)
+        )
+      );
+      const useKinds = kinds.length > 0 ? kinds : (["pattern"] as LogicKind[]);
+      const qs = useKinds.slice(0, 6).map((kind) => {
+        const lq = generateLogicQuestion({ level: lvl, kind, rng });
+        return logicToChoiceQuestion(lq) ?? logicToQuizQuestion(lq, false);
+      });
+      setLiveQuestions(qs);
+      setLiveAnswers(qs.map(() => null));
+      setSpeakResults([]);
+      setRevealed(new Set());
+      setLiveSubmitted(false);
+      setLiveMode("choice");
+      setLiveReview(true);
+      setLiveOpen(true);
+      return;
+    }
+
+    // ── 语言 / 全部：按既有错题重放 ──
+    const qs = shuffle(
+      visibleMistakes.map((m) => ({ ...m.q, userIndex: null }))
+    ).slice(0, 6);
     setLiveQuestions(qs);
     setLiveAnswers(qs.map(() => null));
     setRevealed(new Set());
@@ -399,6 +403,7 @@ export default function WorkspaceView({
         questions: answered,
       },
       reviewed: false,
+      subject: "language",
     };
     let pts = addPoints(ws.points, 10, "完成新测验");
     if (acc >= 80) pts = addPoints(pts, 5, "高正确率奖励");
@@ -463,7 +468,10 @@ export default function WorkspaceView({
                 score: result.score,
                 transcript: result.transcript,
                 feedback: result.feedback,
-                userIndex: result.score >= PASS_SCORE ? qq.correctIndex : null,
+                // BUG-4：及格线按当前学段读取（L1 为 null → 不评分，恒定通过）
+                userIndex: isPronunciationPass(result.score, ws?.profile.level)
+                  ? qq.correctIndex
+                  : null,
               }
             : qq
         )
@@ -507,7 +515,9 @@ export default function WorkspaceView({
     const avg = Math.round(
       scores.reduce((s, n) => s + n, 0) / (scores.length || 1)
     );
-    const passed = scores.filter((s) => s >= PASS_SCORE).length;
+    const passed = scores.filter((s) =>
+      isPronunciationPass(s, ws.profile.level)
+    ).length;
     const t = todayStr();
 
     const newSession: StudySession = {
@@ -520,6 +530,7 @@ export default function WorkspaceView({
         questions: liveQuestions,
       },
       reviewed: false,
+      subject: "language",
     };
     let pts = addPoints(ws.points, 10, "完成跟读测验");
     if (avg >= 80) pts = addPoints(pts, 5, "发音优秀奖励");
@@ -585,13 +596,28 @@ export default function WorkspaceView({
     return { ds, min: sess ? sess.durationMin : 0, label: String(d.getDate()) };
   });
   const maxMin = Math.max(10, ...last7.map((x) => x.min));
-  const mistakes: { q: QuizQuestion; title: string }[] = [];
+  const mistakes: {
+    q: QuizQuestion;
+    title: string;
+    subject: Subject;
+  }[] = [];
   ws.sessions.forEach((s) =>
     s.quiz.questions.forEach((q) => {
       if (q.userIndex !== null && q.userIndex !== q.correctIndex)
-        mistakes.push({ q, title: s.contentRef.title });
+        mistakes.push({
+          q,
+          title: s.contentRef.title,
+          // 每题自带 subject（每日挑战混合卷）；缺省回退 session.subject（v1 兼容）
+          subject: q.subject ?? s.subject ?? "language",
+        });
     })
   );
+  // 跨学科错题过滤（subject 分组，PRD §7.10.8）
+  const subjectFilter = mistakeFilter;
+  const visibleMistakes =
+    subjectFilter === "all"
+      ? mistakes
+      : mistakes.filter((m) => m.subject === subjectFilter);
 
   // 今天要处理
   const tasks: {
@@ -880,16 +906,63 @@ export default function WorkspaceView({
           </div>
         ) : (
           <>
+            <div className="flex items-center gap-2 mb-3 flex-wrap">
+              {(
+                [
+                  ["all", "全部"],
+                  ["language", "语言"],
+                  ["math", "数学"],
+                  ["logic", "逻辑"],
+                ] as const
+              ).map(([key, label]) => {
+                const count =
+                  key === "all"
+                    ? mistakes.length
+                    : mistakes.filter((m) => m.subject === key).length;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setMistakeFilter(key)}
+                    aria-pressed={mistakeFilter === key}
+                    className={
+                      "text-xs px-3 py-1.5 rounded-full font-medium transition min-h-[36px] " +
+                      (mistakeFilter === key
+                        ? "bg-purple-600 text-white"
+                        : "bg-purple-50 text-purple-600")
+                    }
+                  >
+                    {label}（{count}）
+                  </button>
+                );
+              })}
+            </div>
             <button className="btn-primary mb-3" onClick={startReview}>
-              复习错题（{mistakes.length}）
+              复习错题（{visibleMistakes.length}）
             </button>
             <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-              {mistakes.map((m, i) => (
+              {visibleMistakes.map((m, i) => (
                 <div
                   key={i}
                   className="border border-gray-100 rounded-xl p-3"
                 >
-                  <div className="text-sm font-semibold text-gray-800 italic">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={
+                        "text-[10px] px-1.5 py-0.5 rounded-full shrink-0 " +
+                        (m.subject === "math"
+                          ? "bg-orange-100 text-orange-600"
+                          : m.subject === "logic"
+                          ? "bg-teal-100 text-teal-600"
+                          : "bg-purple-100 text-purple-600")
+                      }
+                    >
+                      {SUBJECT_LABELS[m.subject]}
+                    </span>
+                    <span className="text-xs text-gray-400 truncate">
+                      {m.title}
+                    </span>
+                  </div>
+                  <div className="text-sm font-semibold text-gray-800 italic mt-1">
                     « {m.q.fr} »
                   </div>
                   <div className="text-xs mt-1 flex flex-wrap gap-x-3 gap-y-1">
@@ -1099,684 +1172,17 @@ export default function WorkspaceView({
               revealed={revealed}
               audioState={audioState}
               title={liveReview ? "📕 错题复习" : undefined}
-              onPlay={playFr}
+              // ── BUG-1：以下四个 props 原先漏传，导致跟读打分链路断裂 ──
+              speakResults={speakResults}
+              recState={recState}
+              recMsg={recMsg}
+              onPlay={playText}
               onAnswer={answerLive}
               onToggleReveal={toggleReveal}
-              onSubmit={submitLive}
+              onSubmit={liveMode === "speak" ? submitSpeak : submitLive}
+              onRecognize={recognize}
               onClose={() => setLiveOpen(false)}
             />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── 子组件 ───────────────────────────────────────────────────────
-
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="border border-gray-100 rounded-xl p-3">
-      <div className="text-xs text-gray-500">{label}</div>
-      <div className="text-lg font-extrabold text-purple-600 mt-0.5">
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function TodayResult({
-  session,
-  onOpen,
-}: {
-  session: StudySession;
-  onOpen: () => void;
-}) {
-  const r = quizResult(session);
-  const C = 2 * Math.PI * 52;
-  const off = C * (1 - r.acc / 100);
-  const badge =
-    session.contentRef.type === "story"
-      ? "📖 故事"
-      : session.contentRef.type === "sentence"
-      ? "📝 句子"
-      : "📚 综合";
-  return (
-    <div className="flex flex-col sm:flex-row items-center gap-5">
-      <div className="relative w-[120px] h-[120px] shrink-0">
-        <svg viewBox="0 0 120 120" className="w-[120px] h-[120px]">
-          <circle
-            cx="60"
-            cy="60"
-            r="52"
-            fill="none"
-            stroke="#f3f4f6"
-            strokeWidth="12"
-          />
-          <circle
-            cx="60"
-            cy="60"
-            r="52"
-            fill="none"
-            stroke={accColor(r.acc)}
-            strokeWidth="12"
-            strokeLinecap="round"
-            strokeDasharray={C}
-            strokeDashoffset={off}
-            transform="rotate(-90 60 60)"
-          />
-        </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <b className="text-2xl text-purple-600">{r.acc}%</b>
-          <span className="text-xs text-gray-500">正确率</span>
-        </div>
-      </div>
-      <div className="flex-1 w-full space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-purple-50 text-purple-600">
-            {badge}
-          </span>
-        </div>
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-gray-500 w-10 shrink-0">时长</span>
-          <span className="font-semibold text-gray-800">
-            {session.durationMin} 分钟
-          </span>
-        </div>
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-gray-500 w-10 shrink-0">内容</span>
-          <span className="font-semibold text-gray-800">
-            {session.contentRef.title}
-          </span>
-        </div>
-        <div className="flex items-center gap-2 text-sm">
-          <span className="text-gray-500 w-10 shrink-0">测验</span>
-          <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-600">
-            {r.score} / {r.total} 题正确
-          </span>
-        </div>
-        <button className="btn-primary mt-1" onClick={onOpen}>
-          查看测试点评
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function QuizModal({
-  session,
-  onClose,
-  onReview,
-  onPlay,
-}: {
-  session: StudySession;
-  onClose: () => void;
-  onReview: () => void;
-  onPlay: (text: string) => void;
-}) {
-  const r = quizResult(session);
-  return (
-    <div>
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div>
-          <div className="text-lg font-bold text-gray-800">
-            {session.quiz.title}
-          </div>
-          <div className="text-xs text-gray-500 mt-0.5">
-            {mdLabel(session.date)} · {session.contentRef.title} · 时长{" "}
-            {session.durationMin} 分钟
-          </div>
-        </div>
-        <button
-          className="w-9 h-9 rounded-full bg-purple-50 text-purple-600 text-lg shrink-0"
-          onClick={onClose}
-        >
-          ×
-        </button>
-      </div>
-      <div className="flex items-center gap-4 bg-purple-50 rounded-xl p-3 mb-4">
-        <div>
-          <div className="text-xl font-extrabold text-purple-600">
-            {r.score}/{r.total}
-          </div>
-          <div className="text-xs text-gray-500">答对题数</div>
-        </div>
-        <div>
-          <div
-            className="text-xl font-extrabold"
-            style={{ color: accColor(r.acc) }}
-          >
-            {r.acc}%
-          </div>
-          <div className="text-xs text-gray-500">正确率</div>
-        </div>
-        <div className="flex-1 text-right">
-          {session.reviewed ? (
-            <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-green-50 text-green-600">
-              已点评
-            </span>
-          ) : (
-            <button className="btn-primary" onClick={onReview}>
-              标记已点评 +5
-            </button>
-          )}
-        </div>
-      </div>
-      <div className="space-y-3">
-        {session.quiz.questions.map((q, i) => (
-          <QuestionCard key={i} q={q} index={i} onPlay={onPlay} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function QuestionCard({
-  q,
-  index,
-  onPlay,
-}: {
-  q: QuizQuestion;
-  index: number;
-  onPlay: (text: string) => void;
-}) {
-  const labels = ["A", "B", "C", "D"];
-  return (
-    <div className="bg-purple-50 rounded-xl p-3">
-      <div className="font-semibold text-sm text-gray-800 mb-2 flex items-center gap-2">
-        <span className="w-5 h-5 rounded-full bg-purple-500 text-white flex items-center justify-center text-xs shrink-0">
-          {index + 1}
-        </span>
-        <button
-          className="shrink-0 w-8 h-8 rounded-full bg-purple-600 text-white text-xs flex items-center justify-center hover:bg-purple-700 transition"
-          onClick={() => onPlay(q.fr)}
-          title="播放法语发音"
-        >
-          🔊
-        </button>
-        <span className="italic">« {q.fr} » 是什么意思？</span>
-      </div>
-      <div className="space-y-1.5">
-        {q.options.map((opt, o) => {
-          const isCorrect = o === q.correctIndex;
-          const isUserWrong = q.userIndex === o && o !== q.correctIndex;
-          let cls = "border border-purple-100 bg-white";
-          if (isCorrect) cls = "border border-green-400 bg-green-50";
-          else if (isUserWrong) cls = "border border-red-400 bg-red-50";
-          return (
-            <div
-              key={o}
-              className={"flex items-center gap-2 px-3 py-2 rounded-lg " + cls}
-            >
-              <span
-                className={
-                  "w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 " +
-                  (isCorrect
-                    ? "bg-green-500 text-white"
-                    : isUserWrong
-                    ? "bg-red-500 text-white"
-                    : "bg-purple-100 text-purple-600")
-                }
-              >
-                {isCorrect ? "✓" : isUserWrong ? "✕" : labels[o]}
-              </span>
-              <span className="text-sm text-gray-800">{opt}</span>
-            </div>
-          );
-        })}
-      </div>
-      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
-        <span className="font-bold px-1.5 py-0.5 rounded bg-red-50 text-red-500">
-          中
-        </span>
-        <span className="text-gray-700">{q.zh}</span>
-        <span className="font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-500 ml-2">
-          EN
-        </span>
-        <span className="text-gray-600">{q.en}</span>
-        <span className="font-bold px-1.5 py-0.5 rounded bg-green-50 text-green-600 ml-2">
-          FR
-        </span>
-        <span className="text-gray-600 italic">{q.fr}</span>
-      </div>
-    </div>
-  );
-}
-
-function LiveQuizModal({
-  mode,
-  questions,
-  answers,
-  submitted,
-  revealed,
-  audioState,
-  recState,
-  recMsg,
-  speakResults,
-  title,
-  onPlay,
-  onAnswer,
-  onToggleReveal,
-  onSubmit,
-  onRecognize,
-  onClose,
-}: {
-  mode: QuizMode;
-  questions: QuizQuestion[];
-  answers: (number | null)[];
-  submitted: boolean;
-  revealed: Set<number>;
-  audioState: "idle" | "playing" | "unsupported";
-  recState?: "idle" | "recording" | "denied" | "unsupported" | "error";
-  recMsg?: string;
-  speakResults?: (SpeechScore | null)[];
-  title?: string;
-  onPlay: (text: string, lang?: SpeakLang) => void;
-  onAnswer: (i: number, o: number) => void;
-  onToggleReveal: (i: number) => void;
-  onSubmit: () => void;
-  onRecognize?: (i: number) => void;
-  onClose: () => void;
-}) {
-  const labels = ["A", "B", "C", "D"];
-  const isSpeak = mode === "speak";
-  // 跟读题：提交条件是全部识别完毕（无 null）
-  const allAnswered = isSpeak
-    ? (speakResults ?? []).every((r) => r !== null)
-    : answers.every((a) => a !== null);
-  // 已识别题数
-  const recognizedCount = isSpeak
-    ? (speakResults ?? []).filter((r) => r !== null).length
-    : 0;
-  const score = questions.filter((q, i) => answers[i] === q.correctIndex).length;
-  const acc = questions.length ? Math.round((score / questions.length) * 100) : 0;
-  const earned = 10 + (acc >= 80 ? 5 : 0);
-
-  return (
-    <div>
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div>
-          <div className="text-lg font-bold text-gray-800">
-            {title ??
-              (mode === "listen"
-                ? "🔊 听力小测验"
-                : mode === "speak"
-                ? "🎤 跟读打分"
-                : "🎯 选择题小测验")}
-          </div>
-          <div className="text-xs text-gray-500 mt-0.5">
-            共 {questions.length} 题 · 从真实学习内容出题
-          </div>
-        </div>
-        <button
-          className="w-9 h-9 rounded-full bg-purple-50 text-purple-600 text-lg shrink-0"
-          onClick={onClose}
-        >
-          ×
-        </button>
-      </div>
-
-      {submitted ? (
-        <div className="bg-purple-50 rounded-xl p-4 mb-4 text-center">
-          {isSpeak ? (
-            <>
-              <div className="text-2xl font-extrabold text-purple-600">
-                {Math.round(
-                  (questions
-                    .filter((q) => q.score != null)
-                    .reduce((s, q) => s + (q.score ?? 0), 0) /
-                    (questions.length || 1))
-                )}
-                / 100
-              </div>
-              <div className="text-xs text-gray-500">平均发音得分</div>
-              <div className="text-sm font-bold text-pink-500 mt-1">
-                获得积分 +15
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                已记录到「今日学习成果」，可在下方点评。
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="text-2xl font-extrabold text-purple-600">
-                {score} / {questions.length}
-              </div>
-              <div className="text-xs text-gray-500">
-                答对题数 · 正确率 {acc}%
-              </div>
-              <div className="text-sm font-bold text-pink-500 mt-1">
-                获得积分 +{earned}
-              </div>
-              <div className="text-xs text-gray-500 mt-1">
-                已记录到「今日学习成果」，可在下方点评。
-              </div>
-            </>
-          )}
-        </div>
-      ) : (
-        <div className="bg-purple-50 rounded-xl p-3 mb-4 text-sm text-gray-600">
-          {isSpeak ? (
-            <>
-              播放原音，然后点击「录音」跟读。系统会对发音打分并给建议。
-              {recState === "recording" && (
-                <span className="ml-2 text-red-500 animate-pulse">
-                  ● 正在录音…
-                </span>
-              )}
-              {recState === "denied" && (
-                <span className="ml-2 text-red-500">（麦克风权限被拒绝）</span>
-              )}
-              {recState === "unsupported" && (
-                <span className="ml-2 text-red-500">
-                  （浏览器不支持语音识别，请使用 Chrome/Edge）
-                </span>
-              )}
-              {recMsg && <span className="ml-2 text-red-500">{recMsg}</span>}
-            </>
-          ) : mode === "listen" ? (
-            <>
-              点击 ▶ 听法语发音，选出正确中文意思；答题后可「显示原文」对照。
-              {audioState === "unsupported" && (
-                <span className="text-purple-600">
-                  （当前浏览器不支持语音合成，可点「显示原文」对照）
-                </span>
-              )}
-            </>
-          ) : (
-            "选出法语句子的正确中文意思。"
-          )}
-        </div>
-      )}
-
-      <div className="space-y-3">
-        {questions.map((q, i) => {
-          if (isSpeak) {
-            const result = speakResults?.[i] ?? null;
-            return (
-              <SpeakQuizCard
-                key={i}
-                index={i}
-                total={questions.length}
-                recognizedCount={recognizedCount}
-                q={q}
-                result={result}
-                recState={recState ?? "idle"}
-                onPlay={onPlay}
-                onRecognize={onRecognize}
-                submitted={submitted}
-              />
-            );
-          }
-          const hidden = mode === "listen" && !revealed.has(i) && !submitted;
-          return (
-            <div key={i} className="bg-purple-50 rounded-xl p-3">
-              <div className="font-semibold text-sm text-gray-800 mb-2 flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-purple-500 text-white flex items-center justify-center text-xs shrink-0">
-                  {i + 1}
-                </span>
-                {mode === "listen" && (
-                  <button
-                    className="shrink-0 w-8 h-8 rounded-full bg-purple-600 text-white text-xs flex items-center justify-center"
-                    onClick={() => onPlay(q.fr)}
-                    title="播放法语"
-                  >
-                    {audioState === "playing" ? "◼" : "▶"}
-                  </button>
-                )}
-                {hidden ? (
-                  <button
-                    className="text-xs text-purple-600 underline"
-                    onClick={() => onToggleReveal(i)}
-                  >
-                    显示原文
-                  </button>
-                ) : (
-                  <span className="italic">« {q.fr} » 是什么意思？</span>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                {q.options.map((opt, o) => {
-                  const isCorrect = o === q.correctIndex;
-                  const isUserWrong = answers[i] === o && o !== q.correctIndex;
-                  const isSelected = answers[i] === o;
-                  let cls = "border border-purple-100 bg-white";
-                  if (submitted) {
-                    if (isCorrect) cls = "border border-green-400 bg-green-50";
-                    else if (isUserWrong)
-                      cls = "border border-red-400 bg-red-50";
-                  } else if (isSelected) {
-                    cls = "border border-purple-400 bg-purple-100";
-                  }
-                  const badgeCls =
-                    "w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 " +
-                    (submitted
-                      ? isCorrect
-                        ? "bg-green-500 text-white"
-                        : isUserWrong
-                        ? "bg-red-500 text-white"
-                        : "bg-purple-100 text-purple-600"
-                      : isSelected
-                      ? "bg-purple-500 text-white"
-                      : "bg-purple-100 text-purple-600");
-                  const badgeText = submitted
-                    ? isCorrect
-                      ? "✓"
-                      : isUserWrong
-                      ? "✕"
-                      : labels[o]
-                    : labels[o];
-                  return (
-                    <div
-                      key={o}
-                      onClick={() => onAnswer(i, o)}
-                      className={
-                        "flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer " +
-                        cls
-                      }
-                    >
-                      <span className={badgeCls}>{badgeText}</span>
-                      <span className="text-sm text-gray-800">{opt}</span>
-                    </div>
-                  );
-                })}
-              </div>
-              {submitted && (
-                <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
-                  <span className="font-bold px-1.5 py-0.5 rounded bg-red-50 text-red-500">
-                    中
-                  </span>
-                  <span className="text-gray-700">{q.zh}</span>
-                  <span className="font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-500 ml-2">
-                    EN
-                  </span>
-                  <span className="text-gray-600">{q.en}</span>
-                  <span className="font-bold px-1.5 py-0.5 rounded bg-green-50 text-green-600 ml-2">
-                    FR
-                  </span>
-                  <span className="text-gray-600 italic">{q.fr}</span>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {!submitted ? (
-        <button
-          className="btn-primary w-full mt-4"
-          disabled={!allAnswered}
-          onClick={onSubmit}
-        >
-          {allAnswered ? "提交并结算积分" : "请答完所有题目"}
-        </button>
-      ) : (
-        <button className="btn-primary w-full mt-4" onClick={onClose}>
-          完成
-        </button>
-      )}
-    </div>
-  );
-}
-
-// ── 跟读打分题型 ───────────────────────────────────────────────
-
-function SpeakQuizCard({
-  index,
-  total,
-  recognizedCount,
-  q,
-  result,
-  recState,
-  onPlay,
-  onRecognize,
-  submitted,
-}: {
-  index: number;
-  total: number;
-  recognizedCount: number;
-  q: QuizQuestion;
-  result: SpeechScore | null;
-  recState: "idle" | "recording" | "denied" | "unsupported" | "error";
-  onPlay: (text: string, lang?: SpeakLang) => void;
-  onRecognize?: (i: number) => void;
-  submitted: boolean;
-}) {
-  const langLabel = q.targetLang === "en" ? "EN" : "FR";
-  const langColor = q.targetLang === "en" ? "blue" : "green";
-  const isRecording = recState === "recording" && !submitted;
-  const scoreColor =
-    result == null
-      ? "text-gray-400"
-      : result.score >= 80
-      ? "text-green-600"
-      : result.score >= 60
-      ? "text-yellow-600"
-      : "text-red-600";
-
-  return (
-    <div className="bg-purple-50 rounded-xl p-3">
-      {/* 题号 + 进度 */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className="w-5 h-5 rounded-full bg-purple-500 text-white flex items-center justify-center text-xs font-bold shrink-0">
-            {index + 1}
-          </span>
-          <span className="text-xs text-gray-500">
-            {recognizedCount}/{total} 已识别
-          </span>
-        </div>
-        {result != null && (
-          <span className={`text-lg font-extrabold ${scoreColor}`}>
-            {result.score}
-            <span className="text-xs font-normal text-gray-500 ml-0.5">分</span>
-          </span>
-        )}
-      </div>
-
-      {/* 目标句 */}
-      <div className="text-sm font-semibold text-gray-800 mb-1">
-        <span
-          className={`font-bold px-1.5 py-0.5 rounded bg-${langColor}-50 text-${langColor}-600 mr-2`}
-        >
-          {langLabel}
-        </span>
-        {q.targetText}
-      </div>
-
-      {/* 翻译 */}
-      {q.targetLang === "fr" ? (
-        <div className="text-xs text-gray-500 italic mb-2">「{q.zh}」</div>
-      ) : (
-        <div className="text-xs text-gray-500 italic mb-2">{q.fr}</div>
-      )}
-
-      {/* 播放原音 */}
-      <div className="flex items-center gap-2 mb-2">
-        <button
-          className="w-8 h-8 rounded-full bg-purple-600 text-white text-xs flex items-center justify-center shrink-0"
-          onClick={() => onPlay(q.targetText ?? "", q.targetLang)}
-          disabled={isRecording}
-          title="播放原音"
-        >
-          {isRecording ? "◼" : "▶"}
-        </button>
-        <button
-          className={`flex-1 text-sm py-2 rounded-full font-medium transition ${
-            isRecording
-              ? "bg-red-500 text-white animate-pulse"
-              : "bg-purple-100 text-purple-700 hover:bg-purple-200"
-          }`}
-          onClick={() => onRecognize?.(index)}
-          disabled={isRecording}
-        >
-          {isRecording
-            ? "● 正在录音…"
-            : result == null
-            ? "🎤 开始录音"
-            : "🔄 重新录音"}
-        </button>
-      </div>
-
-      {/* 识别结果 */}
-      {result != null && result.transcript && (
-        <div className="text-xs text-gray-600 mb-1">
-          <span className="font-semibold">识别：</span>
-          「{result.transcript}」
-        </div>
-      )}
-
-      {/* 评分与反馈 */}
-      {result != null && (
-        <div className="text-xs text-gray-600 space-y-0.5">
-          <div className="flex items-center gap-2">
-            <span className="font-semibold">匹配词：</span>
-            {result.matched.length > 0 ? (
-              result.matched.map((w) => (
-                <span
-                  key={w}
-                  className="px-1.5 py-0.5 rounded bg-green-100 text-green-700"
-                >
-                  {w}
-                </span>
-              ))
-            ) : (
-              <span className="text-gray-400">（无）</span>
-            )}
-          </div>
-          {result.missing.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="font-semibold">漏读：</span>
-              {result.missing.map((w) => (
-                <span
-                  key={w}
-                  className="px-1.5 py-0.5 rounded bg-red-100 text-red-600"
-                >
-                  {w}
-                </span>
-              ))}
-            </div>
-          )}
-          {result.extra.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="font-semibold">多读：</span>
-              {result.extra.map((w) => (
-                <span
-                  key={w}
-                  className="px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700"
-                >
-                  {w}
-                </span>
-              ))}
-            </div>
-          )}
-          <div className="flex items-center gap-2 pt-1">
-            <span className="font-semibold">建议：</span>
-            {result.feedback.slice(0, 2).map((tip) => (
-              <span key={tip} className="text-gray-500">
-                · {tip}
-              </span>
-            ))}
           </div>
         </div>
       )}

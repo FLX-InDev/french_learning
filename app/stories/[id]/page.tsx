@@ -1,5 +1,5 @@
 import { getAllStories, getStoryById } from "@/lib/parser";
-import PlayButton from "@/components/PlayButton";
+import { StorySentences } from "@/components/StorySentences";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -55,53 +55,8 @@ export default function StoryDetailPage({ params }: StoryDetailPageProps) {
         </p>
       </div>
 
-      {/* Story Content */}
-      <div className="space-y-4">
-        {story.sentences.map((sentence, index) => (
-          <div
-            key={index}
-            className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow"
-          >
-            <div className="space-y-3">
-              {/* Chinese */}
-              <div className="flex items-start gap-3">
-                <span className="shrink-0 text-xs font-bold px-2 py-1 rounded-lg bg-red-50 text-red-500 mt-0.5">
-                  中文
-                </span>
-                <p className="text-gray-800 text-lg leading-relaxed flex-1">
-                  {sentence.zh}
-                </p>
-                <PlayButton text={sentence.zh} lang="zh" size="sm" />
-              </div>
-
-              {/* Divider */}
-              <div className="border-t border-dashed border-gray-100" />
-
-              {/* English */}
-              <div className="flex items-start gap-3">
-                <span className="shrink-0 text-xs font-bold px-2 py-1 rounded-lg bg-blue-50 text-blue-500 mt-0.5">
-                  EN
-                </span>
-                <p className="text-gray-600 leading-relaxed flex-1">
-                  {sentence.en}
-                </p>
-                <PlayButton text={sentence.en} lang="en" size="sm" />
-              </div>
-
-              {/* French */}
-              <div className="flex items-start gap-3">
-                <span className="shrink-0 text-xs font-bold px-2 py-1 rounded-lg bg-green-50 text-green-600 mt-0.5">
-                  FR
-                </span>
-                <p className="text-gray-600 italic leading-relaxed flex-1">
-                  {sentence.fr}
-                </p>
-                <PlayButton text={sentence.fr} lang="fr" size="sm" />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      {/* Story Content（客户端组件：三语点读 + 连播） */}
+      <StorySentences sentences={story.sentences} />
 
       {/* Bottom Navigation */}
       <div className="text-center pt-4">
