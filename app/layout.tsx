@@ -17,10 +17,8 @@ export default function RootLayout({
   return (
     <html lang="zh">
       <head>
-        <link
-          href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Sans:wght@400;500;700&display=swap"
-          rel="stylesheet"
-        />
+        {/* B3：移除 Google Fonts 外链（渲染阻塞 1.9s + CJK 字库 871KB），
+            改用系统字体栈（见 globals.css），符合「无外链」的隐私合规目标。 */}
       </head>
       <body className="min-h-screen">
         <AppStateProvider>

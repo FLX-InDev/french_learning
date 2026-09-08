@@ -28,7 +28,19 @@
 
 body {
   @apply bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 min-h-screen;
-  font-family: "Noto Sans SC", "Noto Sans", system-ui, sans-serif;
+  /* B3 性能优化：不再加载 Google Fonts 中文全字库（871KB、阻塞渲染 1.9s），
+     改用系统字体栈（CJK 由设备自带字体渲染，零下载、零阻塞）。 */
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Microsoft YaHei",
+    "Noto Sans CJK SC",
+    sans-serif;
 }
 
 /* Smooth scroll for the whole page */

@@ -93,6 +93,8 @@ export default function PlayButton({
   // Pre-load Web Speech voices (important for iOS Safari)
   useEffect(() => {
     if (provider !== "webspeech") return;
+    // 浏览器不支持语音合成时静默降级（jsdom / 老浏览器），避免整页崩溃
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
 
     const loadVoices = () => {
       const v = window.speechSynthesis.getVoices();
@@ -102,8 +104,8 @@ export default function PlayButton({
     loadVoices();
     window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
     return () => {
-      window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
-      window.speechSynthesis.cancel();
+      window.speechSynthesis?.removeEventListener("voiceschanged", loadVoices);
+      window.speechSynthesis?.cancel();
     };
   }, [provider]);
 
