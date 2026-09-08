@@ -578,3 +578,59 @@ export const SUBJECT_LABELS: Record<Subject, string> = {
   logic: "逻辑",
   life: "生活",
 };
+
+// ─── 学习会话真实计时（Phase 5B T5B.5，F52 / BUG-3）──────────────
+
+/**
+ * 由会话开始时间戳计算学习时长（分钟，整数）：
+ * - 下限 1 分钟（不足 1 分钟按 1 计，与整数展示一致）；
+ * - 上限 60 分钟（异常挂起不产生虚高数据）。
+ * v1 的 durationMin 写死 8 分钟（BUG-3）；自 Phase 5B 起新 session 均用本函数。
+ */
+export function sessionDurationMin(startedAt: number, now = Date.now()): number {
+  const sec = (now - startedAt) / 1000;
+  if (!Number.isFinite(sec) || sec <= 0) return 1;
+  return Math.max(1, Math.min(60, Math.round(sec / 60)));
+}
+
+// ─── 学词进度（Phase 5A T5A.5，PRD §7.6.5）───────────────────────
+
+/** wordProgress 四态升级序：只升不降（heard < flipped < correct < spoken） */
+export const WORD_STATUS_ORDER: Record<WordStatus, number> = {
+  heard: 1,
+  flipped: 2,
+  correct: 3,
+  spoken: 4,
+};
+
+/** 计算升级后的状态：新状态序更高才更新，否则保持（纯函数，可单测） */
+export function upgradeWordStatus(
+  current: WordStatus | undefined,
+  next: WordStatus
+): WordStatus {
+  if (!current) return next;
+  return WORD_STATUS_ORDER[next] > WORD_STATUS_ORDER[current] ? next : current;
+}
+
+/** 不可变更新某个词的进度（状态不升级时返回原对象） */
+export function upgradeWordProgress(
+  wp: WordProgress,
+  id: string,
+  status: WordStatus
+): WordProgress {
+  const next = upgradeWordStatus(wp[id], status);
+  if (next === wp[id]) return wp;
+  return { ...wp, [id]: next };
+}
+
+/** 图鉴收集度：词集内已有任意进度的词数 / 总数（PRD §7.6.5「如 32/40」） */
+export function collectionStats(
+  words: { id: string }[],
+  wp: WordProgress
+): { collected: number; total: number } {
+  let collected = 0;
+  for (const w of words) {
+    if (wp[w.id] !== undefined) collected++;
+  }
+  return { collected, total: words.length };
+}

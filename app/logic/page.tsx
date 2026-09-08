@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getAllLogicItems } from "@/lib/parser";
 import { LogicCenter } from "@/components/logic/LogicBoard";
+import { LogicExtensions } from "@/components/logic/LogicExtensions";
 
 export const metadata: Metadata = {
   title: "逻辑推理 - 法语宝宝学",
@@ -8,7 +9,11 @@ export const metadata: Metadata = {
 };
 
 export default function LogicPage() {
-  // logic-bank.md 固定题（source: fixed）与生成器题同管线
   const fixedItems = getAllLogicItems();
-  return <LogicCenter fixedItems={fixedItems} />;
+  return (
+    <div className="space-y-8">
+      <LogicCenter fixedItems={fixedItems} />
+      <LogicExtensions />
+    </div>
+  );
 }

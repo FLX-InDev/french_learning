@@ -1,28 +1,36 @@
 "use client";
 
-import { cancelSpeech, configureSpeech, speak } from "@/lib/audioManager";
+import { cancelSpeech, configureSpeech, playSfx, speak } from "@/lib/audioManager";
 import { useAppState } from "@/components/AppStateProvider";
+import { RecordingPlayback } from "@/components/RecordingPlayback";
+import { usePronunciationCheck } from "@/components/usePronunciationCheck";
 import type { AlphabetCard } from "@/lib/contentTypes";
 import { useEffect, useState } from "react";
 
 /**
- * 字母翻卡（PRD §7.5.2，Dev-Plan T3.1）：
+ * 字母翻卡（PRD §7.5.2，Dev-Plan T3.1；T5A.3 扩展单词跟读）：
  * 正面 = 大字母 + 代表词 emoji；翻面 = 三语代表词 + 例句 + 两种点读——
  * 「字母名」（A = /a/，读卡片语言）与「例词」（整词）可区分点读。
+ * 例词跟读复用 scorePronunciation 管线（及格线随学段），通过回调 onSpoken 记进度。
  * 翻面是本地 UI 状态；首次翻面时回调 onFirstFlip 记录 wordProgress = "flipped"。
  */
 export function FlashCard({
   card,
   onFirstFlip,
+  onSpoken,
   onClose,
 }: {
   card: AlphabetCard;
   onFirstFlip?: () => void;
+  /** 例词跟读及格后回调（记 wordProgress spoken） */
+  onSpoken?: () => void;
   onClose: () => void;
 }) {
   const { state } = useAppState();
   const speechRate = state?.settings.speechRate ?? 0.9;
+  const level = state?.profile.level ?? "L3";
   const [face, setFace] = useState<"front" | "back">("front");
+  const pr = usePronunciationCheck();
 
   useEffect(() => {
     configureSpeech(speechRate);
@@ -125,6 +133,57 @@ export function FlashCard({
               听中文（{card.word.zh}）
             </button>
           </div>
+
+          {/* 例词跟读（T5A.3）：复用 scorePronunciation，及格线随学段；无 ASR 时隐藏 */}
+          {pr.asrSupported && (
+            <div className="mt-4 pt-3 border-t border-dashed border-purple-100">
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  className={
+                    "min-h-[44px] px-5 rounded-full text-sm font-bold transition " +
+                    (pr.state === "recording"
+                      ? "bg-red-500 text-white animate-pulse"
+                      : "bg-purple-600 text-white hover:bg-purple-700")
+                  }
+                  onClick={() =>
+                    pr.start(card.word.fr, "fr", level, (_r, passed) => {
+                      playSfx(passed ? "correct" : "encourage");
+                      if (passed) onSpoken?.();
+                    })
+                  }
+                  aria-label="跟读例词"
+                >
+                  {pr.state === "recording" ? "● 正在录音…" : "🎤 跟读例词"}
+                </button>
+                <RecordingPlayback
+                  recUrl={pr.recUrl}
+                  onPlayOriginal={() => play(card.word.fr, "fr")}
+                />
+              </div>
+              {pr.state === "done" && pr.result && (
+                <p className="mt-2 text-sm text-center">
+                  <span
+                    className={
+                      "font-extrabold " +
+                      (pr.result.score >= 70
+                        ? "text-green-600"
+                        : pr.result.score >= 50
+                        ? "text-amber-500"
+                        : "text-orange-500")
+                    }
+                  >
+                    {pr.result.score} 分
+                  </span>
+                  <span className="text-xs text-gray-400 ml-2">
+                    听到了「{pr.result.transcript || "—"}」
+                  </span>
+                </p>
+              )}
+              {(pr.state === "denied" || pr.state === "error") && (
+                <p className="mt-2 text-xs text-red-400 text-center">{pr.msg}</p>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

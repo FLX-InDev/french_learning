@@ -12,6 +12,8 @@ import {
   speechGeneration,
 } from "@/lib/audioManager";
 import { addPoints } from "@/lib/workspace";
+import { usePronunciationCheck } from "@/components/usePronunciationCheck";
+import { playSfx } from "@/lib/audioManager";
 import type { Song } from "@/lib/contentTypes";
 import type { Language } from "@/lib/voiceConfig";
 
@@ -42,12 +44,16 @@ export function KaraokePlayer({ song }: { song: Song }) {
   const [playing, setPlaying] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [finished, setFinished] = useState(false);
+  // 跟唱评分（T5C.5）：ASR 接入，及格线比跟读放宽 10 分
+  const pr = usePronunciationCheck();
+  const [singScore, setSingScore] = useState<{ line: number; score: number } | null>(null);
   const taskRecordedRef = useRef(false);
   const audioTimeRef = useRef<HTMLAudioElement | null>(null);
   const langModeRef = useRef<KaraokeLang>(langMode);
   const singAlongRef = useRef(singAlong);
 
   const speechRate = state?.settings.speechRate ?? 0.9;
+  const level = state?.profile.level ?? "L3";
   langModeRef.current = langMode;
   singAlongRef.current = singAlong;
 
@@ -111,7 +117,7 @@ export function KaraokePlayer({ song }: { song: Song }) {
         }
 
         if (singAlongRef.current) {
-          // 跟我唱：3 秒倒计时（PRD §7.4.3，评分版 Phase 5C 接入）
+          // 跟我唱：3 秒倒计时（PRD §7.4.3，评分版 T5C.5）
           for (let c = 3; c >= 1; c--) {
             if (speechGeneration() !== gen) return;
             setCountdown(c);
@@ -119,6 +125,16 @@ export function KaraokePlayer({ song }: { song: Song }) {
           }
           if (speechGeneration() !== gen) return;
           setCountdown(null);
+          // 跟唱评分：启动 ASR 识别当前句
+          if (pr.asrSupported) {
+            pr.start(song.lines[i].fr, "fr", level, (r, passed) => {
+              setSingScore({ line: i, score: r.score });
+              playSfx(passed ? "correct" : "encourage");
+            });
+            // 等待评分完成（最长 5s）
+            await pause(5000);
+          }
+          if (speechGeneration() !== gen) return;
         } else {
           await pause(800); // 句间停顿（PRD §7.4.2）
         }

@@ -25,18 +25,58 @@ import {
   type LogicKind,
   type LogicQuestion,
 } from "./logicEngine";
-import { expandDailyMix, type Level, type Subject } from "./levels";
+import { expandDailyMix, getOptionCount, type Level, type Subject } from "./levels";
 import { stageKindsForLevel } from "./mathCurriculum";
 import { matchesLevel, type AlphabetCard, type Word } from "./contentTypes";
 import type { Sentence } from "./parser";
 import { buildSpellingPool, type SpellingWord } from "./spelling";
-import type { QuizQuestion } from "./workspace";
+import type { QuizMode, QuizQuestion } from "./workspace";
 
 export type DailyItem =
   | { subject: "language"; mode: "lang"; q: QuizQuestion }
   | { subject: "language"; mode: "spell"; word: SpellingWord }
+  | {
+      subject: "language";
+      mode: "listenPick";
+      word: Word;
+      options: Word[];
+      correctIndex: number;
+    }
   | { subject: "math"; mode: "math"; q: MathQuestion }
   | { subject: "logic"; mode: "logic"; q: LogicQuestion };
+
+/**
+ * 听音选图（PRD §7.6.3 / F39，Phase 5A T5A.2）：
+ * 播放法语词 → 从 optionCount（学段驱动 2/3/4）个 emoji 卡中选出；
+ * 干扰项 emoji 互异且不同于正确项；词池不足时返回 null（回退语言题）。
+ */
+export function generateListenPick(
+  wordPool: Word[],
+  optionCount: number,
+  rng: Rng
+): { word: Word; options: Word[]; correctIndex: number } | null {
+  if (wordPool.length < optionCount) return null;
+  const word = wordPool[rngInt(rng, wordPool.length)];
+  const candidates = wordPool.filter(
+    (w) => w.id !== word.id && !!w.emoji && w.emoji !== word.emoji
+  );
+  const opts: Word[] = [word];
+  const usedEmoji = new Set<string>([word.emoji]);
+  const shuffled = seededShuffle(candidates, rng);
+  for (const cand of shuffled) {
+    if (opts.length >= optionCount) break;
+    if (usedEmoji.has(cand.emoji)) continue;
+    usedEmoji.add(cand.emoji);
+    opts.push(cand);
+  }
+  if (opts.length < optionCount) return null;
+  const options = seededShuffle(opts, rng);
+  const correctIndex = Math.max(
+    0,
+    options.findIndex((w) => w.id === word.id)
+  );
+  return { word, options, correctIndex };
+}
 
 function rngInt(rng: Rng, n: number): number {
   return Math.floor(rng() * n);
@@ -118,9 +158,20 @@ export function generateDailyChallenge(params: {
     queues.language.push(() => ({ subject: "language", mode: "spell", word: spellWord }));
   }
   const langTotal = mix.filter((s) => s === "language").length;
+  const optionCount = getOptionCount(level);
+  // 听音选图：L1–L3 占比更高（每 2 道语言题 1 道），L4+ 每 3 道 1 道（PRD §7.6.3）
+  const listenPickEvery = level === "L1" || level === "L2" || level === "L3" ? 2 : 3;
+  const wordPool = params.words.filter(
+    (w) => matchesLevel(w.level, level) && !!w.emoji
+  );
   for (let i = 0; i < langTotal; i++) {
-    const mode = i % 2 === 0 ? "choice" : "listen";
+    const useListenPick = wordPool.length >= optionCount && i % listenPickEvery === 1;
     queues.language.push(() => {
+      if (useListenPick) {
+        const lp = generateListenPick(wordPool, optionCount, rng);
+        if (lp) return { subject: "language", mode: "listenPick", ...lp };
+      }
+      const mode = i % 2 === 0 ? "choice" : "listen";
       const q = generateLangQuestion(langPool, mode, rng);
       return q ? { subject: "language", mode: "lang", q } : null;
     });
@@ -181,6 +232,8 @@ export function isDailyCorrect(item: DailyItem, a: DailyAnswer): boolean {
   switch (item.mode) {
     case "lang":
       return a.choice !== null && a.choice !== undefined && a.choice === item.q.correctIndex;
+    case "listenPick":
+      return a.choice !== null && a.choice !== undefined && a.choice === item.correctIndex;
     case "math":
       return (
         a.text !== null &&
@@ -209,6 +262,24 @@ export function dailyItemToQuizQuestion(
   switch (item.mode) {
     case "lang": {
       return { ...item.q, userIndex: a.choice ?? null, subject: "language" };
+    }
+    case "listenPick": {
+      // 选项以中文标签进错题本（「你的答案/正确答案」可读），kind 标记听音选图
+      const options = item.options.map((w) => w.zh);
+      const choice = a.choice ?? null;
+      const correct = choice !== null && choice === item.correctIndex;
+      return {
+        fr: item.word.fr,
+        en: item.word.en,
+        zh: item.word.zh,
+        options,
+        correctIndex: item.correctIndex,
+        userIndex: choice !== null && choice >= 0 ? choice : null,
+        explanation: `听音选图：${item.word.zh}（${item.word.en} / ${item.word.fr}）`,
+        mode: "listen" as QuizMode,
+        subject: "language",
+        kind: "listenPick",
+      };
     }
     case "math": {
       return toChoiceQuizQuestion(item.q, rng, a.text ?? null);

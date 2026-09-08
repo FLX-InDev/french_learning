@@ -5,6 +5,7 @@ import { useAppState } from "@/components/AppStateProvider";
 import { MathQuestionCard } from "@/components/MathQuestionCard";
 import { KeypadInput } from "@/components/KeypadInput";
 import { SpellingAttempt } from "@/components/SpellingBoard";
+import { ListenPickQuizCard } from "@/components/ListenPickQuizCard";
 import { Mascot } from "@/components/Mascot";
 import { Confetti, useConfetti } from "@/components/Confetti";
 import { PopIn, StarReveal } from "@/components/celebrate";
@@ -21,6 +22,7 @@ import {
 import { getLevelConfig } from "@/lib/levels";
 import {
   addPoints,
+  sessionDurationMin,
   settleLevelStars,
   starsForAccuracy,
   todayStr,
@@ -59,6 +61,8 @@ export function DailyChallenge({
   // 即时反馈（P-4：答对 ≤300ms 动效+音效；答错不打叉，引导重试）
   const [feedback, setFeedback] = useState<null | "correct" | "wrong">(null);
   const feedbackTimer = useRef<number | null>(null);
+  // 真实计时（F52/BUG-3）：挑战开始时间戳
+  const startedAtRef = useRef(Date.now());
   const confetti = useConfetti();
 
   const level = state?.profile.level ?? "L3";
@@ -87,6 +91,7 @@ export function DailyChallenge({
 
   function openChallenge() {
     configureSpeech(speechRate);
+    startedAtRef.current = Date.now();
     setIndex(0);
     setAnswers(items.map(() => ({})));
     setRevealed(false);
@@ -140,7 +145,7 @@ export function DailyChallenge({
     const session: StudySession = {
       id: `s_daily_${today}`,
       date: today,
-      durationMin: 8,
+      durationMin: sessionDurationMin(startedAtRef.current),
       contentRef: { type: "mixed", title: `每日挑战 · ${today}` },
       quiz: { title: `每日挑战 · ${today}`, questions },
       reviewed: false,
@@ -169,7 +174,7 @@ export function DailyChallenge({
     !!item &&
     (item.mode === "spell"
       ? answer?.correct !== undefined
-      : item.mode === "lang"
+      : item.mode === "lang" || item.mode === "listenPick"
       ? answer?.choice != null
       : answer?.text != null && answer.text !== "");
 
@@ -337,6 +342,17 @@ function DailyItemView({
         <p className="text-xs text-gray-400 mb-2">把单词拼出来（点选字母瓦片）</p>
         <SpellingAttempt word={item.word} compact onResult={onSpell} />
       </div>
+    );
+  }
+
+  if (item.mode === "listenPick") {
+    return (
+      <ListenPickQuizCard
+        word={item.word}
+        options={item.options}
+        selected={answer.choice ?? null}
+        onSelect={(i) => onChoice(i)}
+      />
     );
   }
 

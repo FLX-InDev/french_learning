@@ -3,6 +3,7 @@
 *中英法三语对照（按主题整理）*
 
 ## 应对欺负
+- scene: 游戏时间
 
 - zh: 别再推我了, 我不喜欢！
 - en: Stop pushing me, I don't like it!
@@ -65,6 +66,7 @@
 - fr: Ce que tu fais, ce n'est pas bien !
 
 ## 处理冲突
+- scene: 游戏时间
 
 - zh: 我们可以一起解决这个问题。
 - en: We can solve this problem together.
@@ -127,6 +129,7 @@
 - fr: Se disputer ne résout rien.
 
 ## 与同伴合作
+- scene: 游戏时间
 
 - zh: 我们一起建一个城堡吧！
 - en: Let's build a castle together!
@@ -189,6 +192,7 @@
 - fr: Réfléchissons ensemble.
 
 ## 表达不满或反对
+- scene: 游戏时间
 
 - zh: 我不喜欢你这样做！
 - en: I don't like it when you do that!
@@ -251,6 +255,7 @@
 - fr: Je déteste ça !
 
 ## 寻求帮助
+- scene: 上课
 
 - zh: 你能帮帮我吗？
 - en: Can you help me?
@@ -293,6 +298,7 @@
 - fr: J'ai besoin que quelqu'un m'aide.
 
 ## 安慰他人
+- scene: 游戏时间
 
 - zh: 别哭，没事的。
 - en: Don't cry, it's okay.
@@ -335,6 +341,7 @@
 - fr: Je vais te protéger.
 
 ## 协商与妥协
+- scene: 游戏时间
 
 - zh: 我们可以轮流玩这个玩具。
 - en: We can take turns with this toy.
@@ -377,6 +384,7 @@
 - fr: Faisons des concessions tous les deux.
 
 ## 解释原因
+- scene: 上课
 
 - zh: 我不是故意的，这是意外。
 - en: I didn't mean to, it was an accident.
@@ -419,6 +427,7 @@
 - fr: Je promets que ça ne se reproduira plus.
 
 ## 喜悦
+- scene: 晨圈
 
 - zh: 我太开心了！
 - en: I'm so happy!
@@ -461,6 +470,7 @@
 - fr: Je suis trop fier/fière !
 
 ## 悲伤
+- scene: 晨圈
 
 - zh: 我很难过。
 - en: I'm sad.
@@ -503,6 +513,7 @@
 - fr: Je veux juste que quelqu'un soit avec moi.
 
 ## 愤怒
+- scene: 晨圈
 
 - zh: 我很生气！
 - en: I'm angry!
@@ -545,6 +556,7 @@
 - fr: Tu me rends fou/folle !
 
 ## 恐惧
+- scene: 晨圈
 
 - zh: 我害怕。
 - en: I'm scared.
@@ -587,6 +599,7 @@
 - fr: J'ai peur qu'on se moque de moi.
 
 ## 焦虑
+- scene: 晨圈
 
 - zh: 我很焦虑。
 - en: I'm anxious.
@@ -629,6 +642,7 @@
 - fr: J'ai peur d'être critiqué(e).
 
 ## 惊讶
+- scene: 晨圈
 
 - zh: 哇！太棒了！
 - en: Wow! That's amazing!
@@ -671,6 +685,7 @@
 - fr: C'est magique !
 
 ## 羞愧
+- scene: 晨圈
 
 - zh: 我感到羞愧。
 - en: I feel ashamed.
@@ -713,6 +728,7 @@
 - fr: J'ai trop honte.
 
 ## 好奇
+- scene: 晨圈
 
 - zh: 这是怎么一回事？
 - en: What's going on?
@@ -755,6 +771,7 @@
 - fr: J'ai une question.
 
 ## 无聊
+- scene: 游戏时间
 
 - zh: 我无聊。
 - en: I'm bored.
@@ -797,6 +814,7 @@
 - fr: Je m'endors.
 
 ## 其他情绪
+- scene: 晨圈
 
 - zh: 我感到失望。
 - en: I feel disappointed.
@@ -839,6 +857,7 @@
 - fr: J'ai besoin de calme.
 
 ## 描述动作
+- scene: 上课
 
 - zh: 我正在画画。
 - en: I'm drawing.
@@ -881,6 +900,7 @@
 - fr: Je regarde la télé.
 
 ## 描述状态
+- scene: 上课
 
 - zh: 我累了。
 - en: I'm tired.
@@ -923,6 +943,7 @@
 - fr: Je m'ennuie.
 
 ## 提问
+- scene: 上课
 
 - zh: 你叫什么名字？
 - en: What's your name?
@@ -965,6 +986,7 @@
 - fr: Je peux emprunter ton stylo ?
 
 ## 表达需求
+- scene: 上课
 
 - zh: 我要喝水。
 - en: I want to drink water.
@@ -1007,6 +1029,7 @@
 - fr: Je veux plus.
 
 ## 表达意见
+- scene: 上课
 
 - zh: 我喜欢这个。
 - en: I like this.
@@ -1049,6 +1072,7 @@
 - fr: C'est ennuyeux !
 
 ## 讲述事件
+- scene: 晨圈
 
 - zh: 我今天去了公园。
 - en: I went to the park today.
@@ -1091,6 +1115,7 @@
 - fr: J'ai été content(e) aujourd'hui.
 
 ## 描述物体
+- scene: 上课
 
 - zh: 这个球是红色的。
 - en: This ball is red.
@@ -1133,6 +1158,7 @@
 - fr: C'est neuf.
 
 ## 表达感受
+- scene: 晨圈
 
 - zh: 我今天很开心。
 - en: I'm happy today.
@@ -1175,6 +1201,7 @@
 - fr: Je me sens fatigué(e).
 
 ## 社交互动
+- scene: 入园问候
 
 - zh: 我们一起玩吧！
 - en: Let's play together!
@@ -1217,6 +1244,7 @@
 - fr: Je suis désolé(e).
 
 ## 解决问题
+- scene: 游戏时间
 
 - zh: 我们可以一起解决。
 - en: We can solve it together.

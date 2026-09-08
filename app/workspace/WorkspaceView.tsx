@@ -32,6 +32,7 @@ import {
   importBackup,
   mdLabel,
   quizResult,
+  sessionDurationMin,
   shuffle,
   todayStr,
   REWARDS,
@@ -62,6 +63,8 @@ import { LiveQuizModal } from "@/components/workspace/LiveQuizModal";
 import { QuizModal } from "@/components/workspace/QuizModal";
 import { StatCard } from "@/components/workspace/StatCard";
 import { TodayResult } from "@/components/workspace/TodayResult";
+import { MascotPen, BadgeWall, DailyQuestList } from "@/components/growth/GrowthView";
+import { SubjectStats } from "@/components/growth/ProgressView";
 
 export default function WorkspaceView({
   stories,
@@ -98,6 +101,8 @@ export default function WorkspaceView({
     total: number;
   } | null>(null);
   const [liveReview, setLiveReview] = useState(false);
+  // 真实计时（F52/BUG-3）：会话开始时间戳，提交时换算分钟
+  const [liveStartedAt, setLiveStartedAt] = useState<number>(() => Date.now());
   // 错题本学科过滤（all / language / math / logic）
   const [mistakeFilter, setMistakeFilter] = useState<"all" | Subject>("all");
   // 全局语速：家长中心设置（0.75 慢速 / 0.9 正常），TTS 双轨同步生效
@@ -258,6 +263,7 @@ export default function WorkspaceView({
     return playText(text, "fr");
   }
   function startLiveQuiz() {
+    setLiveStartedAt(Date.now());
     if (liveMode === "speak") {
       if (!asrSupported) return;
       const qs = generateSpeakQuiz(pool, 4);
@@ -283,6 +289,7 @@ export default function WorkspaceView({
   }
   function startReview() {
     if (visibleMistakes.length === 0) return;
+    setLiveStartedAt(Date.now());
     const lvl = ws?.profile.level ?? "L3";
     const t = todayStr();
 
@@ -393,7 +400,7 @@ export default function WorkspaceView({
     const newSession: StudySession = {
       id: "s_live_" + t,
       date: t,
-      durationMin: 8,
+      durationMin: sessionDurationMin(liveStartedAt),
       contentRef: {
         type: "mixed",
         title: crTitle,
@@ -523,7 +530,7 @@ export default function WorkspaceView({
     const newSession: StudySession = {
       id: "s_live_" + t + "_speak",
       date: t,
-      durationMin: 8,
+      durationMin: sessionDurationMin(liveStartedAt),
       contentRef: { type: "mixed", title: "跟读打分小测验" },
       quiz: {
         title: "跟读 · " + t,
@@ -1104,6 +1111,20 @@ export default function WorkspaceView({
               ))}
           </div>
         </div>
+      </section>
+
+      {/* Phase 5D：吉祥物养成 + 成就勋章 + 每日任务（T5D.1-3） */}
+      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">🦊 成长中心</h2>
+        <MascotPen />
+        <div className="mt-4"><h3 className="text-sm font-semibold text-gray-500 mb-2">🏅 成就勋章</h3><BadgeWall /></div>
+        <div className="mt-4"><h3 className="text-sm font-semibold text-gray-500 mb-2">📋 每日任务</h3><DailyQuestList /></div>
+      </section>
+
+      {/* Phase 5D：分学科统计（T5D.5） */}
+      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">📊 分学科统计</h2>
+        <SubjectStats sessions={ws.sessions} />
       </section>
 
       {/* 数据备份 */}

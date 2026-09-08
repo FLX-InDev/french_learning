@@ -309,3 +309,71 @@ describe("dailyItemToQuizQuestion（错题本桥接）", () => {
     expect(normalizeAnswer(" 3 : 30 ")).toBe("3:30");
   });
 });
+
+// ── Phase 5A：listenPick（PRD §7.6.3 / F39）───────────────────────
+describe("listenPick（听音选图）", () => {
+  // 补充词卡池（使 L2 有足够的 emoji 词触发 listenPick）
+  const LP_WORDS: Word[] = [
+    WORDS[0], // chat L2 🐱
+    { id: "w_lp1", level: "L2", category: "动物", emoji: "🐶", zh: "狗", en: "dog", fr: "chien" },
+    { id: "w_lp2", level: "L2", category: "动物", emoji: "🐰", zh: "兔", en: "rabbit", fr: "lapin" },
+    { id: "w_lp3", level: "L2", category: "动物", emoji: "🐻", zh: "熊", en: "bear", fr: "ours" },
+    { id: "w_lp4", level: "L2", category: "水果", emoji: "🍎", zh: "苹果", en: "apple", fr: "pomme" },
+    { id: "w_lp5", level: "L2", category: "水果", emoji: "🍌", zh: "香蕉", en: "banana", fr: "banane" },
+  ];
+
+  it("L2（optionCount=3）每日挑战含 listenPick 题", () => {
+    const items = generateDailyChallenge({
+      level: "L2", date: "2026-09-09", pool: POOL, words: LP_WORDS, alphabets: ALPHABETS,
+    });
+    const lp = items.filter((it) => it.mode === "listenPick");
+    expect(lp.length).toBeGreaterThan(0);
+    lp.forEach((it) => {
+      if (it.mode !== "listenPick") return;
+      expect(it.options).toHaveLength(3);
+      expect(new Set(it.options.map((w) => w.emoji)).size).toBe(3);
+      expect(it.options.some((w) => w.id === it.word.id)).toBe(true);
+      expect(it.correctIndex).toBe(it.options.findIndex((w) => w.id === it.word.id));
+    });
+    // 总题数不变（listenPick 占用语言名额）
+    expect(items).toHaveLength(6);
+  });
+
+  it("L1（optionCount=2）每日挑战遇到词池不足时回退语言题", () => {
+    const items = generateDailyChallenge({
+      level: "L1", date: "2026-09-09", pool: POOL, words: WORDS, alphabets: ALPHABETS,
+    });
+    // L1 词池 emoji 词不足 → listenPick 不触发，全部语言题
+    expect(items.every((it) => it.mode === "lang")).toBe(true);
+  });
+
+  it("isDailyCorrect：choice 与 correctIndex 比对", () => {
+    const items = generateDailyChallenge({
+      level: "L2", date: "2026-09-09", pool: POOL, words: LP_WORDS, alphabets: ALPHABETS,
+    });
+    const lp = items.find((it) => it.mode === "listenPick");
+    expect(lp).toBeDefined();
+    if (lp && lp.mode === "listenPick") {
+      expect(isDailyCorrect(lp, { choice: lp.correctIndex })).toBe(true);
+      const wrong = (lp.correctIndex + 1) % lp.options.length;
+      expect(isDailyCorrect(lp, { choice: wrong })).toBe(false);
+    }
+  });
+
+  it("dailyItemToQuizQuestion：subject language / kind listenPick / 选项为中文标签", () => {
+    const items = generateDailyChallenge({
+      level: "L2", date: "2026-09-09", pool: POOL, words: LP_WORDS, alphabets: ALPHABETS,
+    });
+    const lp = items.find((it) => it.mode === "listenPick");
+    if (lp && lp.mode === "listenPick") {
+      const rng = mulberry32(seedFromString("settle"));
+      const q = dailyItemToQuizQuestion(lp, { choice: lp.correctIndex }, rng);
+      expect(q.subject).toBe("language");
+      expect(q.kind).toBe("listenPick");
+      expect(q.options).toHaveLength(lp.options.length);
+      // 选项为中文标签
+      expect(q.options.every((o) => typeof o === "string")).toBe(true);
+      expect(q.userIndex).toBe(q.correctIndex);
+    }
+  });
+});

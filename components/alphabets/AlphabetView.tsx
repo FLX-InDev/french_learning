@@ -204,6 +204,16 @@ export function AlphabetView({
                     },
                   }));
                 }}
+                onSpoken={() => {
+                  // 例词跟读及格（T5A.3）：记 wordProgress spoken（只升不降）
+                  update?.((s) => ({
+                    ...s,
+                    wordProgress: {
+                      ...s.wordProgress,
+                      [`alpha_${openCard.id}`]: "spoken",
+                    },
+                  }));
+                }}
                 onClose={() => setOpenId(null)}
               />
             </PopIn>

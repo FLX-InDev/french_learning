@@ -20,6 +20,26 @@ import { loadVoicesReady, pickBestVoice } from "./webSpeechVoice";
 
 type Provider = "webspeech" | "backend";
 
+/**
+ * 对话角色语音（Phase 5B T5B.1，PRD §7.9.2 / §10.3 双角色 TTS 音色区分）：
+ * A = 老师/大人（首选神经语音），B = 孩子（换用另一音色，避免同一声音自问自答）。
+ * 后端 read-aloud-sf 用第二套 Cloudflare 神经语音名；浏览器回退用次选偏好语音。
+ */
+export type VoiceRole = "A" | "B";
+
+const ROLE_CF_VOICES: Record<VoiceRole, Record<Language, string>> = {
+  A: {
+    zh: "zh-CN-YunxiNeural",
+    en: "en-US-JennyNeural",
+    fr: "fr-FR-DeniseNeural",
+  },
+  B: {
+    zh: "zh-CN-XiaoxiaoNeural",
+    en: "en-US-GuyNeural",
+    fr: "fr-FR-HenriNeural",
+  },
+};
+
 let providerCache: Provider | null = null;
 let providerFetching: Promise<Provider> | null = null;
 let speechRate: number = NORMAL_SPEECH_RATE;
@@ -78,9 +98,14 @@ export function cancelSpeech(): void {
 /**
  * 朗读一段文本，Promise 在播放完成（或取消/出错）后 resolve。
  * 不改变 generation（编排循环的安全原语）。
+ * voiceRole 用于对话双角色音色区分（缺省 A = 首选语音）。
  * 后端请求失败自动回退浏览器语音，不抛错（健壮性：TTS 失败不阻塞）。
  */
-export async function speak(text: string, lang: Language): Promise<void> {
+export async function speak(
+  text: string,
+  lang: Language,
+  voiceRole: VoiceRole = "A"
+): Promise<void> {
   stopCurrentOnly();
   const gen = generation;
 
@@ -94,7 +119,7 @@ export async function speak(text: string, lang: Language): Promise<void> {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           text,
-          voice: VOICE_CONFIG[lang].cfVoice,
+          voice: ROLE_CF_VOICES[voiceRole][lang],
           rate: speechRate,
         }),
       });
@@ -110,7 +135,7 @@ export async function speak(text: string, lang: Language): Promise<void> {
     }
   }
   if (gen !== generation) return;
-  await speakWebSpeech(text, lang, gen);
+  await speakWebSpeech(text, lang, gen, voiceRole);
 }
 
 /** 播放一段音频 URL（卡拉OK audio 字段预留路径也走这里）；end/error/pause 均视为结束 */
@@ -138,7 +163,12 @@ export function playAudioUrl(url: string, gen: number = generation): Promise<voi
   });
 }
 
-function speakWebSpeech(text: string, lang: Language, gen: number): Promise<void> {
+function speakWebSpeech(
+  text: string,
+  lang: Language,
+  gen: number,
+  voiceRole: VoiceRole = "A"
+): Promise<void> {
   return new Promise((resolve) => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
       resolve();
@@ -152,7 +182,17 @@ function speakWebSpeech(text: string, lang: Language, gen: number): Promise<void
       const u = new SpeechSynthesisUtterance(text);
       u.lang = VOICE_CONFIG[lang].lang;
       u.rate = utteranceRate(lang, speechRate);
-      const best = pickBestVoice(voices, VOICE_CONFIG[lang].lang, lang);
+      let best = pickBestVoice(voices, VOICE_CONFIG[lang].lang, lang);
+      if (voiceRole === "B" && best) {
+        // 孩子角色：避开 A 选中的音色，取同语言下一个候选
+        const others = voices.filter(
+          (v) =>
+            (lang === "fr" ? v.lang === "fr-FR" : v.lang.startsWith(VOICE_CONFIG[lang].lang)) &&
+            v.name !== best!.name
+        );
+        const alt = pickBestVoice(others, VOICE_CONFIG[lang].lang, lang);
+        if (alt) best = alt;
+      }
       if (best) u.voice = best;
       const done = () => resolve();
       u.onend = done;

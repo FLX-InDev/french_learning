@@ -20,6 +20,7 @@ import {
   migrateV1toV2,
   quizResult,
   remainingSec,
+  sessionDurationMin,
   settleLevelStars,
   starsForAccuracy,
   shuffle,
@@ -515,5 +516,51 @@ describe("Phase 3 状态字段", () => {
     const bloated = { ...s, misspelled: Array.from({ length: 30 }, (_, i) => `w${i}`) };
     const migrated = migrateV1toV2(bloated);
     expect(migrated?.misspelled).toHaveLength(20);
+  });
+});
+
+// ── Phase 5A：词卡 500 内容校验（C3）───────────────────────────────
+import { getAllWords } from "./parser";
+import type { Word } from "./contentTypes";
+
+describe("C3 词卡内容（500 词 + 学段分布）", () => {
+  it("总词数 = 500，学段分布符合 §6.10 规划", () => {
+    const words = getAllWords();
+    expect(words).toHaveLength(500);
+    const counts: Record<string, number> = {};
+    words.forEach((w) => {
+      const lvl = w.level ?? "unknown";
+      counts[lvl] = (counts[lvl] || 0) + 1;
+    });
+    expect(counts.L1 ?? 0).toBe(40);
+    expect(counts.L2 ?? 0).toBe(80);
+    expect(counts.L3 ?? 0).toBe(100);
+    expect(counts.L4 ?? 0).toBe(100);
+    expect(counts.L5 ?? 0).toBe(120);
+    expect(counts.L6 ?? 0).toBe(60);
+  });
+
+  it("每个词三语齐全、有 emoji 与分类", () => {
+    const words = getAllWords();
+    words.forEach((w) => {
+      expect(w.zh).toBeTruthy();
+      expect(w.en).toBeTruthy();
+      expect(w.fr).toBeTruthy();
+      expect(w.emoji).toBeTruthy();
+      expect(w.category).toBeTruthy();
+    });
+  });
+});
+
+// ── Phase 5B：sessionDurationMin（BUG-3 真实计时）───────────────
+describe("sessionDurationMin", () => {
+  it("≥ 1 分钟，≤ 60 分钟", () => {
+    expect(sessionDurationMin(Date.now() - 30000)).toBe(1);
+    expect(sessionDurationMin(Date.now() - 3600000)).toBe(60);
+    expect(sessionDurationMin(Date.now() - 7200000)).toBe(60);
+  });
+  it("非法值返回 1", () => {
+    expect(sessionDurationMin(Infinity)).toBe(1);
+    expect(sessionDurationMin(Date.now() + 10000)).toBe(1);
   });
 });

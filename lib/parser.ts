@@ -37,6 +37,8 @@ export interface Sentence {
   level?: Level | null;
   /** v2 新增：主题（sentences 的 `##` 标题或 `- category:`） */
   category?: string;
+  /** v2 新增（Phase 5B）：幼儿园场景（`- scene:` 组级或条目级），对应 /life 10 节点 */
+  scene?: string;
 }
 
 export interface Story {
@@ -466,6 +468,7 @@ export function parseSentencesFromFile(filepath: string): Sentence[] {
         fr: it.fr,
         level: parseLevel(it.meta.level),
         category: it.meta.category || g.heading || "",
+        scene: it.meta.scene || g.meta.scene || undefined,
       });
     }
   }

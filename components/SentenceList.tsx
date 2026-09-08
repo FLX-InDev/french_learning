@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useAppState } from "@/components/AppStateProvider";
 import PlayButton from "@/components/PlayButton";
 import { usePlaylist, type LangMode } from "@/components/usePlaylist";
@@ -12,16 +12,29 @@ import type { Language } from "@/lib/voiceConfig";
  * 句子列表（软切换：按 AppState.profile.level 即时过滤，无需重载页面）
  * 保留 v1 的三语点读能力，并新增「连播」（PRD §7.2.3，Dev-Plan T3.6）：
  * 逐句顺序播放、当前句高亮、点击任意句跳转、再次点击停止。
+ * Phase 5B T5B.4：新增场景过滤（scene 标注，对应 /life 10 节点）。
  */
 export function SentenceList({ sentences }: { sentences: Sentence[] }) {
   const { state } = useAppState();
   const level = state?.profile.level ?? "L3";
   const hidden = state?.settings.hiddenContent ?? [];
   const speechRate = state?.settings.speechRate ?? 0.9;
+  const [sceneFilter, setSceneFilter] = useState<string>("");
+
+  // 场景列表（去重，排序）
+  const scenes = useMemo(() => {
+    const s = new Set(sentences.map((x) => x.scene).filter(Boolean) as string[]);
+    return Array.from(s).sort();
+  }, [sentences]);
 
   const list = useMemo(
-    () => sentences.filter((s) => matchesLevel(s.level, level)),
-    [sentences, level]
+    () =>
+      sentences.filter(
+        (s) =>
+          matchesLevel(s.level, level) &&
+          (!sceneFilter || s.scene === sceneFilter)
+      ),
+    [sentences, level, sceneFilter]
   );
 
   const buildItems = useCallback(
@@ -59,6 +72,36 @@ export function SentenceList({ sentences }: { sentences: Sentence[] }) {
         <div className="text-sm text-gray-500">
           当前学段可见 {list.length} / {sentences.length} 句
         </div>
+        {/* 场景过滤 chips（T5B.4） */}
+        {scenes.length > 0 && (
+          <div className="flex gap-1.5 flex-wrap">
+            <button
+              onClick={() => setSceneFilter("")}
+              aria-pressed={!sceneFilter}
+              className={
+                "text-[11px] px-2 py-1 rounded-full font-semibold transition min-h-[32px] " +
+                (!sceneFilter ? "bg-purple-600 text-white" : "bg-purple-50 text-purple-600")
+              }
+            >
+              全部
+            </button>
+            {scenes.map((s) => (
+              <button
+                key={s}
+                onClick={() => setSceneFilter((v) => (v === s ? "" : s))}
+                aria-pressed={sceneFilter === s}
+                className={
+                  "text-[11px] px-2 py-1 rounded-full font-semibold transition min-h-[32px] " +
+                  (sceneFilter === s
+                    ? "bg-purple-600 text-white"
+                    : "bg-purple-50 text-purple-600")
+                }
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
         {/* 连播控制（T3.6） */}
         <div className="flex items-center gap-2">
           <div className="flex rounded-full bg-purple-50 p-0.5" role="group" aria-label="连播语言模式">

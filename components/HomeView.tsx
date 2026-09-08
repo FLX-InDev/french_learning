@@ -43,9 +43,9 @@ const ENTRIES: {
     key: "word",
     emoji: "🃏",
     name: "词汇",
-    desc: "图鉴 · 闪卡",
+    desc: "图鉴 · 闪卡 · 跟读",
     href: "/words",
-    ready: false, // Phase 5A
+    ready: true, // Phase 5A 上线
     dependsOn: ["word"],
   },
   {

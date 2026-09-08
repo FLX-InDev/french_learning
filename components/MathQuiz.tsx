@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAppState } from "./AppStateProvider";
 import { MathQuestionCard, DecompositionSteps } from "./MathQuestionCard";
 import { KeypadInput } from "./KeypadInput";
@@ -19,6 +19,7 @@ import {
 } from "@/lib/mathGenerator";
 import {
   addPoints,
+  sessionDurationMin,
   settleLevelStars,
   starsForAccuracy,
   todayStr,
@@ -50,9 +51,17 @@ export function MathQuiz({
   const [answers, setAnswers] = useState<(string | null)[]>([]);
   const [finished, setFinished] = useState<null | { stars: number; gained: number; acc: number }>(null);
   const [showDecomp, setShowDecomp] = useState(false);
+  // 真实计时（F52/BUG-3）：关卡开始时间戳
+  const startedAtRef = useRef(Date.now());
   // 答错引导：短暂显示正确答案后再进入下一题（P-4：不打叉，用引导代替）
   const [wrongHint, setWrongHint] = useState<string | null>(null);
   const confetti = useConfetti();
+
+  // 重刷时重置计时起点（finished 回到 null 即新一轮）
+  useEffect(() => {
+    if (!finished) startedAtRef.current = Date.now();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finished === null]);
 
   // 通关：levelup 音效 + 撒花（触发矩阵同步）
   useEffect(() => {
@@ -138,7 +147,7 @@ export function MathQuiz({
         const session: StudySession = {
           id: `s_math_${stageId}_${today}`,
           date: today,
-          durationMin: 8,
+          durationMin: sessionDurationMin(startedAtRef.current),
           contentRef: { type: "mixed", title: `数学 · ${group.title.zh} · ${stage.title.zh}` },
           quiz: {
             title: `${stage.title.zh} · ${today}`,

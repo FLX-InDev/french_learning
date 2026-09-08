@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useAppState } from "./AppStateProvider";
 import { LevelPicker } from "./LevelPicker";
 import { ParentGate } from "./ParentGate";
+import { WeeklyReport } from "./growth/ProgressView";
 import { CONTENT_META, type ContentType } from "@/lib/contentTypes";
 import { levelLabel, type Level } from "@/lib/levels";
 import {
@@ -290,6 +291,21 @@ export function ParentsCenter({
             清空全部数据
           </button>
         </div>
+      </section>
+
+      {/* 入园倒计时（T5B.6 P2 占位） */}
+      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 opacity-60">
+        <h2 className="text-xl font-bold text-gray-800 mb-1">📅 入园倒计时计划</h2>
+        <p className="text-xs text-gray-500 mb-3">
+          每天推荐 1 个场景 + 1 首相关儿歌，帮助孩子提前适应幼儿园（即将上线）。
+        </p>
+        <div className="text-sm text-gray-400 italic">该功能将在后续版本中开放。</div>
+      </section>
+
+      {/* 每周学习报告（T5D.4） */}
+      <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+        <h2 className="text-xl font-bold text-gray-800 mb-3">📊 每周学习报告</h2>
+        <WeeklyReport />
       </section>
 
       {/* 学段切换确认弹窗 */}

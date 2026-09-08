@@ -287,3 +287,21 @@ describe("分组解析细节", () => {
     expect(g.items[0].role).toBe("A");
   });
 });
+
+// ── Phase 5B：Sentence scene 解析（T5B.4）────────────────────────
+describe("Sentence scene 字段", () => {
+  it("getAllSentences 中部分句子带 scene（标注后 ≥ 0 条）", () => {
+    const sentences = getAllSentences();
+    const withScene = sentences.filter((s) => !!s.scene);
+    expect(withScene.length).toBeGreaterThan(0);
+    expect(withScene.every((s) => typeof s.scene === "string")).toBe(true);
+  });
+  it("getAllDialogues 返回 20 组对话且均有 scene", () => {
+    const ds = getAllDialogues();
+    expect(ds.length).toBe(20);
+    ds.forEach((d) => {
+      expect(d.scene).toBeTruthy();
+      expect(d.turns.length).toBeGreaterThanOrEqual(4);
+    });
+  });
+});
