@@ -33,7 +33,7 @@ export const BADGES: Badge[] = [
 ];
 
 function computeStreak(checkins: string[]): number {
-  let d = new Date(); const today = d.toISOString().slice(0, 10);
+  const d = new Date(); const today = d.toISOString().slice(0, 10);
   if (!checkins.includes(today)) d.setDate(d.getDate() - 1);
   let s = 0; while (checkins.includes(d.toISOString().slice(0, 10))) { s++; d.setDate(d.getDate() - 1); } return s;
 }

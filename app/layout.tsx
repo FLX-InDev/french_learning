@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import "./globals.css";
 import { AppStateProvider } from "@/components/AppStateProvider";
 import { Onboarding } from "@/components/Onboarding";
@@ -25,61 +26,61 @@ export default function RootLayout({
           {/* Navigation */}
           <nav className="sticky top-0 z-50 backdrop-blur-md bg-white/70 border-b border-purple-100 shadow-sm">
             <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-              <a
+              <Link
                 href="/"
                 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent hover:opacity-80 transition-opacity"
               >
                 🇫🇷 法语宝宝学
-              </a>
+              </Link>
               <div className="flex gap-2 text-sm font-medium">
-                <a
+                <Link
                   href="/sentences"
                   className="text-gray-600 hover:text-purple-600 transition-colors px-3 py-1.5 rounded-full hover:bg-purple-50"
                 >
                   📝 句子
-                </a>
-                <a
+                </Link>
+                <Link
                   href="/stories"
                   className="text-gray-600 hover:text-purple-600 transition-colors px-3 py-1.5 rounded-full hover:bg-purple-50"
                 >
                   📖 故事
-                </a>
-                <a
+                </Link>
+                <Link
                   href="/alphabets"
                   className="text-gray-600 hover:text-purple-600 transition-colors px-3 py-1.5 rounded-full hover:bg-purple-50"
                 >
                   🔤 字母
-                </a>
-                <a
+                </Link>
+                <Link
                   href="/songs"
                   className="text-gray-600 hover:text-purple-600 transition-colors px-3 py-1.5 rounded-full hover:bg-purple-50"
                 >
                   🎵 儿歌
-                </a>
-                <a
+                </Link>
+                <Link
                   href="/math"
                   className="text-gray-600 hover:text-purple-600 transition-colors px-3 py-1.5 rounded-full hover:bg-purple-50"
                 >
                   🔢 数学
-                </a>
-                <a
+                </Link>
+                <Link
                   href="/logic"
                   className="text-gray-600 hover:text-purple-600 transition-colors px-3 py-1.5 rounded-full hover:bg-purple-50"
                 >
                   🧩 逻辑
-                </a>
-                <a
+                </Link>
+                <Link
                   href="/workspace"
                   className="text-gray-600 hover:text-purple-600 transition-colors px-3 py-1.5 rounded-full hover:bg-purple-50"
                 >
                   📊 学习中心
-                </a>
-                <a
+                </Link>
+                <Link
                   href="/parents"
                   className="text-gray-600 hover:text-purple-600 transition-colors px-3 py-1.5 rounded-full hover:bg-purple-50"
                 >
                   🔒 家长
-                </a>
+                </Link>
               </div>
             </div>
           </nav>
@@ -92,9 +93,9 @@ export default function RootLayout({
             <p>法语宝宝学 · Bébé apprend le français</p>
             <p className="mt-1">
               中英法三语对照 · 快乐学习每一天 ·{" "}
-              <a href="/privacy" className="hover:text-purple-500 underline">
+              <Link href="/privacy" className="hover:text-purple-500 underline">
                 隐私声明
-              </a>
+              </Link>
             </p>
           </footer>
 

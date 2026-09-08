@@ -340,7 +340,7 @@ export function generateMathQuestion(params: GenerateMathParams): MathQuestion {
 
     case "compare": {
       const max = COMPARE_MAX[level];
-      let left = randInt(rng, 0, max);
+      const left = randInt(rng, 0, max);
       let right = randInt(rng, 0, max);
       if (left === right) right = (right + 1) % (max + 1);
       const answer = left > right ? ">" : left < right ? "<" : "=";

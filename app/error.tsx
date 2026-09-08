@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 /**
  * 全局错误边界（B6 工程加固）
  * 任何路由渲染抛错时兜底，保证「不白屏」（走查清单 A7 语义）。
@@ -35,9 +37,9 @@ export default function GlobalRouteError({
           <button className="btn-primary" onClick={() => reset()}>
             再试一次
           </button>
-          <a className="btn-secondary" href="/">
+          <Link href="/" className="btn-secondary">
             回首页
-          </a>
+          </Link>
         </div>
       </div>
     </div>
