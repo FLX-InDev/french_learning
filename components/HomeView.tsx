@@ -1,11 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { useAppState } from "./AppStateProvider";
 import { ParentGate } from "./ParentGate";
-import { DailyChallenge } from "./DailyChallenge";
 import { Mascot } from "./Mascot";
+
+/** B6 工程加固：今日任务卡为重组件（测验引擎+玩法扩展），动态分割以降低首页首屏 JS */
+const DailyChallenge = dynamic(() => import("./DailyChallenge").then((m) => m.DailyChallenge), {
+  ssr: false,
+  loading: () => (
+    <div className="h-40 rounded-xl bg-purple-50 animate-pulse flex items-center justify-center text-purple-300 text-sm">
+      任务准备中…
+    </div>
+  ),
+});
 import type { ContentType, AlphabetCard, Word } from "@/lib/contentTypes";
 import type { Sentence, Story } from "@/lib/parser";
 import { getLevelConfig, levelLabel } from "@/lib/levels";

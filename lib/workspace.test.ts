@@ -27,11 +27,10 @@ import {
   todayStr,
   type AppState,
   type QuizQuestion,
-  type Sentence,
   type StudySession,
   type WorkspaceState,
 } from "./workspace";
-import type { Story } from "./parser";
+import type { Sentence, Story } from "./parser";
 
 // ─── 测试夹具 ────────────────────────────────────────────────────
 
