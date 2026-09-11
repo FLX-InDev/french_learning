@@ -1,0 +1,22 @@
+{
+  "reportExport.title": "Weekly Report",
+  "reportExport.days": "Study days",
+  "reportExport.time": "Total time",
+  "reportExport.sessions": "Quizzes",
+  "reportExport.subjectTitle": "Accuracy by subject",
+  "reportExport.mistakesTitle": "Top 3 mistakes",
+  "reportExport.level": "Current level",
+  "reportExport.speakPassed": "Read-along passed",
+  "reportExport.unitDay": "days",
+  "reportExport.unitMin": "min",
+  "reportExport.unitCount": "tests",
+  "reportExport.unitTimes": "times",
+  "reportExport.subject.language": "Language",
+  "reportExport.subject.math": "Maths",
+  "reportExport.subject.logic": "Logic",
+  "reportExport.subject.life": "Life",
+  "reportExport.btn": "Export image",
+  "reportExport.busy": "Exporting…",
+  "reportExport.error": "Export failed, please retry",
+  "reportExport.empty": "No data yet."
+}
