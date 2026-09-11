@@ -1,0 +1,22 @@
+{
+  "reportExport.title": "Rapport hebdomadaire",
+  "reportExport.days": "Jours d'étude",
+  "reportExport.time": "Temps total",
+  "reportExport.sessions": "Quiz",
+  "reportExport.subjectTitle": "Précision par matière",
+  "reportExport.mistakesTitle": "Top 3 des erreurs",
+  "reportExport.level": "Niveau actuel",
+  "reportExport.speakPassed": "Lecture à voix haute réussie",
+  "reportExport.unitDay": "j",
+  "reportExport.unitMin": "min",
+  "reportExport.unitCount": "quiz",
+  "reportExport.unitTimes": "fois",
+  "reportExport.subject.language": "Langue",
+  "reportExport.subject.math": "Maths",
+  "reportExport.subject.logic": "Logique",
+  "reportExport.subject.life": "Vie",
+  "reportExport.btn": "Exporter l'image",
+  "reportExport.busy": "Export…",
+  "reportExport.error": "Échec de l'export, réessayez",
+  "reportExport.empty": "Aucune donnée."
+}

@@ -1,0 +1,22 @@
+{
+  "reportExport.title": "本周学习报告",
+  "reportExport.days": "学习天数",
+  "reportExport.time": "总时长",
+  "reportExport.sessions": "测验次数",
+  "reportExport.subjectTitle": "分学科正确率",
+  "reportExport.mistakesTitle": "错题 Top3",
+  "reportExport.level": "当前学段",
+  "reportExport.speakPassed": "跟读通过",
+  "reportExport.unitDay": "天",
+  "reportExport.unitMin": "分钟",
+  "reportExport.unitCount": "次",
+  "reportExport.unitTimes": "次",
+  "reportExport.subject.language": "语言",
+  "reportExport.subject.math": "数学",
+  "reportExport.subject.logic": "逻辑",
+  "reportExport.subject.life": "生活",
+  "reportExport.btn": "导出图片",
+  "reportExport.busy": "导出中…",
+  "reportExport.error": "导出失败，请重试",
+  "reportExport.empty": "暂无数据。"
+}
