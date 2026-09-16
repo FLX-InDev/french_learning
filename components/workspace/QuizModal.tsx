@@ -7,6 +7,7 @@ import {
   type StudySession,
 } from "@/lib/workspace";
 import { QuestionCard } from "./QuestionCard";
+import { useI18n } from "@/lib/i18n";
 
 /** 测验点评弹窗内容（从 WorkspaceView 拆分，逻辑未改动） */
 export function QuizModal({
@@ -20,6 +21,7 @@ export function QuizModal({
   onReview: () => void;
   onPlay: (text: string) => void;
 }) {
+  const { t } = useI18n();
   const r = quizResult(session);
   return (
     <div>
@@ -29,8 +31,7 @@ export function QuizModal({
             {session.quiz.title}
           </div>
           <div className="text-xs text-gray-500 mt-0.5">
-            {mdLabel(session.date)} · {session.contentRef.title} · 时长{" "}
-            {session.durationMin} 分钟
+            {mdLabel(session.date)} · {session.contentRef.title} · {t('workspace.duration', { min: String(session.durationMin) })}
           </div>
         </div>
         <button
@@ -45,7 +46,7 @@ export function QuizModal({
           <div className="text-xl font-extrabold text-purple-600">
             {r.score}/{r.total}
           </div>
-          <div className="text-xs text-gray-500">答对题数</div>
+          <div className="text-xs text-gray-500">{t('workspace.correctCount')}</div>
         </div>
         <div>
           <div
@@ -54,16 +55,16 @@ export function QuizModal({
           >
             {r.acc}%
           </div>
-          <div className="text-xs text-gray-500">正确率</div>
+          <div className="text-xs text-gray-500">{t('workspace.accuracy')}</div>
         </div>
         <div className="flex-1 text-right">
           {session.reviewed ? (
             <span className="text-xs font-bold px-3 py-1.5 rounded-full bg-green-50 text-green-600">
-              已点评
+              {t('workspace.reviewed')}
             </span>
           ) : (
             <button className="btn-primary" onClick={onReview}>
-              标记已点评 +5
+              {t('workspace.markReviewed', { n: '5' })}
             </button>
           )}
         </div>

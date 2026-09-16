@@ -2,6 +2,7 @@
 
 import type { SpeechScore } from "@/lib/pronunciation";
 import type { QuizQuestion, SpeakLang } from "@/lib/workspace";
+import { useI18n } from "@/lib/i18n";
 
 /** 跟读打分单题卡片（从 WorkspaceView 拆分，逻辑未改动） */
 export function SpeakQuizCard({
@@ -25,6 +26,7 @@ export function SpeakQuizCard({
   onRecognize: (i: number) => void;
   submitted: boolean;
 }) {
+  const { t } = useI18n();
   const langLabel = q.targetLang === "en" ? "EN" : "FR";
   const langColor = q.targetLang === "en" ? "blue" : "green";
   const isRecording = recState === "recording" && !submitted;
@@ -46,13 +48,13 @@ export function SpeakQuizCard({
             {index + 1}
           </span>
           <span className="text-xs text-gray-500">
-            {recognizedCount}/{total} 已识别
+            {t('workspace.recognizedCount', { n: String(recognizedCount), total: String(total) })}
           </span>
         </div>
         {result != null && (
           <span className={`text-lg font-extrabold ${scoreColor}`}>
             {result.score}
-            <span className="text-xs font-normal text-gray-500 ml-0.5">分</span>
+            <span className="text-xs font-normal text-gray-500 ml-0.5">{t('workspace.scoreSuffix')}</span>
           </span>
         )}
       </div>
@@ -80,7 +82,7 @@ export function SpeakQuizCard({
           className="w-8 h-8 rounded-full bg-purple-600 text-white text-xs flex items-center justify-center shrink-0"
           onClick={() => onPlay(q.targetText ?? "", q.targetLang)}
           disabled={isRecording}
-          title="播放原音"
+          title={t('recording.playOriginal')}
         >
           {isRecording ? "◼" : "▶"}
         </button>
@@ -94,17 +96,17 @@ export function SpeakQuizCard({
           disabled={isRecording}
         >
           {isRecording
-            ? "● 正在录音…"
+            ? t('flashcard.recording')
             : result == null
-            ? "🎤 开始录音"
-            : "🔄 重新录音"}
+            ? t('workspace.startRecording')
+            : t('workspace.rerecord')}
         </button>
       </div>
 
       {/* 识别结果 */}
       {result != null && result.transcript && (
         <div className="text-xs text-gray-600 mb-1">
-          <span className="font-semibold">识别：</span>
+          <span className="font-semibold">{t('workspace.recognized')}：</span>
           「{result.transcript}」
         </div>
       )}
@@ -113,7 +115,7 @@ export function SpeakQuizCard({
       {result != null && (
         <div className="text-xs text-gray-600 space-y-0.5">
           <div className="flex items-center gap-2">
-            <span className="font-semibold">匹配词：</span>
+            <span className="font-semibold">{t('workspace.matchedWords')}：</span>
             {result.matched.length > 0 ? (
               result.matched.map((w) => (
                 <span
@@ -124,12 +126,12 @@ export function SpeakQuizCard({
                 </span>
               ))
             ) : (
-              <span className="text-gray-400">（无）</span>
+              <span className="text-gray-400">（{t('workspace.none')}）</span>
             )}
           </div>
           {result.missing.length > 0 && (
             <div className="flex items-center gap-2">
-              <span className="font-semibold">漏读：</span>
+              <span className="font-semibold">{t('workspace.missed')}：</span>
               {result.missing.map((w) => (
                 <span
                   key={w}
@@ -142,7 +144,7 @@ export function SpeakQuizCard({
           )}
           {result.extra.length > 0 && (
             <div className="flex items-center gap-2">
-              <span className="font-semibold">多读：</span>
+              <span className="font-semibold">{t('workspace.extra')}：</span>
               {result.extra.map((w) => (
                 <span
                   key={w}
@@ -154,7 +156,7 @@ export function SpeakQuizCard({
             </div>
           )}
           <div className="flex items-center gap-2 pt-1">
-            <span className="font-semibold">建议：</span>
+            <span className="font-semibold">{t('workspace.suggestion')}：</span>
             {result.feedback.slice(0, 2).map((tip) => (
               <span key={tip} className="text-gray-500">
                 · {tip}

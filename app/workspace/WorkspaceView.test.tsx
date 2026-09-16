@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import WorkspaceView from "@/app/workspace/WorkspaceView";
 import { AppStateProvider } from "@/components/AppStateProvider";
 import type { Sentence } from "@/lib/parser";
@@ -90,7 +90,11 @@ describe("跟读打分全链路（BUG-1 回归）", () => {
     // 4. 提交并结算积分：初始 0（v2 不再造演示数据）+ 完成 10 + 优秀 5
     fireEvent.click(screen.getByText("提交并结算积分"));
     expect(screen.getByText("平均发音得分")).toBeTruthy();
-    expect(screen.getByText("15")).toBeTruthy();
+    // 积分 15 收窄到「奖励积分」区断言：近 7 天柱状图的 x 轴会渲染当日日期数字，
+    // 每月 15 日同样出现 "15"，用全局 getByText("15") 会歧义（日期耦合，非实现缺陷）。
+    const pointsRow = screen.getByText(/可用积分/).parentElement;
+    expect(pointsRow).not.toBeNull();
+    expect(within(pointsRow as HTMLElement).getByText("15")).toBeTruthy();
 
     // 5. 跟读 session 已持久化
     const saved = JSON.parse(

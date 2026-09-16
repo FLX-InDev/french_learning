@@ -28,7 +28,10 @@ export type MathKind =
   | "clock"
   | "money"
   | "wordProblem"
-  | "mul";
+  | "mul"
+  | "lengthUnit"
+  | "massUnit"
+  | "axisSymmetry";
 
 export type CountVisual = { emoji: string; count: number };
 export type CompareVisual = {
@@ -57,6 +60,26 @@ export type WordProblemVisual = {
   op: "+" | "-" | "×";
 };
 
+export type LengthUnitVisual = {
+  type: "length";
+  value: number;
+  fromUnit: "km" | "m" | "cm" | "mm";
+  toUnit: "km" | "m" | "cm" | "mm";
+};
+
+export type MassUnitVisual = {
+  type: "mass";
+  value: number;
+  fromUnit: "t" | "kg" | "g" | "mg";
+  toUnit: "t" | "kg" | "g" | "mg";
+};
+
+export type AxisSymmetryVisual = {
+  type: "symmetry";
+  shape: string;
+  hasAxis: boolean;
+};
+
 export type MathVisual =
   | CountVisual
   | CompareVisual
@@ -65,7 +88,10 @@ export type MathVisual =
   | SequenceVisual
   | ClockVisual
   | MoneyVisual
-  | WordProblemVisual;
+  | WordProblemVisual
+  | LengthUnitVisual
+  | MassUnitVisual
+  | AxisSymmetryVisual;
 
 export type MathQuestion = {
   id: string; // `${kind}_${seed}_${index}`，同种子同卷（确定性）
@@ -558,6 +584,83 @@ export function generateMathQuestion(params: GenerateMathParams): MathQuestion {
         String(answer),
         visual
       );
+    }
+
+    case "lengthUnit": {
+      const conversions = [
+        { from: "km" as const, to: "m" as const, rate: 1000, maxVal: 99 },
+        { from: "m" as const, to: "cm" as const, rate: 100, maxVal: 99 },
+        { from: "cm" as const, to: "mm" as const, rate: 10, maxVal: 99 },
+        { from: "m" as const, to: "mm" as const, rate: 1000, maxVal: 9 },
+      ];
+      const conv = pick(rng, conversions);
+      const value = randInt(rng, 1, conv.maxVal);
+      const result = value * conv.rate;
+      const visual: LengthUnitVisual = { type: "length", value, fromUnit: conv.from, toUnit: conv.to };
+      return mk(
+        {
+          zh: `${value} ${conv.from} = ? ${conv.to}`,
+          en: `${value} ${conv.from} = ? ${conv.to}`,
+          fr: `${value} ${conv.from} = ? ${conv.to}`,
+        },
+        String(result),
+        visual,
+        { unit: conv.to }
+      );
+    }
+
+    case "massUnit": {
+      const conversions: Array<{ from: "t" | "kg" | "g"; to: "t" | "kg" | "g" | "mg"; rate: number; maxVal: number }> = [
+        { from: "t", to: "kg", rate: 1000, maxVal: 99 },
+        { from: "kg", to: "g", rate: 1000, maxVal: 99 },
+        { from: "g", to: "mg", rate: 1000, maxVal: 99 },
+      ];
+      const conv = pick(rng, conversions);
+      const value = randInt(rng, 1, conv.maxVal);
+      const result = value * conv.rate;
+      const visual: MassUnitVisual = { type: "mass", value, fromUnit: conv.from, toUnit: conv.to };
+      return mk(
+        {
+          zh: `${value} ${conv.from} = ? ${conv.to}`,
+          en: `${value} ${conv.from} = ? ${conv.to}`,
+          fr: `${value} ${conv.from} = ? ${conv.to}`,
+        },
+        String(result),
+        visual,
+        { unit: conv.to }
+      );
+    }
+
+    case "axisSymmetry": {
+      const symShapes = [
+        { shape: "⊞", hasAxis: true, name: "正方形" },
+        { shape: "▬", hasAxis: true, name: "长方形" },
+        { shape: "●", hasAxis: true, name: "圆" },
+        { shape: "△", hasAxis: true, name: "等腰三角形" },
+        { shape: "◇", hasAxis: true, name: "菱形" },
+        { shape: "⧄", hasAxis: false, name: "平行四边形" },
+        { shape: "⏛", hasAxis: false, name: "梯形" },
+      ] as const;
+      const { shape, hasAxis } = pick(rng, symShapes);
+      const answer = hasAxis ? "是" : "不是";
+      const visual: AxisSymmetryVisual = { type: "symmetry", shape, hasAxis };
+      const opts = shuffled(rng, ["是", "不是"]);
+      return {
+        id,
+        subject: "math",
+        level,
+        kind,
+        source: "generated",
+        prompt: {
+          zh: `「${shape}」是轴对称图形吗？`,
+          en: `Is "${shape}" an axis-symmetric shape?`,
+          fr: `La forme "${shape}" est-elle symétrique ?`,
+        },
+        answer,
+        visual,
+        inputMode: "choice",
+        options: opts.slice(0, optionCount),
+      };
     }
 
     default: {

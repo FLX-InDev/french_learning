@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 import { useAppState } from "./AppStateProvider";
 import { MathQuestionCard, DecompositionSteps } from "./MathQuestionCard";
 import { KeypadInput } from "./KeypadInput";
@@ -40,6 +41,7 @@ export function MathQuiz({
   stageId: string;
   fixedItems: MathItem[];
 }) {
+  const { t } = useI18n();
   const { state, update } = useAppState();
   const found = findStage(stageId);
   const level = state?.profile.level ?? "L3";
@@ -86,16 +88,16 @@ export function MathQuiz({
   }, [stageId, level]);
 
   if (!state) {
-    return <div className="py-20 text-center text-gray-400">加载中…</div>;
+    return <div className="py-20 text-center text-gray-400">{t("math.loading")}</div>;
   }
   const st = state;
 
   if (!found) {
     return (
       <div className="text-center py-20">
-        <p className="text-gray-500">关卡不存在</p>
+        <p className="text-gray-500">{t("math.levelNotFound")}</p>
         <Link href="/math" className="btn-primary mt-4 inline-block">
-          返回关卡地图
+          {t("math.backToMap")}
         </Link>
       </div>
     );
@@ -105,10 +107,10 @@ export function MathQuiz({
     return (
       <div className="text-center py-20">
         <p className="text-gray-500">
-          该关卡属于 {found.level} 学段（当前 {level}）。可在家长中心切换学段后挑战。
+          {t("math.levelLocked", { level: found.level })}
         </p>
         <Link href="/math" className="btn-primary mt-4 inline-block">
-          返回关卡地图
+          {t("math.backToMap")}
         </Link>
       </div>
     );
@@ -195,7 +197,7 @@ export function MathQuiz({
         <Confetti active={confetti.active} />
         <Mascot mood="happy" size={120} className="mx-auto" />
         <h1 className="text-2xl font-bold text-gray-800 mt-2">
-          {stage.title.zh} · 闯关完成！
+          {t("math.completed", { stage: stage.title.zh })}
         </h1>
         <div className="mt-4 flex justify-center">
           <StarReveal stars={finished.stars} />
@@ -206,7 +208,7 @@ export function MathQuiz({
         </p>
         {finished.gained === 0 && finished.stars < 3 && (
           <p className="text-xs text-gray-400 mt-1">
-            历史最佳不低于本次，星星未重复计入；再刷一次冲击三星吧！
+            {t("math.resultHint")}
           </p>
         )}
         <div className="flex gap-3 justify-center mt-6">
@@ -221,10 +223,10 @@ export function MathQuiz({
               setChoice(null);
             }}
           >
-            再刷一次
+            {t("math.retry")}
           </button>
           <Link href="/math" className="btn-primary">
-            返回关卡地图
+            {t("math.backToMap")}
           </Link>
         </div>
       </div>
@@ -232,14 +234,14 @@ export function MathQuiz({
   }
 
   if (!q) {
-    return <div className="py-20 text-center text-gray-400">出题中…</div>;
+    return <div className="py-20 text-center text-gray-400">{t("math.loading")}</div>;
   }
 
   return (
     <div className="max-w-xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
         <Link href="/math" className="text-sm text-purple-500">
-          ← 返回地图
+          {t("math.backArrow")}
         </Link>
         <span className="text-sm text-gray-400">
           {index + 1} / {questions.length}
@@ -248,10 +250,10 @@ export function MathQuiz({
 
       <div className="text-center">
         <h1 className="font-bold text-gray-800">
-          {group.emoji} {group.title.zh} · {stage.title.zh}
+          {t("math.title", { group: group.title.zh, stage: stage.title.zh })}
         </h1>
         <p className="text-[11px] text-gray-400 mt-1">
-          中国进度：{group.cnProgress} ｜ {group.frBenchmark}
+          {t("math.chinaProgress", { progress: group.cnProgress, benchmark: group.frBenchmark })}
         </p>
       </div>
 
@@ -292,15 +294,14 @@ export function MathQuiz({
           onClick={submit}
           disabled={!choice || wrongHint !== null}
         >
-          确定
+          {t("math.confirm")}
         </button>
       )}
 
       {/* 答错引导（P-4：不打叉，显示正确答案后进入下一题） */}
       {wrongHint !== null && (
         <div className="bg-orange-50 border border-orange-100 rounded-xl p-3 text-center text-sm text-orange-600 font-semibold">
-          正确答案是 <span className="text-lg text-orange-700">{wrongHint}</span>，
-          我们看看下一题！
+          {t("math.correctAnswer", { answer: wrongHint })}
         </div>
       )}
 
@@ -310,7 +311,7 @@ export function MathQuiz({
             className="w-full text-sm text-purple-500 py-2"
             onClick={() => setShowDecomp((v) => !v)}
           >
-            {showDecomp ? "收起分解步骤" : "📖 看凑十/破十分解步骤"}
+            {showDecomp ? t("math.collapseSteps") : t("math.showSteps")}
           </button>
           {showDecomp && <DecompositionSteps steps={decomp} />}
         </>

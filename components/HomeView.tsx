@@ -2,17 +2,18 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useAppState } from "./AppStateProvider";
 import { ParentGate } from "./ParentGate";
 import { Mascot } from "./Mascot";
+import { useI18n } from "@/lib/i18n";
 
 /** B6 工程加固：今日任务卡为重组件（测验引擎+玩法扩展），动态分割以降低首页首屏 JS */
 const DailyChallenge = dynamic(() => import("./DailyChallenge").then((m) => m.DailyChallenge), {
   ssr: false,
   loading: () => (
     <div className="h-40 rounded-xl bg-purple-50 animate-pulse flex items-center justify-center text-purple-300 text-sm">
-      任务准备中…
+      𞲷 home.loading
     </div>
   ),
 });
@@ -25,7 +26,7 @@ import type { ContentStats } from "@/lib/parser";
 const ENTRIES: {
   key: string;
   emoji: string;
-  name: string;
+  nameKey: string;
   desc: string;
   href: string;
   ready: boolean;
@@ -34,8 +35,8 @@ const ENTRIES: {
   {
     key: "language",
     emoji: "💬",
-    name: "语言",
-    desc: "句子 · 故事",
+    nameKey: "home.subjects.language",
+    desc: "home.subjects.languageDesc",
     href: "/sentences",
     ready: true,
     dependsOn: ["sentence", "story"],
@@ -43,8 +44,8 @@ const ENTRIES: {
   {
     key: "alphabet",
     emoji: "🔤",
-    name: "字母拼写",
-    desc: "字母表 · 拼词",
+    nameKey: "home.subjects.spelling",
+    desc: "home.subjects.alphabetDesc",
     href: "/alphabets",
     ready: true, // Phase 3 上线
     dependsOn: ["alphabet"],
@@ -52,8 +53,8 @@ const ENTRIES: {
   {
     key: "word",
     emoji: "🃏",
-    name: "词汇",
-    desc: "图鉴 · 闪卡 · 跟读",
+    nameKey: "home.subjects.vocabulary",
+    desc: "home.subjects.wordDesc",
     href: "/words",
     ready: true, // Phase 5A 上线
     dependsOn: ["word"],
@@ -61,8 +62,8 @@ const ENTRIES: {
   {
     key: "math",
     emoji: "🔢",
-    name: "数学",
-    desc: "数与量 · 加减法",
+    nameKey: "home.subjects.math",
+    desc: "home.subjects.mathDesc",
     href: "/math",
     ready: true, // Phase 2 上线
     dependsOn: ["math"],
@@ -70,8 +71,8 @@ const ENTRIES: {
   {
     key: "logic",
     emoji: "🧩",
-    name: "逻辑",
-    desc: "找规律 · 分类",
+    nameKey: "home.subjects.logic",
+    desc: "home.subjects.logicDesc",
     href: "/logic",
     ready: true, // Phase 2 上线
     dependsOn: ["logic"],
@@ -79,8 +80,8 @@ const ENTRIES: {
   {
     key: "song",
     emoji: "🎵",
-    name: "音乐",
-    desc: "儿歌卡拉OK",
+    nameKey: "home.subjects.music",
+    desc: "home.subjects.songDesc",
     href: "/songs",
     ready: true, // Phase 3 上线
     dependsOn: ["song"],
@@ -108,6 +109,7 @@ export function HomeView({
   alphabets: AlphabetCard[];
 }) {
   const { state } = useAppState();
+  const { t } = useI18n();
   const [greet, setGreet] = useState(GREETINGS[0]);
   const [gateOpen, setGateOpen] = useState(false);
 
@@ -120,11 +122,15 @@ export function HomeView({
   const level = state?.profile.level ?? "L3";
   const cfg = getLevelConfig(level);
 
-  const visibleEntries = ENTRIES.filter((e) => {
-    const inManifest = e.dependsOn.some((t) => enabled.includes(t));
-    const allHidden = e.dependsOn.every((t) => hidden.includes(t));
-    return inManifest && !allHidden;
-  });
+  const visibleEntries = useMemo(
+    () =>
+      ENTRIES.filter((e) => {
+        const inManifest = e.dependsOn.some((t) => enabled.includes(t));
+        const allHidden = e.dependsOn.every((t) => hidden.includes(t));
+        return inManifest && !allHidden;
+      }),
+    [enabled, hidden]
+  );
 
   return (
     <div className="space-y-10">
@@ -133,7 +139,7 @@ export function HomeView({
         <Mascot mood="idle" size={120} className="mx-auto" />
         <h1 className="text-3xl md:text-4xl font-bold mt-3">
           <span className="bg-gradient-to-r from-purple-600 via-pink-500 to-orange-400 bg-clip-text text-transparent">
-            法语宝宝学
+            {t('home.brand')}
           </span>
         </h1>
         <p className="text-gray-500 mt-2">{greet.fr}</p>
@@ -149,7 +155,7 @@ export function HomeView({
           >
             <span className="text-lg">{cfg.emoji}</span>
             {levelLabel(level)}
-            <span className="text-xs text-purple-400">点击切换</span>
+          <span className="text-xs text-purple-400">{t('home.clickToSwitch')}</span>
           </button>
           <span
             className="inline-flex items-center gap-1 px-4 py-2 rounded-full bg-amber-50 text-amber-600 font-bold text-sm"
@@ -162,7 +168,7 @@ export function HomeView({
 
       {/* 今日任务卡 */}
       <section className="bg-white rounded-2xl shadow-sm border border-purple-100 p-5">
-        <h2 className="text-lg font-bold text-gray-800 mb-3">📅 今日任务</h2>
+        <h2 className="text-lg font-bold text-gray-800 mb-3">{t('home.todayTasks')}</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <DailyChallenge
             pool={pool}
@@ -173,12 +179,12 @@ export function HomeView({
             href="/sentences"
             className="rounded-xl bg-purple-50 p-4 hover:bg-purple-100 transition"
           >
-            <div className="font-bold text-gray-800">今日一句</div>
+            <div className="font-bold text-gray-800">{t('home.todaySentence.title')}</div>
             <div className="text-xs text-gray-500 mt-1">
-              点开句子库，跟着 Félix 读三语
+              {t('home.todaySentence.desc')}
             </div>
             <div className="mt-3 text-purple-600 text-sm font-semibold">
-              开始学习 →
+              {t('home.todaySentence.cta')}
             </div>
           </Link>
         </div>
@@ -187,18 +193,18 @@ export function HomeView({
       {/* 学科入口 2×3 */}
       <section>
         <h2 className="text-2xl font-bold text-gray-700 mb-4 flex items-center gap-2">
-          <span className="text-purple-500">✨</span> 学科入口
+          <span className="text-purple-500">✨</span>{t('home.subjects.title')}
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {visibleEntries.map((e) => {
             const body = (
               <>
                 <div className="text-4xl">{e.emoji}</div>
-                <div className="mt-2 font-bold text-gray-800">{e.name}</div>
-                <div className="text-xs text-gray-500 mt-0.5">{e.desc}</div>
+                <div className="mt-2 font-bold text-gray-800">{t(e.nameKey)}</div>
+                <div className="text-xs text-gray-500 mt-0.5">{t(e.desc)}</div>
                 {!e.ready && (
                   <div className="mt-2 text-[11px] text-gray-400">
-                    即将上线
+                    {t('home.comingSoon')}
                   </div>
                 )}
               </>
@@ -226,25 +232,25 @@ export function HomeView({
           className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 text-center hover:shadow-md transition"
         >
           <div className="text-3xl">📖</div>
-          <div className="mt-2 font-bold text-gray-800">三语故事</div>
+          <div className="mt-2 font-bold text-gray-800">{t('home.stories')}</div>
         </Link>
         <Link
           href="/workspace"
           className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 text-center hover:shadow-md transition"
         >
           <div className="text-3xl">📊</div>
-          <div className="mt-2 font-bold text-gray-800">学习中心</div>
+          <div className="mt-2 font-bold text-gray-800">{t('home.workspace')}</div>
         </Link>
       </section>
 
       {/* 动态统计（BUG-2 关闭：不再硬编码） */}
       <section className="bg-white/60 backdrop-blur-sm rounded-2xl p-8 border border-purple-100">
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
-          <Stat n={stats.sentence} label="常用句子" color="text-purple-600" />
-          <Stat n={stats.story} label="趣味故事" color="text-pink-500" />
-          <Stat n={stats.word} label="词卡" color="text-blue-500" />
-          <Stat n={stats.song} label="儿歌" color="text-orange-500" />
-          <Stat n={stats.alphabet} label="字母卡" color="text-green-600" />
+          <Stat n={stats.sentence} label={t('home.stats.sentences')} color="text-purple-600" />
+          <Stat n={stats.story} label={t('home.stats.stories')} color="text-pink-500" />
+          <Stat n={stats.word} label={t('home.stats.flashcards')} color="text-blue-500" />
+          <Stat n={stats.song} label={t('home.stats.songs')} color="text-orange-500" />
+          <Stat n={stats.alphabet} label={t('home.stats.alphabets')} color="text-green-600" />
         </div>
       </section>
 
@@ -254,13 +260,13 @@ export function HomeView({
           onClick={() => setGateOpen(true)}
           className="text-sm text-gray-400 hover:text-purple-600 inline-flex items-center gap-1 min-h-[48px]"
         >
-          🔒 家长中心
+          {t('home.parentsBadge')}
         </button>
       </section>
 
       {gateOpen && (
         <ParentGate
-          title="家长中心"
+          title={t('home.parentsModal.title')}
           onPass={() => {
             setGateOpen(false);
             window.location.href = "/parents";

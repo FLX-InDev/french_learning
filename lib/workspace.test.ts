@@ -349,8 +349,10 @@ describe("createInitialState", () => {
     const s = createInitialState();
     expect(s.settings).toEqual({
       speechRate: 0.9,
+      locale: "zh",
       sfxOn: true,
       bgmOn: false,
+      bgmVolume: 0.2,
       tapSfxOn: false,
       dailyLimitMin: 20,
       hiddenContent: [],

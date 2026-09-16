@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { usePrefersReducedMotion } from "./useMotionPrefs";
+import { useI18n } from "@/lib/i18n";
 
 // Lottie 渲染器懒加载（不阻塞 LCP；加载失败静默降级 emoji）
 const Lottie = dynamic(() => import("lottie-react").then((m) => m.Lottie), {
@@ -30,6 +31,7 @@ export function Mascot({
   size?: number;
   className?: string;
 }) {
+  const { t } = useI18n();
   const reduced = usePrefersReducedMotion();
   const [data, setData] = useState<object | null>(null);
   const [failed, setFailed] = useState(false);
@@ -81,7 +83,7 @@ export function Mascot({
           className="select-none"
           style={{ fontSize: size * 0.78, lineHeight: 1 }}
           role="img"
-          aria-label="Félix 小狐狸"
+          aria-label={t('mascot.name')}
         >
           🦊
         </span>

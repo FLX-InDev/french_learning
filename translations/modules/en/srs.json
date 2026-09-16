@@ -1,0 +1,7 @@
+{
+  "srs.dueCount": "{n} to review today",
+  "srs.review": "Review",
+  "srs.due": "Due",
+  "srs.allClear": "All reviews done for today",
+  "srs.nextIn": "Review in {n} day(s)"
+}

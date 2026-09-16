@@ -1,0 +1,7 @@
+{
+  "bgm.title": "背景音乐",
+  "bgm.desc": "轻柔的循环音乐，陪孩子学习（默认关闭）",
+  "bgm.toggle.on": "已开启",
+  "bgm.toggle.off": "已关闭",
+  "bgm.volumeLabel": "音量 {n}%"
+}

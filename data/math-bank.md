@@ -67,3 +67,39 @@ levels: [L1, L2, L3, L4]
 - kind: wordProblem
 - prompt: 盘子里有 9 颗糖，吃掉 4 颗，还剩几颗？| There are 9 candies on the plate, 4 are eaten. How many are left? | Il y a 9 bonbons dans l'assiette, 4 sont mangés. Combien en reste-t-il ?
 - answer: 5 颗 | 5 candies | 5 bonbons
+
+## 长度单位 Les unités de longueur
+
+- level: L5
+- kind: lengthUnit
+- prompt: 1 米 = ? 厘米 | 1 meter = ? centimeters | 1 mètre = ? centimètres
+- answer: 100 厘米 | 100 centimeters | 100 centimètres
+
+- level: L5
+- kind: lengthUnit
+- prompt: 1 千米 = ? 米 | 1 kilometer = ? meters | 1 kilomètre = ? mètres
+- answer: 1000 米 | 1000 meters | 1000 mètres
+
+## 质量单位 Les unités de masse
+
+- level: L5
+- kind: massUnit
+- prompt: 1 千克 = ? 克 | 1 kilogram = ? grams | 1 kilogramme = ? grammes
+- answer: 1000 克 | 1000 grams | 1000 grammes
+
+- level: L5
+- kind: massUnit
+- prompt: 1 吨 = ? 千克 | 1 ton = ? kilograms | 1 tonne = ? kilogrammes
+- answer: 1000 千克 | 1000 kilograms | 1000 kilogrammes
+
+## 轴对称图形 Symétrie axiale
+
+- level: L5
+- kind: axisSymmetry
+- prompt: 「⊞」是轴对称图形吗？| Is "⊞" an axis-symmetric shape? | La forme "⊞" est-elle symétrique ?
+- answer: 是 | yes | oui
+
+- level: L5
+- kind: axisSymmetry
+- prompt: 「⧄」是轴对称图形吗？| Is "⧄" an axis-symmetric shape? | La forme "⧄" est-elle symétrique ?
+- answer: 不是 | no | non

@@ -11,7 +11,14 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "smoke": "node scripts/smoke.cjs",
-    "verify": "npm run typecheck && npm run lint && npm run test && npm run build"
+    "check:i18n": "node scripts/check-i18n-parity.cjs",
+    "check:content": "node scripts/validate-content.cjs",
+    "check:trace": "node scripts/validate-trace-data.cjs",
+    "generate:trace": "node scripts/generate-print-trace.cjs && node scripts/generate-cursive-line.cjs",
+    "generate:print": "node scripts/generate-print-trace.cjs",
+    "author:trace": "node scripts/trace-authoring.cjs",
+    "preview:trace": "node scripts/preview-trace-data.cjs",
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run check:i18n && npm run build"
   },
   "dependencies": {
     "framer-motion": "^13.2.0",
@@ -30,6 +37,7 @@
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.4",
     "jsdom": "^25.0.1",
+    "opentype.js": "^2.0.0",
     "postcss": "^8.4.38",
     "tailwindcss": "^3.4.4",
     "typescript": "^5.4.5",

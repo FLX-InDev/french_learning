@@ -1,6 +1,7 @@
 "use client";
 
 import { cancelSpeech, configureSpeech, playSfx, speak } from "@/lib/audioManager";
+import { useI18n } from "@/lib/i18n";
 import { useAppState } from "@/components/AppStateProvider";
 import { RecordingPlayback } from "@/components/RecordingPlayback";
 import { usePronunciationCheck } from "@/components/usePronunciationCheck";
@@ -26,6 +27,7 @@ export function FlashCard({
   onSpoken?: () => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const { state } = useAppState();
   const speechRate = state?.settings.speechRate ?? 0.9;
   const level = state?.profile.level ?? "L3";
@@ -56,12 +58,12 @@ export function FlashCard({
     <div className="text-center select-none">
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs px-2 py-1 rounded-full bg-purple-50 text-purple-600 font-semibold">
-          {card.lang === "fr" ? "Français 法语" : "English 英语"}
+          {card.lang === "fr" ? t("flashcard.langFrench") : t("flashcard.langEnglish")}
         </span>
         <button
           className="w-9 h-9 rounded-full bg-purple-50 text-purple-600 text-lg"
           onClick={onClose}
-          aria-label="关闭字母卡"
+          aria-label={t("flashcard.close")}
         >
           ×
         </button>
@@ -79,7 +81,7 @@ export function FlashCard({
           <div className="text-5xl mt-3" aria-hidden>
             {card.emoji || "🔤"}
           </div>
-          <div className="text-xs text-gray-400 mt-4">👆 点击翻面</div>
+          <div className="text-xs text-gray-400 mt-4">{t("flashcard.flipHint")}</div>
         </button>
       ) : (
         <div className="py-8 rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-100">
@@ -89,7 +91,7 @@ export function FlashCard({
           </div>
           <div className="mt-4 space-y-1.5 px-4">
             <div className="flex items-center justify-center gap-2">
-              <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-red-50 text-red-500">中</span>
+              <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-red-50 text-red-500">{t("flashcard.langZh")}</span>
               <span className="text-gray-800">{card.word.zh}</span>
             </div>
             <div className="flex items-center justify-center gap-2">
@@ -115,14 +117,14 @@ export function FlashCard({
               onClick={() => play(letterName, card.lang)}
               aria-label={`播放字母名 ${letterName}`}
             >
-              🔤 字母名
+              {t("flashcard.letterName")}
             </button>
             <button
               className="min-h-[48px] px-5 rounded-full bg-green-600 text-white text-sm font-bold hover:bg-green-700"
               onClick={() => play(card.word.fr, "fr")}
               aria-label={`播放例词 ${card.word.fr}`}
             >
-              🍎 例词
+              {t("flashcard.exampleWord")}
             </button>
           </div>
           <div className="mt-3">
@@ -130,7 +132,7 @@ export function FlashCard({
               className="text-xs text-gray-400 underline"
               onClick={() => play(card.word.zh, "zh")}
             >
-              听中文（{card.word.zh}）
+              {t("flashcard.listenZh", { word: card.word.zh })}
             </button>
           </div>
 
@@ -151,9 +153,9 @@ export function FlashCard({
                       if (passed) onSpoken?.();
                     })
                   }
-                  aria-label="跟读例词"
+                  aria-label={t("flashcard.readAlong")}
                 >
-                  {pr.state === "recording" ? "● 正在录音…" : "🎤 跟读例词"}
+                  {pr.state === "recording" ? t("flashcard.recording") : t("flashcard.readAlong")}
                 </button>
                 <RecordingPlayback
                   recUrl={pr.recUrl}
@@ -172,10 +174,10 @@ export function FlashCard({
                         : "text-orange-500")
                     }
                   >
-                    {pr.result.score} 分
+                    {t("flashcard.score", { score: String(pr.result.score) })}
                   </span>
                   <span className="text-xs text-gray-400 ml-2">
-                    听到了「{pr.result.transcript || "—"}」
+                    {t("flashcard.heard", { transcript: pr.result.transcript || "—" })}
                   </span>
                 </p>
               )}

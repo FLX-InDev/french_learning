@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { cancelSpeech, configureSpeech, playSfx, speak } from "@/lib/audioManager";
 import { useAppState } from "@/components/AppStateProvider";
+import { useI18n } from "@/lib/i18n";
 import {
   ACCENT_KEYS,
   isSpellingCorrect,
@@ -11,6 +12,8 @@ import {
   type SpellingWord,
 } from "@/lib/spelling";
 import { mulberry32, seedFromString } from "@/lib/mathGenerator";
+import { phonicsScriptFor, splitGraphemesFr, splitSyllablesFr } from "@/lib/phonics";
+import type { Level } from "@/lib/levels";
 
 /**
  * 拼词尝试卡（PRD §7.5.3–§7.5.4，Dev-Plan T3.2）
@@ -34,7 +37,9 @@ export function SpellingAttempt({
   compact?: boolean;
 }) {
   const { state, update } = useAppState();
+  const { t } = useI18n();
   const speechRate = state?.settings.speechRate ?? 0.9;
+  const level = state?.profile.level ?? "L3";
   const [placed, setPlaced] = useState<number[]>([]);
   const [checked, setChecked] = useState(false);
 
@@ -135,8 +140,8 @@ export function SpellingAttempt({
         <button
           onClick={playWord}
           className="w-11 h-11 rounded-full bg-green-50 text-green-600 text-lg shrink-0 hover:bg-green-100"
-          aria-label="播放法语发音"
-          title="播放法语发音"
+          aria-label={t('spelling.playFrench')}
+          title={t('spelling.playFrench')}
         >
           ▶
         </button>
@@ -149,7 +154,7 @@ export function SpellingAttempt({
           (checked && !correct ? "animate-[shake_0.4s_ease]" : "")
         }
         role="group"
-        aria-label="答案槽"
+        aria-label={t('spelling.answerSlot')}
       >
         {scrambled.map((_, slot) => {
           const filledIdx = placed[slot];
@@ -158,7 +163,7 @@ export function SpellingAttempt({
             <button
               key={slot}
               onClick={undoLast}
-              aria-label={ch ? `第${slot + 1}位 ${ch}，点击撤回` : `第${slot + 1}位空`}
+              aria-label={ch ? t('spelling.position', { slot: String(slot + 1), ch }) : t('spelling.positionEmpty', { slot: String(slot + 1) })}
               className={
                 "w-11 h-12 rounded-lg border-2 text-xl font-bold transition flex items-center justify-center " +
                 (checked
@@ -177,7 +182,7 @@ export function SpellingAttempt({
       </div>
 
       {/* 乱序瓦片 */}
-      <div className="flex flex-wrap justify-center gap-2 mt-4" role="group" aria-label="字母瓦片">
+      <div className="flex flex-wrap justify-center gap-2 mt-4" role="group" aria-label={t('spelling.tiles')}>
         {scrambled.map((ch, i) => {
           const used = placed.includes(i);
           return (
@@ -185,7 +190,7 @@ export function SpellingAttempt({
               key={i}
               onClick={() => place(i)}
               disabled={used || checked}
-              aria-label={`字母 ${ch}${used ? "（已使用）" : ""}`}
+              aria-label={t('spelling.tile', { ch, used: used ? t('common.used') : '' })}
               className={
                 "w-11 h-12 rounded-lg border-2 text-xl font-bold transition select-none " +
                 (used
@@ -202,7 +207,7 @@ export function SpellingAttempt({
       {/* accent 提示盘（PRD §7.5.4：单词含变音符时高亮提示，点击自动放置） */}
       {inWordAccents.length > 0 && (
         <div className="flex items-center justify-center gap-1.5 mt-3">
-          <span className="text-[11px] text-gray-400 mr-1">变音提示：</span>
+          <span className="text-[11px] text-gray-400 mr-1">{t('spelling.accentHint')}：</span>
           {ACCENT_KEYS.map((a) => {
             const has = inWordAccents.includes(a);
             return (
@@ -210,7 +215,7 @@ export function SpellingAttempt({
                 key={a}
                 onClick={() => placeAccent(a)}
                 disabled={!has || checked}
-                aria-label={has ? `放置 ${a}` : `本词不含 ${a}`}
+                aria-label={has ? t('spelling.placeAccent', { a }) : t('spelling.noAccent', { a })}
                 className={
                   "w-9 h-9 rounded-md border text-base font-bold transition " +
                   (has
@@ -233,33 +238,70 @@ export function SpellingAttempt({
               className="btn-secondary min-h-[44px]"
               onClick={clearAll}
               disabled={placed.length === 0}
-              aria-label="清空重拼"
+              aria-label={t('spelling.clearRetry')}
             >
-              ⌫ 重拼
+              ⌫ {t('spelling.retry')}
             </button>
             <button
               className="btn-primary min-h-[44px] min-w-[120px]"
               onClick={check}
               disabled={!full}
             >
-              {full ? "检查" : `还差 ${scrambled.length - placed.length} 个`}
+              {full ? t('spelling.check') : t('spelling.remaining', { n: String(scrambled.length - placed.length) })}
             </button>
           </>
         ) : correct ? (
           <div className="text-green-600 font-bold">
-            🎉 拼对啦：{word.fr}
+            {t('spelling.spelledCorrectly', { fr: word.fr })}
           </div>
         ) : (
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-500">
-              正确拼法：<b className="text-gray-800">{word.fr}</b>
-            </span>
-            <button className="btn-secondary min-h-[40px]" onClick={retry}>
-              再试一次
-            </button>
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-500">
+                {t('spelling.correctSpelling')}: <b className="text-gray-800">{word.fr}</b>
+              </span>
+              <button className="btn-secondary min-h-[40px]" onClick={retry}>
+                {t('spelling.tryAgain')}
+              </button>
+            </div>
+            {/* T6-07 拼读接入：拼错后按学段派生体系（DG-1）给出音节/字素切分提示 */}
+            <PhonicsBreakdown word={word.fr} level={level} />
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * 拼读结构提示（Phase 6 T6-07 接入）：按学段派生体系（DG-1）展示切分块。
+ * - L1–L3 → 音节（syllabique）；L4+ → 字素（mixte）；
+ * - 单块词（无可切分）不渲染。
+ */
+export function PhonicsBreakdown({
+  word,
+  level,
+}: {
+  word: string;
+  level: Level;
+}) {
+  const { t } = useI18n();
+  const parts =
+    phonicsScriptFor(level) === "syllabique"
+      ? splitSyllablesFr(word)
+      : splitGraphemesFr(word);
+  if (parts.length < 2) return null;
+  return (
+    <div className="flex items-center justify-center gap-1.5 flex-wrap mt-1">
+      <span className="text-[11px] text-gray-400">{t("phonics.title")}：</span>
+      {parts.map((p, i) => (
+        <span
+          key={i}
+          className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 text-sm font-bold"
+        >
+          {p}
+        </span>
+      ))}
     </div>
   );
 }

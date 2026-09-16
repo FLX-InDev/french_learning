@@ -1,10 +1,12 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 import { useAppState } from "./AppStateProvider";
 import { LevelPicker } from "./LevelPicker";
 import { ParentGate } from "./ParentGate";
 import { WeeklyReport } from "./growth/ProgressView";
+import { BgmToggle } from "./BgmToggle";
 import { CONTENT_META, type ContentType } from "@/lib/contentTypes";
 import { levelLabel, type Level } from "@/lib/levels";
 import {
@@ -30,6 +32,7 @@ export function ParentsCenter({
   manifest: ParentManifestItem[];
   counts: Partial<Record<ContentType, number>>;
 }) {
+  const { t } = useI18n();
   const { state, update, replace } = useAppState();
   const [passed, setPassed] = useState(false);
   const [pendingLevel, setPendingLevel] = useState<Level | null>(null);
@@ -37,7 +40,7 @@ export function ParentsCenter({
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   if (!state) {
-    return <div className="py-20 text-center text-gray-400">加载中…</div>;
+    return <div className="py-20 text-center text-gray-400">{t("workspace.loading")}</div>;
   }
 
   if (!passed) {
@@ -45,13 +48,13 @@ export function ParentsCenter({
       <div className="max-w-3xl mx-auto">
         <div className="text-center py-10">
           <div className="text-5xl">🔒</div>
-          <h1 className="text-2xl font-bold text-gray-800 mt-3">家长中心</h1>
+          <h1 className="text-2xl font-bold text-gray-800 mt-3">{t("home.parentsModal.title")}</h1>
           <p className="text-sm text-gray-500 mt-2">
-            需要通过家长验证才能进入（学段、时长、内容开关与备份）
+            {t('parentsCenter.gateDesc')}
           </p>
         </div>
         <ParentGate
-          title="家长中心"
+          title={t("home.parentsModal.title")}
           onPass={() => setPassed(true)}
           onCancel={() => (window.location.href = "/")}
         />
@@ -65,7 +68,7 @@ export function ParentsCenter({
   function applyLevel(level: Level) {
     update((s) => ({ ...s, profile: { ...s.profile, level } }));
     setPendingLevel(null);
-    setMsg("学段已切换，学习记录不会丢失");
+    setMsg(t("parentsCenter.levelSwitched"));
   }
 
   function toggleContent(type: ContentType) {
@@ -84,7 +87,7 @@ export function ParentsCenter({
     a.href = URL.createObjectURL(blob);
     a.download = "french-learning-backup-v2.json";
     a.click();
-    setMsg("已导出 v2 备份");
+    setMsg(t("parentsCenter.exported"));
   }
 
   function doImport(file: File) {
@@ -92,11 +95,11 @@ export function ParentsCenter({
     rd.onload = () => {
       const next = importBackup(String(rd.result ?? ""));
       if (!next) {
-        setMsg("文件格式不正确，未改动现有数据");
+        setMsg(t("workspace.importBadFormat"));
         return;
       }
       replace(next);
-      setMsg("导入成功（v1 备份已自动升级为 v2）");
+      setMsg(t("parentsCenter.imported"));
     };
     rd.readAsText(file);
   }
@@ -104,7 +107,7 @@ export function ParentsCenter({
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-800">🔒 家长中心</h1>
+        <h1 className="text-3xl font-bold text-gray-800">{t("home.parentsModal.title")}</h1>
         <p className="text-gray-500 mt-2 text-sm">
           当前学段：{levelLabel(state.profile.level)}
         </p>
@@ -118,9 +121,9 @@ export function ParentsCenter({
 
       {/* 学段 */}
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-        <h2 className="text-xl font-bold text-gray-800 mb-1">🎓 学习阶段</h2>
+        <h2 className="text-xl font-bold text-gray-800 mb-1">{t('parentsCenter.level')}</h2>
         <p className="text-xs text-gray-500 mb-3">
-          切换后内容难度立即调整，历史积分 / 星星 / 学习记录不会丢失。
+          {t('parentsCenter.levelDesc')}
         </p>
         <LevelPicker
           value={state.profile.level}
@@ -132,10 +135,10 @@ export function ParentsCenter({
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
         <h2 className="text-xl font-bold text-gray-800 mb-1">⏱ 每日时长</h2>
         <p className="text-xs text-gray-500 mb-3">
-          今日已用 {usedMin} 分钟
+          {t('parentsCenter.todayUsed', { min: String(usedMin) })}
           {Number.isFinite(leftSec)
-            ? ` · 剩余 ${Math.ceil(leftSec / 60)} 分钟`
-            : " · 不限时"}
+            ? ` · ${t('parentsCenter.remaining', { min: String(Math.ceil(leftSec / 60)) })}`
+            : t('parentsCenter.unlimited')}
         </p>
         <div className="grid grid-cols-3 gap-2">
           {DAILY_LIMIT_OPTIONS.map((v) => (
@@ -155,7 +158,7 @@ export function ParentsCenter({
                   : "border-gray-100 bg-white text-gray-600 hover:border-purple-200")
               }
             >
-              {v === 0 ? "不限" : `${v} 分钟`}
+              {v === 0 ? t('parentsCenter.unlimited') : t('parentsCenter.minutes', { v: String(v) })}
             </button>
           ))}
         </div>
@@ -163,9 +166,9 @@ export function ParentsCenter({
 
       {/* 语音 */}
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-        <h2 className="text-xl font-bold text-gray-800 mb-3">🔊 语音与音效</h2>
+        <h2 className="text-xl font-bold text-gray-800 mb-3">{t('parentsCenter.voiceAndSfx')}</h2>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-gray-500">朗读语速：</span>
+          <span className="text-sm text-gray-500">{t('parentsCenter.speechRate')}：</span>
           {([0.75, 0.9] as SpeechRate[]).map((r) => (
             <button
               key={r}
@@ -183,7 +186,7 @@ export function ParentsCenter({
                   : "border-gray-100 bg-white text-gray-600")
               }
             >
-              {r === 0.75 ? "慢速（0.75×）" : "正常（0.9×）"}
+              {r === 0.75 ? t('parentsCenter.slow') : t('parentsCenter.normal')}
             </button>
           ))}
         </div>
@@ -199,7 +202,7 @@ export function ParentsCenter({
               }))
             }
           />
-          音效反馈（答对/答错/亮星/通关；静音只关音效，朗读不受影响）
+          {t('parentsCenter.sfxFeedback')}
         </label>
         <label className="flex items-center gap-2 mt-2 text-sm text-gray-600">
           <input
@@ -213,15 +216,20 @@ export function ParentsCenter({
               }))
             }
           />
-          点按音效（默认关；开启后字母卡/页签点击有轻响）
+          {t('parentsCenter.tapSfx')}
         </label>
+
+        {/* 背景音乐（Phase 6 T6-02）：独立于音效开关，默认关，音量低于 TTS */}
+        <div className="mt-4">
+          <BgmToggle />
+        </div>
       </section>
 
       {/* 内容开关 */}
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-        <h2 className="text-xl font-bold text-gray-800 mb-1">📚 内容开关</h2>
+        <h2 className="text-xl font-bold text-gray-800 mb-1">{t('parentsCenter.contentSwitches')}</h2>
         <p className="text-xs text-gray-500 mb-3">
-          关闭后该内容在全站隐藏（叠加在 manifest 勾选之上，不会删除学习记录）。
+          {t('parentsCenter.contentHidden')}
         </p>
         <div className="space-y-2">
           {manifest.map((item) => {
@@ -244,7 +252,7 @@ export function ParentsCenter({
                     {item.name}
                   </span>
                   <span className="block text-xs text-gray-400 truncate">
-                    {item.filename} · {counts[item.type] ?? 0} 条
+                    {item.filename} · {counts[item.type] ?? 0} {t('parentsCenter.items')}
                   </span>
                 </span>
               </label>
@@ -255,19 +263,19 @@ export function ParentsCenter({
 
       {/* 备份 */}
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-        <h2 className="text-xl font-bold text-gray-800 mb-1">💾 数据备份</h2>
+        <h2 className="text-xl font-bold text-gray-800 mb-1">{t('parentsCenter.dataBackup')}</h2>
         <p className="text-xs text-gray-500 mb-3">
-          导出为 v2 格式；导入同时兼容 v1 与 v2 备份。
+          {t('parentsCenter.backupDesc')}
         </p>
         <div className="flex flex-wrap gap-2">
           <button className="btn-secondary" onClick={doExport}>
-            导出 v2 备份
+            {t('parentsCenter.exportV2')}
           </button>
           <button
             className="btn-secondary"
             onClick={() => fileRef.current?.click()}
           >
-            导入恢复
+            {t('parentsCenter.importRestore')}
           </button>
           <input
             ref={fileRef}
@@ -283,28 +291,28 @@ export function ParentsCenter({
           <button
             className="btn-secondary"
             onClick={() => {
-              if (!confirm("确定清空全部学习数据？此操作不可撤销。")) return;
+              if (!confirm(t("workspace.confirmClear"))) return;
               replace(createInitialState(state.profile.level));
               setMsg("已清空，回到初始状态");
             }}
           >
-            清空全部数据
+            {t('parentsCenter.clearAll')}
           </button>
         </div>
       </section>
 
       {/* 入园倒计时（T5B.6 P2 占位） */}
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 opacity-60">
-        <h2 className="text-xl font-bold text-gray-800 mb-1">📅 入园倒计时计划</h2>
+        <h2 className="text-xl font-bold text-gray-800 mb-1">{t('parentsCenter.kindergartenCountdown')}</h2>
         <p className="text-xs text-gray-500 mb-3">
-          每天推荐 1 个场景 + 1 首相关儿歌，帮助孩子提前适应幼儿园（即将上线）。
+          {t('parentsCenter.kindergartenDesc')}
         </p>
-        <div className="text-sm text-gray-400 italic">该功能将在后续版本中开放。</div>
+        <div className="text-sm text-gray-400 italic">{t('parentsCenter.comingSoon')}</div>
       </section>
 
       {/* 每周学习报告（T5D.4） */}
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-        <h2 className="text-xl font-bold text-gray-800 mb-3">📊 每周学习报告</h2>
+        <h2 className="text-xl font-bold text-gray-800 mb-3">{t('parentsCenter.weeklyReport')}</h2>
         <WeeklyReport />
       </section>
 
@@ -313,23 +321,23 @@ export function ParentsCenter({
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-gray-900/50 p-4">
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full">
             <h3 className="text-lg font-bold text-gray-800">
-              确认切换学段？
+              {t('parentsCenter.confirmSwitch')}
             </h3>
             <p className="text-sm text-gray-500 mt-2">
-              内容难度将调整，学习记录不会丢失。
+              {t('parentsCenter.switchDesc')}
             </p>
             <div className="flex gap-2 mt-5">
               <button
                 className="btn-secondary flex-1"
                 onClick={() => setPendingLevel(null)}
               >
-                取消
+                {t('common.cancel')}
               </button>
               <button
                 className="btn-primary flex-1"
                 onClick={() => applyLevel(pendingLevel)}
               >
-                确认切换
+                {t('parentsCenter.confirmSwitchBtn')}
               </button>
             </div>
           </div>

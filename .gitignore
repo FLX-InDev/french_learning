@@ -38,3 +38,9 @@ npm-debug.log*
 
 # Docs
 docs/
+data/trace/preview.html
+data/trace/authoring.html
+
+# 描红数据工具的生成物 / Python 缓存
+tools/__pycache__/
+tools/.out/

@@ -261,6 +261,15 @@ export function addPoints(
 export const STATE_KEY = "wb_frws_state";
 
 export type SpeechRate = 0.75 | 0.9;
+
+/** 界面语言（Phase 6 T6-01，界面 chrome 三语切换的唯一真源，PRD §7.13.8） */
+export type Locale = "zh" | "en" | "fr";
+export const LOCALES: Locale[] = ["zh", "en", "fr"];
+export const DEFAULT_LOCALE: Locale = "zh";
+export function isLocale(v: unknown): v is Locale {
+  return v === "zh" || v === "en" || v === "fr";
+}
+
 export type MascotStage = "egg" | "baby" | "teen" | "adult";
 export type WordStatus = "heard" | "flipped" | "correct" | "spoken";
 export type WordProgress = Record<string, WordStatus>;
@@ -275,8 +284,12 @@ export type Profile = {
 
 export type Settings = {
   speechRate: SpeechRate;
+  /** 界面语言（T6-01） */
+  locale: Locale;
   sfxOn: boolean;
   bgmOn: boolean;
+  /** BGM 音量 0–1（T6-02，PRD §7.4.5 音量 20%） */
+  bgmVolume: number;
   /** 点按音效（tap）单独开关，默认关（PRD §7.3 音效触发矩阵） */
   tapSfxOn: boolean;
   /** 每日时长上限（分钟），0 = 不限 */
@@ -295,6 +308,22 @@ export type Rewards = {
 };
 export type Mascot = { stage: MascotStage; fedCount: number };
 
+/**
+ * SRS 间隔重复（Phase 6 T6-06）。
+ * 调度规格由 DG-SRS 冻结，见 `docs/phase-6/CONTEXT.md §2.1`。
+ */
+export type SrsGrade = 0 | 1 | 2 | 3; // 0=again(错) 1=hard 2=good 3=easy
+export type SrsCard = {
+  reps: number; // 已复习次数
+  interval: number; // 当前间隔（天）
+  ease: number; // 易记因子，默认 2.5、下限 1.3
+  due: string; // 到期日 "YYYY-MM-DD"
+  lapses: number; // 遗忘（答错）次数
+  lastGrade?: SrsGrade;
+};
+/** key = itemKey（见 CONTEXT §2.1 题键约定） */
+export type SrsState = Record<string, SrsCard>;
+
 export type AppState = {
   v: 2;
   profile: Profile;
@@ -311,6 +340,8 @@ export type AppState = {
   misspelled: string[];
   /** Phase 3：一次性任务标记（key → 完成日期），如 song_<id> 完听任务（F4.6）、每日挑战当日完成 */
   taskFlags: Record<string, string>;
+  /** Phase 6 T6-06：SRS 间隔重复状态 */
+  srs: SrsState;
 };
 
 /** v1 状态树（保留用于迁移与备份兼容） */
@@ -322,6 +353,8 @@ export type WorkspaceState = Pick<
 /** 每日时长可选档位（0 = 不限） */
 export const DAILY_LIMIT_OPTIONS = [10, 15, 20, 30, 0] as const;
 export const DEFAULT_DAILY_LIMIT_MIN = 20;
+/** BGM 默认音量（T6-02，PRD §7.4.5 音量 20%） */
+export const DEFAULT_BGM_VOLUME = 0.2;
 
 /**
  * 首屏无数据时的初始状态：只造 profile + 空进度，
@@ -337,8 +370,10 @@ export function createInitialState(level: Level = DEFAULT_LEVEL): AppState {
     },
     settings: {
       speechRate: 0.9,
+      locale: DEFAULT_LOCALE,
       sfxOn: true,
       bgmOn: false,
+      bgmVolume: DEFAULT_BGM_VOLUME,
       tapSfxOn: false,
       dailyLimitMin: DEFAULT_DAILY_LIMIT_MIN,
       hiddenContent: [],
@@ -353,6 +388,7 @@ export function createInitialState(level: Level = DEFAULT_LEVEL): AppState {
     wordProgress: {},
     misspelled: [],
     taskFlags: {},
+    srs: {},
   };
 }
 
@@ -376,8 +412,15 @@ function normalizeV2(raw: Record<string, unknown>): AppState {
     },
     settings: {
       speechRate: settings.speechRate === 0.75 ? 0.75 : 0.9,
+      locale: isLocale(settings.locale) ? settings.locale : DEFAULT_LOCALE,
       sfxOn: settings.sfxOn !== false,
       bgmOn: settings.bgmOn === true,
+      bgmVolume:
+        typeof settings.bgmVolume === "number" &&
+        settings.bgmVolume >= 0 &&
+        settings.bgmVolume <= 1
+          ? settings.bgmVolume
+          : DEFAULT_BGM_VOLUME,
       tapSfxOn: settings.tapSfxOn === true,
       dailyLimitMin:
         typeof settings.dailyLimitMin === "number" && settings.dailyLimitMin >= 0
@@ -438,6 +481,10 @@ function normalizeV2(raw: Record<string, unknown>): AppState {
     taskFlags:
       raw.taskFlags && typeof raw.taskFlags === "object"
         ? (raw.taskFlags as Record<string, string>)
+        : {},
+    srs:
+      raw.srs && typeof raw.srs === "object" && !Array.isArray(raw.srs)
+        ? (raw.srs as SrsState)
         : {},
   };
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 import { useAppState } from "./AppStateProvider";
 import { ParentGate } from "./ParentGate";
 import { isTimeUp } from "@/lib/workspace";
@@ -33,6 +34,7 @@ function hhmmss(ms: number): string {
  * - 连续使用 15 分钟 → 20 秒休息遮罩。
  */
 export function ScreenTimeGuard() {
+  const { t } = useI18n();
   const { state, update } = useAppState();
   const [gateOpen, setGateOpen] = useState(false);
   const [breakLeft, setBreakLeft] = useState<number | null>(null);
@@ -76,22 +78,21 @@ export function ScreenTimeGuard() {
         <div className="bg-white/90 backdrop-blur rounded-3xl p-8 max-w-md w-full text-center shadow-xl">
           <div className="text-5xl">🦊</div>
           <h2 className="text-xl font-bold text-gray-800 mt-3">
-            今天学得很棒，该让眼睛休息啦
+            {t('screenTime.breakTitle')}
           </h2>
           <p className="text-sm text-gray-500 mt-2">
-            今日学习时长已用完（{state.settings.dailyLimitMin} 分钟），
-            明天再来找 Félix 玩吧！
+            {t('screenTime.limitReached', { min: String(state.settings.dailyLimitMin) })}
           </p>
           <div className="text-3xl font-extrabold text-purple-600 mt-4 tabular-nums">
             {hhmmss(msLeftToday())}
           </div>
-          <p className="text-xs text-gray-400 mt-1">后恢复</p>
+          <p className="text-xs text-gray-400 mt-1">{t('screenTime.restoreAfter')}</p>
           <div className="flex flex-col gap-2 mt-6">
             <button className="btn-primary" onClick={() => setGateOpen(true)}>
-              🔒 家长解锁
+              {t('screenTime.parentUnlock')}
             </button>
             <a className="btn-secondary" href="/parents">
-              去家长中心
+              {t('screenTime.goParents')}
             </a>
           </div>
         </div>
@@ -105,10 +106,10 @@ export function ScreenTimeGuard() {
         <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-xl">
           <div className="text-5xl">👀</div>
           <h2 className="text-xl font-bold text-gray-800 mt-3">
-            休息一下，看看远处
+            {t('screenTime.restTip')}
           </h2>
           <p className="text-sm text-gray-500 mt-2">
-            已经连续学习 15 分钟啦，活动活动再继续～
+            {t('screenTime.continuous15min')}
           </p>
           <div className="text-4xl font-extrabold text-purple-600 mt-4 tabular-nums">
             {breakLeft}s
@@ -121,8 +122,8 @@ export function ScreenTimeGuard() {
   if (gateOpen) {
     return (
       <ParentGate
-        title="家长解锁"
-        hint="长按 3 秒并答题，可延长 10 分钟"
+        title={t('screenTime.parentUnlock')}
+        hint={t('screenTime.extendHint')}
         onCancel={() => setGateOpen(false)}
         onPass={() => {
           update((s) => ({

@@ -1,6 +1,7 @@
 "use client";
 
 import type { QuizQuestion } from "@/lib/workspace";
+import { useI18n } from "@/lib/i18n";
 
 /** 测验点评中的单题卡片（从 WorkspaceView 拆分，逻辑未改动） */
 export function QuestionCard({
@@ -12,6 +13,7 @@ export function QuestionCard({
   index: number;
   onPlay: (text: string) => void;
 }) {
+  const { t } = useI18n();
   const labels = ["A", "B", "C", "D"];
   return (
     <div className="bg-purple-50 rounded-xl p-3">
@@ -22,7 +24,7 @@ export function QuestionCard({
         <button
           className="shrink-0 w-8 h-8 rounded-full bg-purple-600 text-white text-xs flex items-center justify-center hover:bg-purple-700 transition"
           onClick={() => onPlay(q.fr)}
-          title="播放法语发音"
+          title={t('words.playFrench')}
         >
           🔊
         </button>
@@ -59,7 +61,7 @@ export function QuestionCard({
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
         <span className="font-bold px-1.5 py-0.5 rounded bg-red-50 text-red-500">
-          中
+          {t('flashcard.langZh')}
         </span>
         <span className="text-gray-700">{q.zh}</span>
         <span className="font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-500 ml-2">

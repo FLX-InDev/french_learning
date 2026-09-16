@@ -411,3 +411,75 @@ describe("toChoiceQuizQuestion", () => {
     expect(q.options.length).toBeGreaterThanOrEqual(3);
   });
 });
+
+// ─── 测量/图形扩量（PRD §6.6 L5）─────────────────────────────────
+
+describe("lengthUnit（长度单位换算）", () => {
+  it("L5 生成 30 题：结果为正整数，单位合法", () => {
+    const rng = mulberry32(1000);
+    for (let i = 0; i < 30; i++) {
+      const q = generateMathQuestion({ level: "L5", kind: "lengthUnit", rng });
+      expect(q.kind).toBe("lengthUnit");
+      expect(q.source).toBe("generated");
+      const v = q.visual as { type: "length"; value: number; fromUnit: string; toUnit: string };
+      expect(v.type).toBe("length");
+      expect(["km", "m", "cm", "mm"]).toContain(v.fromUnit);
+      expect(["km", "m", "cm", "mm"]).toContain(v.toUnit);
+      expect(Number(q.answer)).toBeGreaterThan(0);
+      expect(q.unit).toBe(v.toUnit);
+    }
+  });
+
+  it("同种子同卷重放一致", () => {
+    const seed = "lengthUnit-replay";
+    const quizA = generateMathQuiz({ level: "L5", kind: "lengthUnit", count: 5, seed });
+    const quizB = generateMathQuiz({ level: "L5", kind: "lengthUnit", count: 5, seed });
+    expect(JSON.stringify(quizA)).toBe(JSON.stringify(quizB));
+  });
+});
+
+describe("massUnit（质量单位换算）", () => {
+  it("L5 生成 30 题：结果为正整数，单位合法", () => {
+    const rng = mulberry32(1100);
+    for (let i = 0; i < 30; i++) {
+      const q = generateMathQuestion({ level: "L5", kind: "massUnit", rng });
+      expect(q.kind).toBe("massUnit");
+      const v = q.visual as { type: "mass"; value: number; fromUnit: string; toUnit: string };
+      expect(v.type).toBe("mass");
+      expect(["t", "kg", "g", "mg"]).toContain(v.fromUnit);
+      expect(["t", "kg", "g", "mg"]).toContain(v.toUnit);
+      expect(Number(q.answer)).toBeGreaterThan(0);
+      expect(q.unit).toBe(v.toUnit);
+    }
+  });
+
+  it("同种子同卷重放一致", () => {
+    const seed = "massUnit-replay";
+    const quizA = generateMathQuiz({ level: "L5", kind: "massUnit", count: 5, seed });
+    const quizB = generateMathQuiz({ level: "L5", kind: "massUnit", count: 5, seed });
+    expect(JSON.stringify(quizA)).toBe(JSON.stringify(quizB));
+  });
+});
+
+describe("axisSymmetry（轴对称判断）", () => {
+  it("L5 生成 30 题：answer 与 shape hasAxis 一致", () => {
+    const rng = mulberry32(1200);
+    for (let i = 0; i < 30; i++) {
+      const q = generateMathQuestion({ level: "L5", kind: "axisSymmetry", rng });
+      expect(q.kind).toBe("axisSymmetry");
+      const v = q.visual as { type: "symmetry"; shape: string; hasAxis: boolean };
+      expect(v.type).toBe("symmetry");
+      expect(q.answer).toBe(v.hasAxis ? "是" : "不是");
+      expect(q.inputMode).toBe("choice");
+      expect(q.options).toContain(q.answer);
+      expect(new Set(q.options).size).toBe(q.options!.length);
+    }
+  });
+
+  it("同种子同卷重放一致", () => {
+    const seed = "axisSymmetry-replay";
+    const quizA = generateMathQuiz({ level: "L5", kind: "axisSymmetry", count: 5, seed });
+    const quizB = generateMathQuiz({ level: "L5", kind: "axisSymmetry", count: 5, seed });
+    expect(JSON.stringify(quizA)).toBe(JSON.stringify(quizB));
+  });
+});

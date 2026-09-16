@@ -19,6 +19,7 @@ import {
 } from "@/lib/workspace";
 import { matchesLevel, type Word } from "@/lib/contentTypes";
 import type { WordStatus } from "@/lib/workspace";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * 词汇图鉴与闪卡（PRD §7.6.1/§7.6.2/§7.6.5，Dev-Plan T5A.1/T5A.3/T5A.4/T5A.5）：
@@ -31,6 +32,7 @@ import type { WordStatus } from "@/lib/workspace";
  */
 export function WordGallery({ words }: { words: Word[] }) {
   const { state, update } = useAppState();
+  const { t } = useI18n();
   const level = state?.profile.level ?? "L3";
   const hidden = state?.settings.hiddenContent ?? [];
   const speechRate = state?.settings.speechRate ?? 0.9;
@@ -127,7 +129,7 @@ export function WordGallery({ words }: { words: Word[] }) {
   if (hidden.includes("word")) {
     return (
       <div className="text-center text-gray-400 py-10">
-        该内容已被家长关闭，可在家长中心重新开启。
+        {t('alphabet.parentLocked')}
       </div>
     );
   }
@@ -157,11 +159,11 @@ export function WordGallery({ words }: { words: Word[] }) {
       {/* 收集度总览 */}
       <div className="flex items-center justify-between text-sm">
         <div className="text-gray-500">
-          当前学段 <b className="text-purple-600">{pool.length}</b> 词 ·{" "}
-          {categories.length} 个分类
+          {t('words.currentLevel')} <b className="text-purple-600">{pool.length}</b> {t('words.words')} ·{" "}
+          {categories.length} {t('words.categories')}
         </div>
         <div className="text-gray-400">
-          已收集{" "}
+          {t('words.collected')}{" "}
           <b className="text-amber-500">
             {overall.collected}/{overall.total}
           </b>
@@ -170,7 +172,7 @@ export function WordGallery({ words }: { words: Word[] }) {
 
       {/* 分类 Tab（横向滚动，含收集度） */}
       <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-        {[["__all", "全部"], ...categories.map((c) => [c, c] as const)].map(
+        {[["__all", t('words.all')], ...categories.map((c) => [c, c] as const)].map(
           ([key, label]) => {
             const stat = catStat(key);
             const on = activeCat === key;
@@ -201,7 +203,7 @@ export function WordGallery({ words }: { words: Word[] }) {
       {/* 图鉴墙 */}
       {list.length === 0 ? (
         <div className="text-center text-gray-400 py-10">
-          当前学段暂无词卡。
+          {t('words.noCards')}
         </div>
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
@@ -217,7 +219,7 @@ export function WordGallery({ words }: { words: Word[] }) {
                     ? "border-green-200"
                     : "border-gray-100")
                 }
-                aria-label={`词卡 ${w.zh}（${w.fr}）${st ? "，已学" : ""}`}
+                aria-label={`词卡 ${w.zh}（${w.fr}）${st ? t('words.hasLearned') : ''}`}
               >
                 <div className="text-3xl" aria-hidden>
                   {w.emoji || "🃏"}
@@ -229,12 +231,12 @@ export function WordGallery({ words }: { words: Word[] }) {
                 {st && (
                   <div className="text-[10px] text-green-500 mt-0.5">
                     {st === "spoken"
-                      ? "✓ 会读"
+                      ? t('words.canRead')
                       : st === "correct"
-                      ? "✓ 答对"
+                      ? t('words.answeredCorrect')
                       : st === "flipped"
-                      ? "✓ 翻过"
-                      : "✓ 听过"}
+                      ? t('words.flipped')
+                      : t('words.heard')}
                   </div>
                 )}
               </button>
@@ -267,9 +269,9 @@ export function WordGallery({ words }: { words: Word[] }) {
                       ? "bg-pink-500 text-white animate-pulse"
                       : "bg-pink-50 text-pink-500")
                   }
-                  title="自动轮播：每张约 3 秒，三语轮读"
+                  title={t('words.autoplayTooltip')}
                 >
-                  🎧 磨耳朵
+                  {t('words.listenEar')}
                 </button>
                 <button
                   className="w-9 h-9 rounded-full bg-purple-50 text-purple-600 text-lg"
@@ -286,9 +288,9 @@ export function WordGallery({ words }: { words: Word[] }) {
               <button
                 className="min-h-[36px] px-3 rounded-full bg-gray-50 hover:bg-gray-100"
                 onClick={() => step(-1)}
-                aria-label="上一个词"
+                aria-label={t('words.previous')}
               >
-                ← 上一个
+                {t('words.previous')}
               </button>
               <span>
                 {(deckIndex ?? 0) + 1} / {list.length}
@@ -296,9 +298,9 @@ export function WordGallery({ words }: { words: Word[] }) {
               <button
                 className="min-h-[36px] px-3 rounded-full bg-gray-50 hover:bg-gray-100"
                 onClick={() => step(1)}
-                aria-label="下一个词"
+                aria-label={t('words.next')}
               >
-                下一个 →
+                {t('words.next')}
               </button>
             </div>
 
@@ -309,7 +311,7 @@ export function WordGallery({ words }: { words: Word[] }) {
                   setFace("back");
                 }}
                 className="w-full py-12 rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-100 hover:border-purple-300 transition"
-                aria-label={`翻面查看 ${current.zh}`}
+                aria-label={`${t('words.flip')} ${current.zh}`}
               >
                 <div className="text-7xl" aria-hidden>
                   {current.emoji || "🃏"}
@@ -328,7 +330,7 @@ export function WordGallery({ words }: { words: Word[] }) {
                     ▶
                   </button>
                 </div>
-                <div className="text-xs text-gray-400 mt-3">👆 点击翻面</div>
+                <div className="text-xs text-gray-400 mt-3">{t('words.tapToFlip')}</div>
               </button>
             ) : (
               <div className="py-6 rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-100 px-4">
@@ -337,7 +339,7 @@ export function WordGallery({ words }: { words: Word[] }) {
                 </div>
                 <div className="mt-3 space-y-1.5">
                   <div className="flex items-center justify-center gap-2">
-                    <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-red-50 text-red-500">中</span>
+                    <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-red-50 text-red-500">{t('flashcard.langZh')}</span>
                     <span className="text-gray-800 font-semibold">{current.zh}</span>
                     <button
                       className="w-8 h-8 rounded-full bg-red-50 text-red-500 text-xs"
@@ -400,9 +402,9 @@ export function WordGallery({ words }: { words: Word[] }) {
                             if (passed) markProgress(current.id, "spoken");
                           })
                         }
-                        aria-label="跟读这个单词"
+                        aria-label={t('words.readAlong')}
                       >
-                        {pr.state === "recording" ? "● 正在录音…" : "🎤 跟读"}
+                        {pr.state === "recording" ? t('flashcard.recording') : t('words.readAlongBtn')}
                       </button>
                       <RecordingPlayback
                         recUrl={pr.recUrl}
@@ -424,10 +426,10 @@ export function WordGallery({ words }: { words: Word[] }) {
                               : "text-orange-500")
                           }
                         >
-                          {pr.result.score} 分
+                          {t('words.score', { score: String(pr.result.score) })}
                         </span>
                         <span className="text-xs text-gray-400 ml-2">
-                          听到了「{pr.result.transcript || "—"}」
+                          {t('words.heardTranscript', { transcript: pr.result.transcript || "—" })}
                         </span>
                       </div>
                     )}
@@ -444,7 +446,7 @@ export function WordGallery({ words }: { words: Word[] }) {
                 href="/alphabets"
                 className="text-xs text-gray-300 hover:text-purple-400"
               >
-                想练拼写？去拼词游戏 →
+                {t('words.practiceSpelling')} →
               </Link>
             </div>
           </PopIn>

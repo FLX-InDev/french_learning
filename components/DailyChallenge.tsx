@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 import { useAppState } from "@/components/AppStateProvider";
 import { MathQuestionCard } from "@/components/MathQuestionCard";
 import { KeypadInput } from "@/components/KeypadInput";
@@ -20,6 +21,9 @@ import {
   type DailyItem,
 } from "@/lib/dailyChallenge";
 import { getLevelConfig } from "@/lib/levels";
+import { review, srsKeyFor } from "@/lib/srs";
+import { nextPhonicsCard, phonicsPool } from "@/lib/phonics";
+import { PhonicsCardView } from "@/components/PhonicsCardView";
 import {
   addPoints,
   sessionDurationMin,
@@ -47,6 +51,7 @@ export function DailyChallenge({
   words: Word[];
   alphabets: AlphabetCard[];
 }) {
+  const { t: i18nT } = useI18n();
   const { state, update } = useAppState();
   const [open, setOpen] = useState(false);
   const [index, setIndex] = useState(0);
@@ -70,6 +75,9 @@ export function DailyChallenge({
   const today = todayStr();
   const speechRate = state?.settings.speechRate ?? 0.9;
 
+  // T6-07：拼读题池（按学段派生体系；DG-1 → L1–L3 音节 / L4–L6 字素 + 英语 CVC）
+  const phonics = useMemo(() => phonicsPool(level, words), [level, words]);
+
   // 同日同卷：日期 + 学段为种子（misspelled 变化会注入拼词题，但不改变其他题）
   const items = useMemo<DailyItem[]>(
     () =>
@@ -81,10 +89,21 @@ export function DailyChallenge({
             words,
             alphabets,
             misspelled: state.misspelled,
+            // T6-06：SRS 到期题优先（至多 2 道，跨学科；契约 §2.1）
+            srs: { state: state.srs, today },
+            // T6-07：拼读题（T6-06 已预留 provider 接线；契约 §2.3）
+            phonics: {
+              provider: (rng) => {
+                const card = nextPhonicsCard(phonics, rng);
+                return card
+                  ? { subject: "language", mode: "phonics", card }
+                  : null;
+              },
+            },
           })
         : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state !== null, level, today, pool, words, alphabets]
+    [state !== null, level, today, pool, words, alphabets, phonics]
   );
 
   const doneToday = !!state?.taskFlags[`daily_${today}`];
@@ -154,6 +173,15 @@ export function DailyChallenge({
     let points = addPoints(state.points, 10, "完成每日挑战");
     if (acc >= 80) points = addPoints(points, 5, "每日挑战高正确率");
 
+    // T6-06：SRS 复习结算 —— 每题按对/错复习一次（答对 grade 2 / 答错 grade 0），
+    // 题键稳定（srsKeyFor）跨天累计；listenPick 等无稳定键的题不入 SRS。
+    const nextSrs = items.reduce((acc2, it, i) => {
+      const key = srsKeyFor(it);
+      if (!key) return acc2;
+      const ok = isDailyCorrect(it, answers[i] ?? {});
+      return { ...acc2, [key]: review(acc2[key], ok ? 2 : 0, today) };
+    }, state.srs);
+
     update((s) => ({
       ...s,
       sessions: [...s.sessions.filter((x) => x.id !== session.id), session],
@@ -161,6 +189,7 @@ export function DailyChallenge({
       rewards: settled.rewards,
       mascot: { ...s.mascot, fedCount: s.mascot.fedCount + 1 },
       taskFlags: { ...s.taskFlags, [`daily_${today}`]: today },
+      srs: nextSrs,
     }));
     setSummary({ acc, correct, stars, gained: settled.gained });
     // 关卡通关：levelup 音效 + 撒花（触发矩阵同步触发，PRD §7.3）
@@ -172,7 +201,7 @@ export function DailyChallenge({
   const answer = answers[index];
   const answered =
     !!item &&
-    (item.mode === "spell"
+    (item.mode === "spell" || item.mode === "phonics"
       ? answer?.correct !== undefined
       : item.mode === "lang" || item.mode === "listenPick"
       ? answer?.choice != null
@@ -187,10 +216,12 @@ export function DailyChallenge({
     <div className="rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 text-white p-4">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <div className="font-bold">每日挑战</div>
+          <div className="font-bold">{i18nT("dailyChallenge.title")}</div>
           <div className="text-xs opacity-90 mt-1">
-            {cfg.dailyQuizCount} 题 · 语言 {cfg.dailyMix.language} / 数学{" "}
-            {cfg.dailyMix.math} / 逻辑 {cfg.dailyMix.logic}
+            {i18nT("dailyChallenge.count", {
+              count: String(cfg.dailyQuizCount),
+              n: String(cfg.dailyMix.language),
+            })}
           </div>
         </div>
         <span className="text-2xl" aria-hidden>
@@ -200,7 +231,7 @@ export function DailyChallenge({
 
       {doneToday ? (
         <div className="mt-3 text-xs bg-white/25 rounded-full px-3 py-1.5 inline-block">
-          今日已完成，明天继续加油！
+          {i18nT("dailyChallenge.done")}
         </div>
       ) : (
         <button
@@ -208,7 +239,7 @@ export function DailyChallenge({
           onClick={openChallenge}
           disabled={items.length === 0}
         >
-          {items.length === 0 ? "内容准备中…" : "开始挑战"}
+          {items.length === 0 ? i18nT("dailyChallenge.preparing") : i18nT("dailyChallenge.start")}
         </button>
       )}
 
@@ -224,28 +255,28 @@ export function DailyChallenge({
             {summary ? (
               <div className="text-center py-6">
                 <Mascot mood="happy" size={110} className="mx-auto" />
-                <h2 className="text-xl font-bold mt-2">每日挑战完成！</h2>
+                <h2 className="text-xl font-bold mt-2">{i18nT("dailyChallenge.completed")}</h2>
                 <div className="mt-4 flex justify-center">
                   <StarReveal stars={summary.stars} />
                 </div>
                 <p className="text-sm text-gray-500 mt-3">
-                  答对 {summary.correct} / {items.length} · 正确率 {summary.acc}%
-                  {summary.gained > 0 && ` · 本日获得 ${summary.gained} 颗星`}
+                  {i18nT("dailyChallenge.score", { n: String(summary.correct) })}
+                  {summary.gained > 0 && ` · ${i18nT("dailyChallenge.starsEarned", { n: String(summary.gained) })}`}
                 </p>
                 <p className="text-xs text-gray-400 mt-1">
-                  积分 +{10 + (summary.acc >= 80 ? 5 : 0)} · Félix 被投喂了 1 次
+                  {i18nT("dailyChallenge.points", { n: String(10 + (summary.acc >= 80 ? 5 : 0)) })}
                 </p>
                 <button
                   className="btn-primary mt-6 min-w-[160px]"
                   onClick={() => setOpen(false)}
                 >
-                  完成
+                  {i18nT("dailyChallenge.doneBtn")}
                 </button>
               </div>
             ) : (
               <>
                 <div className="flex items-center justify-between mb-3">
-                  <div className="text-lg font-bold">🎯 每日挑战</div>
+                  <div className="text-lg font-bold">{i18nT("dailyChallenge.header")}</div>
                   <button
                     className="w-9 h-9 rounded-full bg-purple-50 text-purple-600 text-lg shrink-0"
                     onClick={() => setOpen(false)}
@@ -261,12 +292,13 @@ export function DailyChallenge({
                   />
                 </div>
                 <p className="text-xs text-gray-400 mb-3">
-                  第 {index + 1} / {items.length} 题 ·{" "}
+                  {i18nT("dailyChallenge.progress", { n: String(index + 1) })}
+                  {" · "}
                   {item.subject === "language"
-                    ? "语言"
+                    ? i18nT("home.subjects.language")
                     : item.subject === "math"
-                    ? "数学"
-                    : "逻辑"}
+                    ? i18nT("home.subjects.math")
+                    : i18nT("home.subjects.logic")}
                 </p>
                 <DailyItemView
                   item={item}
@@ -282,13 +314,13 @@ export function DailyChallenge({
                 <div className="min-h-[40px] flex items-center justify-center mt-3">
                   {feedback === "correct" && (
                     <span className="animate-[feedback-pop_0.3s_ease] text-green-600 font-bold">
-                      ✅ 答对啦，真棒！
+                      {i18nT("dailyChallenge.correct")}
                     </span>
                   )}
                   {feedback === "wrong" && (
                     <span className="flex items-center gap-2 text-orange-500 font-semibold text-sm">
                       <Mascot mood="encourage" size={36} />
-                      再想想，Félix 相信你！
+                      {i18nT("dailyChallenge.incorrect")}
                     </span>
                   )}
                 </div>
@@ -299,11 +331,11 @@ export function DailyChallenge({
                 >
                   {index + 1 < items.length
                     ? answered
-                      ? "下一题"
-                      : "请先作答"
+                      ? i18nT("dailyChallenge.next")
+                      : i18nT("dailyChallenge.answerFirst")
                     : answered
-                    ? "提交并结算"
-                    : "请先作答"}
+                    ? i18nT("dailyChallenge.submit")
+                    : i18nT("dailyChallenge.answerFirst")}
                 </button>
               </>
             )}
@@ -334,15 +366,21 @@ function DailyItemView({
   onSpell: (correct: boolean) => void;
   onPlay: (text: string) => void;
 }) {
+  const { t: i18nT } = useI18n();
   const [keypad, setKeypad] = useState("");
 
   if (item.mode === "spell") {
     return (
       <div>
-        <p className="text-xs text-gray-400 mb-2">把单词拼出来（点选字母瓦片）</p>
+        <p className="text-xs text-gray-400 mb-2">{i18nT("dailyChallenge.spellingPrompt")}</p>
         <SpellingAttempt word={item.word} compact onResult={onSpell} />
       </div>
     );
+  }
+
+  // T6-07：拼读题（切分体系由 card.parts 决定；判定回调与拼写题同通道）
+  if (item.mode === "phonics") {
+    return <PhonicsCardView card={item.card} compact onSolved={onSpell} />;
   }
 
   if (item.mode === "listenPick") {
@@ -407,7 +445,7 @@ function DailyItemView({
             </p>
           )}
           {item.q.kind === "oddOne" && (
-            <p className="text-xs text-gray-400 mt-1">找出不属于同类的一个</p>
+            <p className="text-xs text-gray-400 mt-1">{i18nT("dailyChallenge.oddOneOut")}</p>
           )}
         </div>
         <div className="space-y-1.5">
@@ -444,7 +482,7 @@ function DailyItemView({
             <button
               className="w-10 h-10 rounded-full bg-purple-600 text-white shrink-0"
               onClick={() => onPlay(q.fr)}
-              aria-label="播放法语"
+              aria-label={i18nT("dailyChallenge.playFrench")}
             >
               ▶
             </button>
@@ -452,7 +490,7 @@ function DailyItemView({
               <span className="italic">« {q.fr} » 是什么意思？</span>
             ) : (
               <button className="text-xs text-purple-600 underline" onClick={onReveal}>
-                显示原文
+                {i18nT("dailyChallenge.showOriginal")}
               </button>
             )}
           </div>

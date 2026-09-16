@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useI18n } from "@/lib/i18n";
 import { useAppState } from "@/components/AppStateProvider";
 import { matchesLevel } from "@/lib/contentTypes";
 import type { Story } from "@/lib/parser";
@@ -22,6 +23,7 @@ const EMOJIS = ["🐰", "🐻", "🐦", "🐶", "🐱", "🐷", "🐑", "🦆"];
  * 故事列表（软切换：按 AppState.profile.level 即时过滤）
  */
 export function StoryList({ stories }: { stories: Story[] }) {
+  const { t } = useI18n();
   const { state } = useAppState();
   const level = state?.profile.level ?? "L3";
   const hidden = state?.settings.hiddenContent ?? [];
@@ -29,7 +31,7 @@ export function StoryList({ stories }: { stories: Story[] }) {
   if (hidden.includes("story")) {
     return (
       <div className="text-center text-gray-400 py-10">
-        该内容已被家长关闭，可在家长中心重新开启。
+        {t("story.parentLocked")}
       </div>
     );
   }
@@ -39,12 +41,12 @@ export function StoryList({ stories }: { stories: Story[] }) {
   return (
     <div className="space-y-4">
       <div className="text-sm text-gray-500">
-        当前学段可见 {list.length} / {stories.length} 个故事
+        {t("story.count", { current: String(list.length), total: String(stories.length) })}
       </div>
 
       {list.length === 0 ? (
         <div className="text-center text-gray-400 py-10">
-          当前学段暂无故事，可在家长中心切换学段。
+          {t("story.empty")}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -65,10 +67,10 @@ export function StoryList({ stories }: { stories: Story[] }) {
                     {story.title}
                   </h2>
                   <p className="text-sm text-gray-400 mt-1">
-                    {story.sentences.length} 句话 · 三语对照
+                    {t("story.linesCount", { n: String(story.sentences.length) })}
                   </p>
                   <div className="mt-3 text-purple-500 text-sm font-medium">
-                    阅读故事 →
+                    {t("story.readStory")}
                   </div>
                 </div>
               </div>

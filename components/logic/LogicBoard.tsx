@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useAppState } from "@/components/AppStateProvider";
+import { useI18n } from "@/lib/i18n";
 import { LOGIC_DOMAINS } from "@/lib/mathCurriculum";
 import {
   checkLogicAnswer,
@@ -28,10 +29,11 @@ type Ghost = { id: string; x: number; y: number } | null;
  */
 export function LogicCenter({ fixedItems }: { fixedItems: LogicItem[] }) {
   const { state } = useAppState();
+  const { t } = useI18n();
   const [activeDomain, setActiveDomain] = useState<string | null>(null);
 
   if (!state) {
-    return <div className="py-20 text-center text-gray-400">加载中…</div>;
+    return <div className="py-20 text-center text-gray-400">{t('logic.loading')}</div>;
   }
 
   if (activeDomain) {
@@ -52,10 +54,10 @@ export function LogicCenter({ fixedItems }: { fixedItems: LogicItem[] }) {
     <div className="max-w-3xl mx-auto space-y-8">
       <div className="text-center">
         <h1 className="text-3xl font-bold text-gray-800">
-          <span className="text-teal-500">🧩</span> 逻辑推理
+          <span className="text-teal-500">🧩</span> {t('logic.title')}
         </h1>
         <p className="text-gray-500 mt-2 text-sm">
-          六大能力域 · 中法融合题式（当前学段 {state.profile.level}）
+          {t('logic.desc', { level: state.profile.level })}
         </p>
       </div>
 
@@ -65,7 +67,7 @@ export function LogicCenter({ fixedItems }: { fixedItems: LogicItem[] }) {
             key={d.id}
             disabled={!d.ready}
             onClick={() => setActiveDomain(d.id)}
-            aria-label={`进入能力域 ${d.title.zh}`}
+            aria-label={`enter domain ${d.title.zh}`}
             className={
               "rounded-2xl border-2 p-5 text-center transition " +
               (d.ready
@@ -82,7 +84,7 @@ export function LogicCenter({ fixedItems }: { fixedItems: LogicItem[] }) {
       </div>
 
       <p className="text-center text-xs text-gray-400 pb-4">
-        每组 5 题 · 支持拖拽与点选两种操作方式
+        {t('logic.groupHint')}
       </p>
     </div>
   );
@@ -101,6 +103,7 @@ function LogicQuizRunner({
   fixedItems: LogicItem[];
   onExit: () => void;
 }) {
+  const { t } = useI18n();
   const { state, update } = useAppState();
   const level = state?.profile.level ?? "L3";
 
@@ -175,13 +178,13 @@ function LogicQuizRunner({
     return (
       <div className="max-w-xl mx-auto text-center py-10">
         <div className="text-6xl">🦊</div>
-        <h1 className="text-2xl font-bold text-gray-800 mt-3">题组完成！</h1>
+        <h1 className="text-2xl font-bold text-gray-800 mt-3">{t('logic.quizCompleted')}</h1>
         <p className="text-sm text-gray-500 mt-3">
-          正确率 {finished.acc}% · +5 积分
+          {t('logic.accuracy', { acc: String(finished.acc) })}
         </p>
         <div className="flex gap-3 justify-center mt-6">
           <button className="btn-secondary" onClick={onExit}>
-            返回能力域
+            {t('logic.backToDomain')}
           </button>
         </div>
       </div>
@@ -196,7 +199,7 @@ function LogicQuizRunner({
     <div className="max-w-xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
         <button className="text-sm text-purple-500" onClick={onExit}>
-          ← 返回能力域
+          {t('logic.backToDomainLink')}
         </button>
         <span className="text-sm text-gray-400">
           {index + 1} / {questions.length}
@@ -246,12 +249,12 @@ function LogicQuizRunner({
 
         {feedback === "right" && (
           <p className="text-center text-green-600 font-bold mt-3">
-            ✅ 太棒了！Félix 为你欢呼
+            {t('logic.correctAnswer')}
           </p>
         )}
         {feedback === "wrong" && (
           <p className="text-center text-amber-600 font-semibold mt-3">
-            再想一想，正确答案是高亮的那一个 💪
+            {t('logic.wrongHint')}
           </p>
         )}
       </div>
@@ -270,6 +273,7 @@ function PatternBoard({
   locked: boolean;
   onAnswer: (a: string) => void;
 }) {
+  const { t } = useI18n();
   const p = q.payload as Extract<LogicQuestion["payload"], { type: "pattern" }>;
   return (
     <div className="space-y-5">
@@ -319,6 +323,7 @@ function OddOneBoard({
   locked: boolean;
   onAnswer: (a: string) => void;
 }) {
+  const { t } = useI18n();
   const p = q.payload as Extract<LogicQuestion["payload"], { type: "oddOne" }>;
   return (
     <div className="flex items-center justify-center gap-4 flex-wrap">
@@ -354,6 +359,7 @@ function ClassifyBoard({
   locked: boolean;
   onAnswer: (a: string) => void;
 }) {
+  const { t } = useI18n();
   const p = q.payload as ClassifyPayload;
   const [assign, setAssign] = useState<Record<string, string | null>>(() =>
     Object.fromEntries(p.items.map((it) => [it.id, null]))
@@ -420,7 +426,7 @@ function ClassifyBoard({
       {/* 待分类池（点选：先点物品，再点篮子） */}
       <div className="flex items-center justify-center gap-3 flex-wrap min-h-[80px] bg-gray-50 rounded-xl p-3">
         {unassigned.length === 0 && (
-          <span className="text-xs text-gray-400">都分好啦，点「检查」提交</span>
+          <span className="text-xs text-gray-400">{t('logic.allAssigned')}</span>
         )}
         {unassigned.map((it) => (
           <button
@@ -434,7 +440,7 @@ function ClassifyBoard({
                 ? "border-purple-500 bg-purple-50 scale-105"
                 : "border-gray-100 bg-white")
             }
-            aria-label={`选择物品（可拖入篮子或点选后点篮子）`}
+            aria-label={`select item`}
           >
             {it.emoji}
           </button>
@@ -470,7 +476,7 @@ function ClassifyBoard({
                       setAssign((a) => ({ ...a, [m.id]: null }));
                     }}
                     className="text-2xl"
-                    aria-label="移回物品"
+                    aria-label={`return item`}
                   >
                     {m.emoji}
                   </button>
@@ -486,10 +492,8 @@ function ClassifyBoard({
         disabled={locked || !allAssigned()}
         onClick={check}
       >
-        检查
+        {t('logic.check')}
       </button>
-
-      {/* 拖拽幻影 */}
       {ghost && (
         <div
           className="fixed pointer-events-none text-4xl z-[500]"
@@ -513,6 +517,7 @@ function SortBoard({
   locked: boolean;
   onAnswer: (a: string) => void;
 }) {
+  const { t } = useI18n();
   const p = q.payload as SortPayload;
   const max = Math.max(...p.items.map((it) => it.size));
   const [order, setOrder] = useState<string[]>(() => p.items.map((it) => it.id));
@@ -583,7 +588,7 @@ function SortBoard({
             (mode === "drag" ? "bg-teal-600 text-white" : "bg-gray-100 text-gray-500")
           }
         >
-          ✋ 拖拽排序
+          {t('logic.dragSort')}
         </button>
         <button
           onClick={() => setMode("tap")}
@@ -593,7 +598,7 @@ function SortBoard({
             (mode === "tap" ? "bg-teal-600 text-white" : "bg-gray-100 text-gray-500")
           }
         >
-          👆 按序点选
+          {t('logic.tapSort')}
         </button>
       </div>
 
@@ -614,7 +619,7 @@ function SortBoard({
                 className="select-none touch-none cursor-grab active:cursor-grabbing"
                 style={{ fontSize: `${scale * 3}rem`, lineHeight: 1 }}
                 role="button"
-                aria-label={`物品 ${i + 1}，拖拽或点选调整顺序`}
+                aria-label={`item ${i + 1}`}
               >
                 {it.emoji}
               </span>
@@ -626,13 +631,13 @@ function SortBoard({
 
       {mode === "tap" && (
         <p className="text-center text-xs text-gray-400">
-          已点选 {tapOrder.length} / {p.items.length}（按从小到大的顺序点）
+          {t('logic.tappedCount', { n: String(tapOrder.length), total: String(p.items.length) })}
           {tapOrder.length > 0 && (
             <button
               className="ml-2 text-teal-600"
               onClick={() => setTapOrder([])}
             >
-              重选
+              {t('logic.reselect')}
             </button>
           )}
         </p>
@@ -643,7 +648,7 @@ function SortBoard({
         disabled={locked}
         onClick={check}
       >
-        检查
+        {t('logic.check')}
       </button>
 
       {ghost && (

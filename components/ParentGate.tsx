@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * 家长门（PRD §7.12.2 F45）
@@ -27,6 +28,7 @@ export function ParentGate({
   title?: string;
   hint?: string;
 }) {
+  const { t } = useI18n();
   const [step, setStep] = useState<"hold" | "math">("hold");
   const [progress, setProgress] = useState(0);
   const [q, setQ] = useState(() => makeQuestion());
@@ -71,7 +73,7 @@ export function ParentGate({
       onPass();
       return;
     }
-    setError("答案不对，再试一次吧");
+    setError(t("parentGate.wrongAnswer"));
     setInput("");
     setQ(makeQuestion());
   }
@@ -95,7 +97,7 @@ export function ParentGate({
         {step === "hold" ? (
           <div className="text-center">
             <p className="text-sm text-gray-500 mb-4">
-              {hint ?? "请长按下方按钮 3 秒，验证家长身份"}
+              {t("parentGate.holdHint")}
             </p>
             <button
               onPointerDown={startHold}
@@ -104,7 +106,7 @@ export function ParentGate({
               onPointerCancel={stopHold}
               onContextMenu={(e) => e.preventDefault()}
               className="relative w-40 h-40 mx-auto rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-white font-bold text-lg select-none touch-none active:scale-95 transition-transform"
-              aria-label="长按 3 秒进行家长验证"
+              aria-label={t("parentGate.holdLabel")}
             >
               <span
                 className="absolute inset-0 rounded-full bg-white/30"
@@ -112,14 +114,14 @@ export function ParentGate({
                   clipPath: `inset(${(1 - progress) * 100}% 0 0 0)`,
                 }}
               />
-              <span className="relative">长按 3 秒</span>
+              <span className="relative">{t("parentGate.holdText")}</span>
             </button>
-            <p className="text-xs text-gray-400 mt-3">松开即取消</p>
+            <p className="text-xs text-gray-400 mt-3">{t("parentGate.releaseCancel")}</p>
           </div>
         ) : (
           <form onSubmit={submit} className="text-center">
             <p className="text-sm text-gray-500 mb-4">
-              请回答：验证通过后即可继续
+              {t("parentGate.mathPrompt")}
             </p>
             <div className="text-3xl font-extrabold text-purple-600 mb-4">
               {q.a} + {q.b} = ?
@@ -138,7 +140,7 @@ export function ParentGate({
               className="btn-primary mt-4 w-full"
               disabled={!input}
             >
-              确定
+              {t("keypad.confirm")}
             </button>
           </form>
         )}

@@ -6,9 +6,17 @@ import {
   type DailyItem,
 } from "./dailyChallenge";
 import { expandDailyMix, type Subject } from "./levels";
-import { mulberry32, seedFromString, normalizeAnswer } from "./mathGenerator";
+import {
+  mulberry32,
+  seedFromString,
+  normalizeAnswer,
+  type MathKind,
+} from "./mathGenerator";
+import { stageKindsForLevel } from "./mathCurriculum";
+import { langItemKey, spellItemKey, mathItemKey, logicItemKey } from "./srs";
 import type { Sentence } from "./parser";
 import type { Word, AlphabetCard } from "./contentTypes";
+import type { SrsState } from "./workspace";
 
 // ── 固定夹具（与内容文件解耦，保证测试稳定）──────────────────────
 
@@ -375,5 +383,245 @@ describe("listenPick（听音选图）", () => {
       expect(q.options.every((o) => typeof o === "string")).toBe(true);
       expect(q.userIndex).toBe(q.correctIndex);
     }
+  });
+});
+
+// ── Phase 6 T6-06：SRS 到期题优先（契约 §2.1）────────────────────
+describe("SRS 到期题优先", () => {
+  const TODAY = "2026-09-07";
+  // 本地 L2 拼词池：三个词都在 L2，确保多张到期卡都能命中
+  // （公共夹具 WORDS 中仅 w_test0 属 L2，w_test1/2 属 L3 不在 L2 拼词池）
+  const SRS_WORDS: Word[] = [
+    { id: "w_srs0", level: "L2", category: "动物", emoji: "🐱", zh: "猫", en: "cat", fr: "chat" },
+    { id: "w_srs1", level: "L2", category: "动物", emoji: "🐶", zh: "狗", en: "dog", fr: "chien" },
+    { id: "w_srs2", level: "L2", category: "动物", emoji: "🐰", zh: "兔", en: "rabbit", fr: "lapin" },
+  ];
+  const base = {
+    level: "L2" as const,
+    date: TODAY,
+    pool: POOL,
+    words: SRS_WORDS,
+    alphabets: ALPHABETS,
+  };
+  const card = (due: string) => ({ reps: 0, interval: 1, ease: 2.5, due, lapses: 0 });
+
+  it("无到期卡时与不传 srs 深度相等（向后兼容）", () => {
+    const a = generateDailyChallenge(base);
+    const b = generateDailyChallenge({ ...base, srs: { state: {}, today: TODAY } });
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+  });
+
+  it("spell 到期卡命中词池 → 生成拼写题，总数/配比不变", () => {
+    const state: SrsState = { [spellItemKey("w_srs0")]: card("2026-09-01") };
+    const items = generateDailyChallenge({ ...base, srs: { state, today: TODAY } });
+    expect(items).toHaveLength(6);
+    const counts = subjectsOf(items);
+    expect(counts.language).toBe(3);
+    expect(counts.math).toBe(2);
+    expect(counts.logic).toBe(1);
+    const spell = items.find((it) => it.mode === "spell");
+    expect(spell && spell.mode === "spell" ? spell.word.id : "").toBe("w_srs0");
+  });
+
+  it("每日至多 2 道到期题（默认 limit）", () => {
+    const state: SrsState = {
+      [spellItemKey("w_srs0")]: card("2026-09-01"),
+      [spellItemKey("w_srs1")]: card("2026-09-02"),
+      [spellItemKey("w_srs2")]: card("2026-09-03"),
+    };
+    const items = generateDailyChallenge({ ...base, srs: { state, today: TODAY } });
+    expect(items.filter((it) => it.mode === "spell")).toHaveLength(2);
+    expect(items).toHaveLength(6);
+  });
+
+  it("limit=3 时放 3 道到期题", () => {
+    const state: SrsState = {
+      [spellItemKey("w_srs0")]: card("2026-09-01"),
+      [spellItemKey("w_srs1")]: card("2026-09-02"),
+      [spellItemKey("w_srs2")]: card("2026-09-03"),
+    };
+    const items = generateDailyChallenge({
+      ...base,
+      srs: { state, today: TODAY, limit: 3 },
+    });
+    expect(items.filter((it) => it.mode === "spell")).toHaveLength(3);
+  });
+
+  it("按 due 升序优先（最早到期者先入选）", () => {
+    const state: SrsState = {
+      [spellItemKey("w_srs0")]: card("2026-09-03"),
+      [spellItemKey("w_srs1")]: card("2026-09-01"),
+      [spellItemKey("w_srs2")]: card("2026-09-02"),
+    };
+    const items = generateDailyChallenge({ ...base, srs: { state, today: TODAY } });
+    const ids = items
+      .filter((it) => it.mode === "spell")
+      .map((it) => (it.mode === "spell" ? it.word.id : ""));
+    expect(ids.sort()).toEqual(["w_srs1", "w_srs2"]);
+  });
+
+  it("lang 到期卡命中内容池 → 该句出现在卷中", () => {
+    const s = POOL[0] as Sentence;
+    const state: SrsState = { [langItemKey(s.fr, s.zh, s.en)]: card("2026-09-01") };
+    const items = generateDailyChallenge({
+      ...base,
+      level: "L1",
+      srs: { state, today: TODAY },
+    });
+    expect(items).toHaveLength(4);
+    expect(items[0].mode).toBe("lang");
+    if (items[0].mode === "lang") expect(items[0].q.fr).toBe(s.fr);
+  });
+
+  it("lang 到期卡未命中内容池 → 回退常规题，总数不变", () => {
+    const state: SrsState = {
+      [langItemKey("不存在", "不存在", "不存在")]: card("2026-09-01"),
+    };
+    const items = generateDailyChallenge({ ...base, srs: { state, today: TODAY } });
+    expect(items).toHaveLength(6);
+    expect(items.some((it) => it.mode === "spell")).toBe(false);
+  });
+
+  it("math 到期卡（本学段 kind）→ 重建题 kind 匹配且占数学名额", () => {
+    const kind = stageKindsForLevel("L2")[0] as MathKind;
+    const state: SrsState = { [mathItemKey(kind, "seed")]: card("2026-09-01") };
+    const items = generateDailyChallenge({ ...base, srs: { state, today: TODAY } });
+    const math = items.filter((it) => it.mode === "math");
+    expect(math).toHaveLength(2);
+    expect(math[0].mode === "math" ? math[0].q.kind : "").toBe(kind);
+  });
+
+  it("非本学段 kind 的数学到期卡被跳过（回退常规题）", () => {
+    const l2 = stageKindsForLevel("L2");
+    const all = (["L1", "L2", "L3", "L4", "L5", "L6"] as const).flatMap((l) =>
+      stageKindsForLevel(l)
+    );
+    const foreign = all.find((k) => !l2.includes(k));
+    if (!foreign) return; // 各学段 kind 无差异时跳过
+    const state: SrsState = { [mathItemKey(foreign, "seed")]: card("2026-09-01") };
+    const plain = generateDailyChallenge(base);
+    const withForeign = generateDailyChallenge({ ...base, srs: { state, today: TODAY } });
+    expect(JSON.stringify(withForeign)).toBe(JSON.stringify(plain));
+  });
+
+  it("logic 到期卡 → 重建 pattern 题", () => {
+    const state: SrsState = { [logicItemKey("pattern", "AB")]: card("2026-09-01") };
+    const items = generateDailyChallenge({ ...base, srs: { state, today: TODAY } });
+    const logic = items.find((it) => it.mode === "logic");
+    expect(logic && logic.mode === "logic" ? logic.q.kind : "").toBe("pattern");
+  });
+
+  it("L1 卷（无数学名额）遇到数学到期卡 → 忽略，卷面仍为 4 道语言题", () => {
+    const kind = stageKindsForLevel("L1")[0] as MathKind;
+    const state: SrsState = { [mathItemKey(kind, "seed")]: card("2026-09-01") };
+    const items = generateDailyChallenge({
+      ...base,
+      level: "L1",
+      srs: { state, today: TODAY },
+    });
+    expect(items).toHaveLength(4);
+    expect(items.every((it) => it.subject === "language")).toBe(true);
+  });
+
+  it("含 srs 时仍当日幂等", () => {
+    const state: SrsState = { [spellItemKey("w_srs0")]: card("2026-09-01") };
+    const p = { ...base, srs: { state, today: TODAY } };
+    expect(JSON.stringify(generateDailyChallenge(p))).toBe(
+      JSON.stringify(generateDailyChallenge({ ...p }))
+    );
+  });
+});
+
+// ── Phase 6 T6-06：拼读扩展点（T6-07 接线）──────────────────────
+describe("拼读扩展点（phonics provider）", () => {
+  const base = {
+    level: "L2" as const,
+    date: "2026-09-09",
+    pool: POOL,
+    words: WORDS,
+    alphabets: ALPHABETS,
+  };
+
+  it("provider 返回题目 → 替换一道语言题，总数不变", () => {
+    const fake: DailyItem = {
+      subject: "language",
+      mode: "spell",
+      word: {
+        id: "w_ph",
+        fr: "chat",
+        zh: "猫",
+        en: "cat",
+        emoji: "🐱",
+        source: "word",
+      },
+    };
+    const items = generateDailyChallenge({ ...base, phonics: { provider: () => fake } });
+    expect(items).toHaveLength(6);
+    expect(items.some((it) => it.mode === "spell" && it.word.id === "w_ph")).toBe(true);
+  });
+
+  it("provider 返回 null → 回退常规语言题（与不传时深度相等）", () => {
+    const plain = generateDailyChallenge(base);
+    const withProvider = generateDailyChallenge({
+      ...base,
+      phonics: { provider: () => null },
+    });
+    expect(JSON.stringify(withProvider)).toBe(JSON.stringify(plain));
+  });
+});
+
+// ── Phase 6 T6-07：拼读题接入（契约 §2.3）──────────────────────
+describe("phonics（拼读题）", () => {
+  const base = {
+    level: "L2" as const,
+    date: "2026-09-14",
+    pool: POOL,
+    words: WORDS,
+    alphabets: ALPHABETS,
+  };
+
+  const card = {
+    id: "phonics_fr_syllabique_w_test0",
+    lang: "fr" as const,
+    parts: ["cha", "peau"],
+    whole: "chapeau",
+    emoji: "🎩",
+    level: "L2" as const,
+  };
+
+  it("provider 返回拼读卡 → 卷中出现 phonics 项且总数不变", () => {
+    const items = generateDailyChallenge({
+      ...base,
+      phonics: {
+        provider: (): DailyItem => ({ subject: "language", mode: "phonics", card }),
+      },
+    });
+    expect(items).toHaveLength(6);
+    const p = items.find((it) => it.mode === "phonics");
+    expect(p).toBeDefined();
+    if (p && p.mode === "phonics") {
+      expect(p.card.whole).toBe("chapeau");
+      expect(p.subject).toBe("language");
+    }
+  });
+
+  it("isDailyCorrect：以 UI（PhonicsCardView）回传的 correct 判定", () => {
+    const item: DailyItem = { subject: "language", mode: "phonics", card };
+    expect(isDailyCorrect(item, { correct: true })).toBe(true);
+    expect(isDailyCorrect(item, { correct: false })).toBe(false);
+    expect(isDailyCorrect(item, {})).toBe(false);
+  });
+
+  it("dailyItemToQuizQuestion：kind=phonics 且解释含切分", () => {
+    const item: DailyItem = { subject: "language", mode: "phonics", card };
+    const rng = mulberry32(seedFromString("phonics_settle"));
+    const q = dailyItemToQuizQuestion(item, { correct: false }, rng);
+    expect(q.subject).toBe("language");
+    expect(q.kind).toBe("phonics");
+    expect(q.explanation).toContain("cha");
+    expect(q.explanation).toContain("chapeau");
+    expect(q.userIndex).toBeNull();
+    const ok = dailyItemToQuizQuestion(item, { correct: true }, rng);
+    expect(ok.userIndex).toBe(0);
   });
 });

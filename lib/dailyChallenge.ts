@@ -6,10 +6,14 @@
  * - 拼词优先重现：misspelled 队列中的词（存在于当前拼词池）替换一道语言题
  *   （PRD §7.5.5「拼错的词在下一次每日挑战中优先重现」）；
  * - 语言题 choice/listen 交替；跟读题不进每日挑战（依赖 ASR，走自主测验入口）；
- * - 逻辑题取 pattern / oddOne（选项型，无需拖拽；classify/sort 属题组玩法）。
+ * - 逻辑题取 pattern / oddOne（选项型，无需拖拽；classify/sort 属题组玩法）；
+ * - SRS 到期题优先（Phase 6 T6-06，契约 §2.1）：`srs` 入参提供到期题键，
+ *   至多 2 道（跨学科）占据同学科名额，学科配比与总题数保持不变；
+ * - 拼读扩展点（Phase 6 T6-07 接线）：`phonics.provider` 可替换一道常规语言题，
+ *   本文件只负责接线与名额替换，出题逻辑由 T6-07 提供。
  */
 
-import type { Rng } from "./mathGenerator";
+import type { MathKind, Rng } from "./mathGenerator";
 import { mulberry32, seedFromString } from "./mathGenerator";
 import {
   generateMathQuestion,
@@ -30,7 +34,15 @@ import { stageKindsForLevel } from "./mathCurriculum";
 import { matchesLevel, type AlphabetCard, type Word } from "./contentTypes";
 import type { Sentence } from "./parser";
 import { buildSpellingPool, type SpellingWord } from "./spelling";
-import type { QuizMode, QuizQuestion } from "./workspace";
+import type { PhonicsCard } from "./phonics";
+import type { QuizMode, QuizQuestion, SrsState } from "./workspace";
+import {
+  dueItems,
+  hashKey,
+  parseSrsKey,
+  SRS_DAILY_LIMIT,
+  type SrsKeyInfo,
+} from "./srs";
 
 export type DailyItem =
   | { subject: "language"; mode: "lang"; q: QuizQuestion }
@@ -43,7 +55,8 @@ export type DailyItem =
       correctIndex: number;
     }
   | { subject: "math"; mode: "math"; q: MathQuestion }
-  | { subject: "logic"; mode: "logic"; q: LogicQuestion };
+  | { subject: "logic"; mode: "logic"; q: LogicQuestion }
+  | { subject: "language"; mode: "phonics"; card: PhonicsCard };
 
 /**
  * 听音选图（PRD §7.6.3 / F39，Phase 5A T5A.2）：
@@ -93,15 +106,19 @@ function seededShuffle<T>(arr: T[], rng: Rng): T[] {
   return a;
 }
 
-/** 语言题（choice/listen 交替，选项 = 正确中文 + 3 干扰，种子化可重放） */
-function generateLangQuestion(
-  pool: Sentence[],
+/** 每日挑战可用的逻辑题型（选项型；classify/sort 属题组玩法，不进每日挑战） */
+const DAILY_LOGIC_KINDS: LogicKind[] = ["pattern", "oddOne"];
+
+/**
+ * 由**指定句子**生成语言题（选项 = 正确中文 + 3 干扰，种子化可重放）。
+ * 抽出来供「常规出题」与「SRS 到期题重建」共用，保证两处口径一致。
+ */
+function langQuestionFor(
+  s: Sentence,
+  distractPool: Sentence[],
   mode: "choice" | "listen",
   rng: Rng
-): QuizQuestion | null {
-  if (pool.length === 0) return null;
-  const s = pool[rngInt(rng, pool.length)];
-  const distractPool = pool.filter((x) => x.zh !== s.zh);
+): QuizQuestion {
   const opts = new Set<string>([s.zh]);
   const shuffled = seededShuffle(distractPool, rng);
   for (const d of shuffled) {
@@ -127,6 +144,35 @@ function generateLangQuestion(
   };
 }
 
+/** 语言题（choice/listen 交替，选项 = 正确中文 + 3 干扰，种子化可重放） */
+function generateLangQuestion(
+  pool: Sentence[],
+  mode: "choice" | "listen",
+  rng: Rng
+): QuizQuestion | null {
+  if (pool.length === 0) return null;
+  const s = pool[rngInt(rng, pool.length)];
+  return langQuestionFor(s, pool.filter((x) => x.zh !== s.zh), mode, rng);
+}
+
+/** SRS 到期题接入参数（T6-06，契约 §2.1） */
+export type DailySrsInput = {
+  /** SRS 状态（AppState.srs） */
+  state: SrsState;
+  /** 今天 "YYYY-MM-DD"（由调用方按本地时区取，与打卡口径一致） */
+  today: string;
+  /** 至多安排几道到期题（默认 SRS_DAILY_LIMIT = 2） */
+  limit?: number;
+};
+
+/**
+ * 拼读扩展点（T6-07 接入，见 CONTEXT §2.3）：
+ * T6-06 只负责接线与名额替换，具体出题逻辑由 T6-07 的 provider 提供。
+ */
+export type DailyPhonicsInput = {
+  provider: (rng: Rng) => DailyItem | null;
+};
+
 export function generateDailyChallenge(params: {
   level: Level;
   date: string;
@@ -134,6 +180,10 @@ export function generateDailyChallenge(params: {
   words: Word[];
   alphabets: AlphabetCard[];
   misspelled?: string[];
+  /** T6-06：SRS 到期题优先（可选） */
+  srs?: DailySrsInput;
+  /** T6-07：拼读扩展点（可选） */
+  phonics?: DailyPhonicsInput;
 }): DailyItem[] {
   const { level, date, pool } = params;
   const rng = mulberry32(seedFromString(`daily_${date}_${level}`));
@@ -196,16 +246,56 @@ export function generateDailyChallenge(params: {
     });
 
   // 4. 逻辑题：pattern / oddOne（选项型）
-  const logicKinds: LogicKind[] = ["pattern", "oddOne"];
   mix
     .filter((s) => s === "logic")
     .forEach(() => {
       queues.logic.push(() => {
-        const kind = logicKinds[rngInt(rng, logicKinds.length)];
+        const kind = DAILY_LOGIC_KINDS[rngInt(rng, DAILY_LOGIC_KINDS.length)];
         const q = generateLogicQuestion({ level, kind, rng });
         return { subject: "logic", mode: "logic", q };
       });
     });
+
+  // 4.5 拼读扩展点（T6-07 接入）：替换一道常规语言题，学科名额不变
+  if (params.phonics && queues.language.length > 0) {
+    const provider = params.phonics.provider;
+    // 独立 rng：不改变主出卷随机序列（保证既有题序稳定，不受拼读接入影响）
+    const phonicsRng = mulberry32(seedFromString(`phonics_${date}_${level}`));
+    const last = queues.language.length - 1;
+    const original = queues.language[last];
+    queues.language[last] = () => provider(phonicsRng) ?? original();
+  }
+
+  // 4.6 SRS 到期题优先（契约 §2.1）：至多 limit 道、跨学科，占据同学科名额，配比不变
+  if (params.srs) {
+    const due = dueItems(
+      params.srs.state,
+      params.srs.today,
+      params.srs.limit ?? SRS_DAILY_LIMIT
+    );
+    for (const key of due) {
+      const info = parseSrsKey(key);
+      if (!info) continue;
+      const factory = buildDueFactory(info, key, {
+        level,
+        today: params.srs.today,
+        langPool,
+        spellingPool,
+        mathKinds,
+      });
+      if (!factory) continue;
+      const subject: Subject =
+        info.kind === "math"
+          ? "math"
+          : info.kind === "logic"
+          ? "logic"
+          : "language";
+      const queue = queues[subject];
+      if (queue.length === 0) continue; // 本卷该学科无名额 → 忽略该到期题
+      queue.pop(); // 让出一个常规名额（配比总数不变）
+      queue.unshift(factory); // 到期题占据该学科首个名额（优先出现）
+    }
+  }
 
   // 5. 按配比顺序组卷
   const items: DailyItem[] = [];
@@ -216,6 +306,75 @@ export function generateDailyChallenge(params: {
     if (item) items.push(item);
   }
   return items;
+}
+
+/** SRS 到期题重建上下文 */
+type DueFactoryContext = {
+  level: Level;
+  today: string;
+  langPool: Sentence[];
+  spellingPool: SpellingWord[];
+  mathKinds: MathKind[];
+};
+
+/**
+ * 由题键重建一道到期题（返回工厂）。
+ * - 用独立 rng（seed 含 today + 题键）→ 不打乱主出卷随机序列，且结果可复现；
+ * - math/logic 按**同知识点重新生成**（防背答案，契约 §2.1）；
+ * - lang/spell 需命中当前内容池，否则返回 null（该名额回退常规题）。
+ */
+function buildDueFactory(
+  info: SrsKeyInfo,
+  key: string,
+  ctx: DueFactoryContext
+): (() => DailyItem | null) | null {
+  const dueRng = mulberry32(seedFromString(`srs_${ctx.today}_${key}`));
+
+  switch (info.kind) {
+    case "lang": {
+      const s = ctx.langPool.find(
+        (x) => hashKey(`${x.fr}|${x.zh}|${x.en}`) === info.id
+      );
+      if (!s) return null;
+      const distract = ctx.langPool.filter((x) => x.zh !== s.zh);
+      return () => ({
+        subject: "language",
+        mode: "lang",
+        q: langQuestionFor(s, distract, "choice", dueRng),
+      });
+    }
+    case "spell": {
+      const w = ctx.spellingPool.find((x) => x.id === info.id);
+      if (!w) return null;
+      return () => ({ subject: "language", mode: "spell", word: w });
+    }
+    case "math": {
+      if (!ctx.mathKinds.includes(info.kindName as MathKind)) return null;
+      return () => ({
+        subject: "math",
+        mode: "math",
+        q: generateMathQuestion({
+          level: ctx.level,
+          kind: info.kindName as MathKind,
+          rng: dueRng,
+          seedTag: `srs_${ctx.today}`,
+          index: 0,
+        }),
+      });
+    }
+    case "logic": {
+      if (!DAILY_LOGIC_KINDS.includes(info.kindName as LogicKind)) return null;
+      return () => ({
+        subject: "logic",
+        mode: "logic",
+        q: generateLogicQuestion({
+          level: ctx.level,
+          kind: info.kindName as LogicKind,
+          rng: dueRng,
+        }),
+      });
+    }
+  }
 }
 
 /** 每题作答记录（提交时换算错题/积分） */
@@ -245,6 +404,9 @@ export function isDailyCorrect(item: DailyItem, a: DailyAnswer): boolean {
       return a.text != null && a.text !== "" && checkLogicAnswer(item.q, a.text);
     case "spell":
       return a.correct === true;
+    case "phonics":
+      // 拼读题：组合顺序是否正确由 UI（PhonicsCardView）判定后回传
+      return a.correct === true;
   }
 }
 
@@ -267,7 +429,6 @@ export function dailyItemToQuizQuestion(
       // 选项以中文标签进错题本（「你的答案/正确答案」可读），kind 标记听音选图
       const options = item.options.map((w) => w.zh);
       const choice = a.choice ?? null;
-      const correct = choice !== null && choice === item.correctIndex;
       return {
         fr: item.word.fr,
         en: item.word.en,
@@ -310,6 +471,22 @@ export function dailyItemToQuizQuestion(
         mode: "choice",
         subject: "language",
         kind: "spell",
+      };
+    }
+    case "phonics": {
+      const c = item.card;
+      const correct = a.correct === true;
+      return {
+        fr: c.whole,
+        en: c.whole,
+        zh: c.whole,
+        options: [c.parts.join("-")],
+        correctIndex: 0,
+        userIndex: correct ? 0 : null,
+        explanation: `拼读：${c.parts.join(" - ")} → ${c.whole}`,
+        mode: "choice",
+        subject: "language",
+        kind: "phonics",
       };
     }
   }

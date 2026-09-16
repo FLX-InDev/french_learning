@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 import { useAppState } from "@/components/AppStateProvider";
 import {
   cancelSpeech,
@@ -20,10 +21,10 @@ import type { Language } from "@/lib/voiceConfig";
 /** 播放语言模式：三语轮读（默认，中→英→法）/ 单语 */
 type KaraokeLang = "all" | "zh" | "en" | "fr";
 
-const LANG_ROWS: { key: Exclude<KaraokeLang, "all">; label: string; badge: string }[] = [
-  { key: "zh", label: "中", badge: "bg-red-50 text-red-500" },
-  { key: "en", label: "EN", badge: "bg-blue-50 text-blue-500" },
-  { key: "fr", label: "FR", badge: "bg-green-50 text-green-600" },
+const LANG_ROWS: { key: Exclude<KaraokeLang, "all">; badge: string }[] = [
+  { key: "zh", badge: "bg-red-50 text-red-500" },
+  { key: "en", badge: "bg-blue-50 text-blue-500" },
+  { key: "fr", badge: "bg-green-50 text-green-600" },
 ];
 
 /**
@@ -36,6 +37,7 @@ const LANG_ROWS: { key: Exclude<KaraokeLang, "all">; label: string; badge: strin
  * - song.audio 字段预留：有真人音频时切换音频驱动（按时间戳高亮）。
  */
 export function KaraokePlayer({ song }: { song: Song }) {
+  const { t } = useI18n();
   const { state, update } = useAppState();
   const [langMode, setLangMode] = useState<KaraokeLang>("all");
   const [singAlong, setSingAlong] = useState(false);
@@ -207,13 +209,13 @@ export function KaraokePlayer({ song }: { song: Song }) {
 
       {/* 控制条 */}
       <div className="flex flex-wrap items-center justify-center gap-2">
-        <div className="flex rounded-full bg-purple-50 p-0.5" role="group" aria-label="朗读语言">
+        <div className="flex rounded-full bg-purple-50 p-0.5" role="group" aria-label={t("karaoke.langLabel")}>
           {(
             [
-              ["all", "三语轮读"],
-              ["fr", "法语"],
-              ["en", "英语"],
-              ["zh", "中文"],
+              ["all", t("karaoke.langAllThree")],
+              ["fr", t("karaoke.langFr")],
+              ["en", t("karaoke.langEn")],
+              ["zh", t("karaoke.langZh")],
             ] as const
           ).map(([mode, label]) => (
             <button
@@ -236,9 +238,9 @@ export function KaraokePlayer({ song }: { song: Song }) {
             "text-xs px-3 py-1.5 rounded-full font-medium transition min-h-[36px] " +
             (singAlong ? "bg-pink-500 text-white" : "bg-pink-50 text-pink-500")
           }
-          title="每句之后暂停 3 秒，跟着唱"
+          title={t("karaoke.singAlongTitle")}
         >
-          🎤 跟我唱{singAlong ? " 开" : ""}
+          {t("karaoke.singAlong", { on: singAlong ? t("karaoke.on") : "" })}
         </button>
         <button
           className={
@@ -248,9 +250,9 @@ export function KaraokePlayer({ song }: { song: Song }) {
               : "bg-purple-600 text-white hover:bg-purple-700")
           }
           onClick={() => (playing ? stop() : void (hasAudio ? playAudioTrack() : playFrom(0)))}
-          aria-label={playing ? "停止播放" : "开始播放"}
+          aria-label={playing ? t("karaoke.stop") : t("karaoke.play")}
         >
-          {playing ? "■ 停止" : "▶ 播放"}
+          {playing ? t("karaoke.stopBtn") : t("karaoke.playBtn")}
         </button>
       </div>
 
@@ -268,9 +270,9 @@ export function KaraokePlayer({ song }: { song: Song }) {
                   ? "border-purple-400 bg-purple-50 shadow-md scale-[1.02]"
                   : "border-gray-100 bg-white hover:bg-purple-50/50")
               }
-              aria-label={`播放第 ${i + 1} 句`}
+              aria-label={t("karaoke.playLine", { n: String(i + 1) })}
             >
-              {LANG_ROWS.map(({ key, label, badge }) => (
+              {LANG_ROWS.map(({ key, badge }) => (
                 <div
                   key={key}
                   className={
@@ -283,7 +285,7 @@ export function KaraokePlayer({ song }: { song: Song }) {
                       "shrink-0 text-[10px] font-bold px-1 py-0.5 rounded " + badge
                     }
                   >
-                    {label}
+                    {t(`karaoke.short${key.charAt(0).toUpperCase() + key.slice(1)}`)}
                   </span>
                   <span
                     className={
@@ -306,20 +308,20 @@ export function KaraokePlayer({ song }: { song: Song }) {
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[110]">
           <div className="bg-pink-500 text-white rounded-full px-6 py-3 shadow-lg flex items-center gap-3 animate-pulse">
             <span className="text-2xl font-extrabold">{countdown}</span>
-            <span className="text-sm font-bold">该你啦，跟着唱！</span>
+            <span className="text-sm font-bold">{t("karaoke.yourTurnSing")}</span>
           </div>
         </div>
       )}
 
       {finished && (
         <div className="text-center text-sm text-green-600 font-semibold py-2">
-          🎉 唱完啦！Félix 给你鼓掌
+          {t("karaoke.singingDone")}
         </div>
       )}
 
       <div className="text-center pt-2">
         <Link href="/songs" className="text-sm text-purple-500">
-          ← 返回儿歌库
+          {t("karaoke.backToSongs")}
         </Link>
       </div>
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 import { useAppState } from "@/components/AppStateProvider";
 import { FlashCard } from "@/components/FlashCard";
 import { SpellingAttempt } from "@/components/SpellingBoard";
@@ -27,6 +28,7 @@ export function AlphabetView({
   alphabets: AlphabetCard[];
   words: Word[];
 }) {
+  const { t } = useI18n();
   const { state, update } = useAppState();
   const [lang, setLang] = useState<"fr" | "en">("fr");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -56,7 +58,7 @@ export function AlphabetView({
   if (hidden.includes("alphabet")) {
     return (
       <div className="text-center text-gray-400 py-10">
-        该内容已被家长关闭，可在家长中心重新开启。
+        {t("alphabet.parentLocked")}
       </div>
     );
   }
@@ -95,11 +97,11 @@ export function AlphabetView({
     <div className="space-y-8">
       {/* 语言 Tab */}
       <div className="flex items-center justify-between">
-        <div className="flex rounded-full bg-purple-50 p-1" role="tablist" aria-label="字母表语言">
+        <div className="flex rounded-full bg-purple-50 p-1" role="tablist" aria-label={t("alphabet.tableLang")}>
           {(
             [
-              ["fr", "Français 法语"],
-              ["en", "English 英语"],
+              ["fr", t("alphabet.langFrench")],
+              ["en", t("alphabet.langEnglish")],
             ] as const
           ).map(([key, label]) => (
             <button
@@ -120,7 +122,7 @@ export function AlphabetView({
           ))}
         </div>
         <div className="text-xs text-gray-400">
-          已翻卡 {flippedCount} / {cards.length}
+          {t("alphabet.flipped", { current: String(flippedCount), total: String(cards.length) })}
         </div>
       </div>
 
@@ -157,9 +159,9 @@ export function AlphabetView({
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-            🧩 拼词游戏
+            {t("alphabet.spellingGame")}
           </h2>
-          <span className="text-xs text-gray-400">题库 {spellPool.length} 词</span>
+          <span className="text-xs text-gray-400">{t("alphabet.questionCount", { n: String(spellPool.length) })}</span>
         </div>
         <p className="text-xs text-gray-500 mb-4">
           看图听音，点选字母瓦片拼出法语单词；拼错的词会在「每日挑战」里再次出现。
@@ -170,14 +172,14 @@ export function AlphabetView({
             {spellResult !== null && (
               <div className="text-center mt-3">
                 <button className="btn-primary min-w-[140px] min-h-[44px]" onClick={nextWord}>
-                  下一个词 →
+                  {t("alphabet.nextWord")}
                 </button>
               </div>
             )}
           </>
         ) : (
           <div className="text-center text-gray-400 py-6">
-            当前学段暂无可用拼词（需要 3–7 个字母的词卡）。
+            {t("alphabet.noSpellingWords")}
           </div>
         )}
       </section>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useI18n } from "@/lib/i18n";
 import { useAppState } from "./AppStateProvider";
 import { MATH_CURRICULUM, type MathStage } from "@/lib/mathCurriculum";
 import { getLevelConfig } from "@/lib/levels";
@@ -11,6 +12,7 @@ import { getLevelConfig } from "@/lib/levels";
  * 硬切换：升段新增关卡未解锁（历史星级保留）；降段隐藏但数据不丢。
  */
 export function MathMap() {
+  const { t } = useI18n();
   const router = useRouter();
   const { state } = useAppState();
   const level = state?.profile.level ?? "L3";
@@ -18,7 +20,7 @@ export function MathMap() {
   const cfg = getLevelConfig(level);
 
   if (!state) {
-    return <div className="py-20 text-center text-gray-400">加载中…</div>;
+    return <div className="py-20 text-center text-gray-400">{t("workspace.loading")}</div>;
   }
 
   // 线性解锁：本学段关卡按顺序，前一关 ≥1 星才解锁下一关
@@ -41,12 +43,35 @@ export function MathMap() {
     <div className="max-w-3xl mx-auto space-y-8">
       <div className="text-center">
         <h1 className="text-3xl font-bold text-gray-800">
-          <span className="text-orange-500">🔢</span> 数学闯关
+          <span className="text-orange-500">🔢</span> {t("math.questTitle")}
         </h1>
         <p className="text-gray-500 mt-2 text-sm">
           当前学段 {cfg.emoji} {cfg.cnName} / {cfg.frName} · 共 {stageOrder.length} 关
         </p>
       </div>
+
+      {/* 限时赛入口（T6-04 / S3，接入点补丁由 I 执行） */}
+      <button
+        type="button"
+        onClick={() => router.push("/math/race")}
+        aria-label={t("race.entry")}
+        className="w-full flex items-center justify-between gap-3 rounded-2xl border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 p-4 text-left transition hover:border-orange-400 hover:shadow-sm"
+      >
+        <span className="flex items-center gap-3 min-w-0">
+          <span className="text-3xl shrink-0">⏱️</span>
+          <span className="min-w-0">
+            <span className="block font-bold text-gray-800">
+              {t("race.entry")}
+            </span>
+            <span className="block text-xs text-gray-500 truncate">
+              {t("race.entryDesc")}
+            </span>
+          </span>
+        </span>
+        <span className="shrink-0 rounded-xl bg-orange-500 text-white font-bold px-4 py-3">
+          →
+        </span>
+      </button>
 
       {groups.map((group) => (
         <section
@@ -63,7 +88,7 @@ export function MathMap() {
             </div>
             <div className="flex flex-col items-end gap-1 shrink-0">
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">
-                中国进度：{group.cnProgress}
+                {t("math.chinaProgressBadge", { progress: group.cnProgress })}
               </span>
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-purple-50 text-purple-600">
                 {group.frBenchmark}
@@ -101,7 +126,7 @@ export function MathMap() {
                     {stage.title.zh}
                   </div>
                   <div className="text-[11px] text-gray-400">
-                    {stage.count} 题 · {stage.kind}
+                    {t("math.questionCount", { n: String(stage.count) })} · {stage.kind}
                   </div>
                 </button>
               );
@@ -111,7 +136,7 @@ export function MathMap() {
       ))}
 
       <p className="text-center text-xs text-gray-400 pb-4">
-        星级：≥90% 三星 · ≥70% 两星 · 完成一星；重刷不重复计星
+        {t("math.starLegend")}
       </p>
     </div>
   );

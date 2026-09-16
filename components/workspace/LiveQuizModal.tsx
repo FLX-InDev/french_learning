@@ -3,6 +3,7 @@
 import type { SpeechScore } from "@/lib/pronunciation";
 import type { QuizMode, QuizQuestion, SpeakLang } from "@/lib/workspace";
 import { SpeakQuizCard } from "./SpeakQuizCard";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * 自主测验弹窗内容（选择 / 听力 / 跟读三模式）。
@@ -44,6 +45,7 @@ export function LiveQuizModal({
   onRecognize: (i: number) => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const labels = ["A", "B", "C", "D"];
   const isSpeak = mode === "speak";
   // 跟读题：提交条件是全部识别完毕（无 null）
@@ -65,13 +67,13 @@ export function LiveQuizModal({
           <div className="text-lg font-bold text-gray-800">
             {title ??
               (mode === "listen"
-                ? "🔊 听力小测验"
+                ? t('workspace.quizTypeListening2')
                 : mode === "speak"
-                ? "🎤 跟读打分"
-                : "🎯 选择题小测验")}
+                ? t('workspace.readingQuiz')
+                : t('workspace.quizTypeChoice2'))}
           </div>
           <div className="text-xs text-gray-500 mt-0.5">
-            共 {questions.length} 题 · 从真实学习内容出题
+            {t('workspace.quizCount', { n: String(questions.length) })}
           </div>
         </div>
         <button
@@ -95,12 +97,12 @@ export function LiveQuizModal({
                 )}
                 / 100
               </div>
-              <div className="text-xs text-gray-500">平均发音得分</div>
+              <div className="text-xs text-gray-500">{t('workspace.avgPronunciationScore')}</div>
               <div className="text-sm font-bold text-pink-500 mt-1">
-                获得积分 +15
+                {t('workspace.earnedPoints', { n: '15' })}
               </div>
               <div className="text-xs text-gray-500 mt-1">
-                已记录到「今日学习成果」，可在下方点评。
+                {t('workspace.recordedInTodayResults')}
               </div>
             </>
           ) : (
@@ -109,13 +111,13 @@ export function LiveQuizModal({
                 {score} / {questions.length}
               </div>
               <div className="text-xs text-gray-500">
-                答对题数 · 正确率 {acc}%
+                {t('workspace.correctCount')} · {t('workspace.accuracy')} {acc}%
               </div>
               <div className="text-sm font-bold text-pink-500 mt-1">
-                获得积分 +{earned}
+                {t('workspace.earnedPoints', { n: String(earned) })}
               </div>
               <div className="text-xs text-gray-500 mt-1">
-                已记录到「今日学习成果」，可在下方点评。
+                {t('workspace.recordedInTodayResults')}
               </div>
             </>
           )}
@@ -124,33 +126,33 @@ export function LiveQuizModal({
         <div className="bg-purple-50 rounded-xl p-3 mb-4 text-sm text-gray-600">
           {isSpeak ? (
             <>
-              播放原音，然后点击「录音」跟读。系统会对发音打分并给建议。
+              {t('workspace.speakInstructions')}
               {recState === "recording" && (
                 <span className="ml-2 text-red-500 animate-pulse">
-                  ● 正在录音…
+                  ● {t('flashcard.recording')}
                 </span>
               )}
               {recState === "denied" && (
-                <span className="ml-2 text-red-500">（麦克风权限被拒绝）</span>
+                <span className="ml-2 text-red-500">（{t('workspace.microphoneDenied')}）</span>
               )}
               {recState === "unsupported" && (
                 <span className="ml-2 text-red-500">
-                  （浏览器不支持语音识别，请使用 Chrome/Edge）
+                  （{t('workspace.speechNotSupported')}）
                 </span>
               )}
               {recMsg && <span className="ml-2 text-red-500">{recMsg}</span>}
             </>
           ) : mode === "listen" ? (
             <>
-              点击 ▶ 听法语发音，选出正确中文意思；答题后可「显示原文」对照。
+              {t('workspace.listenInstructions')}
               {audioState === "unsupported" && (
                 <span className="text-purple-600">
-                  （当前浏览器不支持语音合成，可点「显示原文」对照）
+                  （{t('workspace.ttsUnsupported')}）
                 </span>
               )}
             </>
           ) : (
-            "选出法语句子的正确中文意思。"
+            t('workspace.choiceInstructions')
           )}
         </div>
       )}
@@ -185,7 +187,7 @@ export function LiveQuizModal({
                   <button
                     className="shrink-0 w-8 h-8 rounded-full bg-purple-600 text-white text-xs flex items-center justify-center"
                     onClick={() => onPlay(q.fr)}
-                    title="播放法语"
+                    title={t('words.playFrench')}
                   >
                     {audioState === "playing" ? "◼" : "▶"}
                   </button>
@@ -195,7 +197,7 @@ export function LiveQuizModal({
                     className="text-xs text-purple-600 underline"
                     onClick={() => onToggleReveal(i)}
                   >
-                    显示原文
+                    {t('dailyChallenge.showOriginal')}
                   </button>
                 ) : (
                   <span className="italic">« {q.fr} » 是什么意思？</span>
@@ -250,7 +252,7 @@ export function LiveQuizModal({
               {submitted && (
                 <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
                   <span className="font-bold px-1.5 py-0.5 rounded bg-red-50 text-red-500">
-                    中
+                    {t('flashcard.langZh')}
                   </span>
                   <span className="text-gray-700">{q.zh}</span>
                   <span className="font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-500 ml-2">
@@ -274,11 +276,11 @@ export function LiveQuizModal({
           disabled={!allAnswered}
           onClick={onSubmit}
         >
-          {allAnswered ? "提交并结算积分" : "请答完所有题目"}
+          {allAnswered ? t('workspace.submitSettle') : t('workspace.answerAll')}
         </button>
       ) : (
         <button className="btn-primary w-full mt-4" onClick={onClose}>
-          完成
+          {t('common.done')}
         </button>
       )}
     </div>

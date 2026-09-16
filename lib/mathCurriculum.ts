@@ -132,6 +132,13 @@ export const MATH_CURRICULUM: Record<Level, MathGroup[]> = {
     g("l5-place", "🏗️", ["位值拓展", "Place value", "Valeur de position"], "万以内数的认识（三位数）", "≈ CE1", [
       s("l5-placeValue", "placeValue", ["三位数的位值", "Hundreds", "Centaines"], 10),
     ]),
+    g("l5-measure", "📏", ["测量基础", "Measurement", "Mesure"], "长度与质量单位（PRD §6.6 L5）", "≈ CE1", [
+      s("l5-lengthUnit", "lengthUnit", ["长度单位换算", "Length units", "Unités de longueur"], 10),
+      s("l5-massUnit", "massUnit", ["质量单位换算", "Mass units", "Unités de masse"], 10),
+    ]),
+    g("l5-shapes", "🔷", ["图形性质", "Shapes", "Formes"], "轴对称图形（PRD §6.6 L5）", "≈ CE1", [
+      s("l5-axisSymmetry", "axisSymmetry", ["轴对称判断", "Axis symmetry", "Symétrie axiale"], 10),
+    ]),
   ],
   L6: [
     g("l6-mul", "✖️", ["乘法进阶", "Advanced tables", "Tables avancées"], "乘除法竖式（感知）", "≈ CE2", [

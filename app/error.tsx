@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * 全局错误边界（B6 工程加固）
@@ -15,6 +16,7 @@ export default function GlobalRouteError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div
       className="min-h-[60vh] flex items-center justify-center p-6"
@@ -23,10 +25,10 @@ export default function GlobalRouteError({
       <div className="bg-white/90 backdrop-blur rounded-3xl p-8 max-w-md w-full text-center shadow-xl">
         <div className="text-5xl">🦊</div>
         <h2 className="text-xl font-bold text-gray-800 mt-3">
-          哎呀，出了点小问题
+          {t("error.title")}
         </h2>
         <p className="text-sm text-gray-500 mt-2">
-          Félix 也找不到路啦，再试一次好吗？
+          {t("error.subtitle")}
         </p>
         {process.env.NODE_ENV === "development" && (
           <pre className="mt-3 text-xs text-left text-gray-400 bg-gray-50 rounded-xl p-3 overflow-auto max-h-32">
@@ -35,10 +37,10 @@ export default function GlobalRouteError({
         )}
         <div className="flex flex-col gap-2 mt-6">
           <button className="btn-primary" onClick={() => reset()}>
-            再试一次
+            {t("error.retry")}
           </button>
           <Link href="/" className="btn-secondary">
-            回首页
+            {t("error.backHome")}
           </Link>
         </div>
       </div>

@@ -87,6 +87,7 @@ function stopCurrentOnly(): void {
     URL.revokeObjectURL(currentUrl);
     currentUrl = null;
   }
+  refreshBgmVolume(); // TTS 停止 → BGM 解除 duck（BGM 是独立通道，不会被误停）
 }
 
 /** 开启新的播放会话：停掉本管理器当前发声（不影响 PlayButton 的独立播放） */
@@ -108,6 +109,7 @@ export async function speak(
 ): Promise<void> {
   stopCurrentOnly();
   const gen = generation;
+  duckBgmForTts(); // TTS 即将开始：立即压低 BGM（覆盖后端请求的网络延迟窗口）
 
   const provider = await resolveProvider();
   if (gen !== generation) return; // 等待期间被取消
@@ -154,6 +156,7 @@ export function playAudioUrl(url: string, gen: number = generation): Promise<voi
       }
       URL.revokeObjectURL(url);
       if (currentUrl === url) currentUrl = null;
+      refreshBgmVolume(); // 该段 TTS/音频结束 → 重估 duck 状态
       resolve();
     };
     audio.onended = done;
@@ -194,7 +197,10 @@ function speakWebSpeech(
         if (alt) best = alt;
       }
       if (best) u.voice = best;
-      const done = () => resolve();
+      const done = () => {
+        refreshBgmVolume(); // 该条语音结束 → 重估 duck 状态
+        resolve();
+      };
       u.onend = done;
       u.onerror = done;
       window.speechSynthesis.speak(u);
@@ -283,4 +289,106 @@ export function playSfx(name: SfxName): void {
   } catch {
     /* 忽略 */
   }
+}
+
+// ─── BGM 通道（Phase 6 T6-02，PRD §7.4.5 / §10.2）──────────────────
+//
+// 独立于 TTS / SFX 的第三条通道：轻音乐循环（loop）。
+// - 常量冻结于契约 E（CONTEXT.md §2.5）：BGM_FILE / BGM_DEFAULT_VOLUME / BGM_DUCK_VOLUME；
+// - 开关与音量真源 = AppState.settings.bgmOn / settings.bgmVolume（S0 已写入，本流只读写值）；
+// - 默认关；audio.play() 被自动播放策略拦截时静默降级，保持「想要播放」，
+//   由 UI 层（BgmToggle）在下次用户交互时重试；
+// - duck 规则：TTS 播放中压低至 min(用户音量, BGM_DUCK_VOLUME)——纯函数
+//   computeBgmVolume 可单测；cancelSpeech() 只作用于 TTS 通道，不会停 BGM。
+
+/** BGM 音频资产（public/audio/bgm/loop.mp3，≤200KB，首尾可无缝循环） */
+export const BGM_FILE = "/audio/bgm/loop.mp3";
+/** 默认音量（用户未调整时） */
+export const BGM_DEFAULT_VOLUME = 0.2;
+/** duck 目标：TTS 播放时 BGM 压低的音量上限 */
+export const BGM_DUCK_VOLUME = 0.08;
+
+/**
+ * BGM 音量 duck 规则（纯函数，可单测）：
+ * - 关闭 → 0（默认关）；
+ * - 开启且 TTS 播放中 → min(clamp(用户音量), BGM_DUCK_VOLUME)——用户音量本就
+ *   低于 duck 目标时不抬高；
+ * - 开启且无 TTS → clamp(用户音量)。
+ */
+export function computeBgmVolume(
+  bgmOn: boolean,
+  bgmVolume: number,
+  ttsActive: boolean
+): number {
+  if (!bgmOn) return 0;
+  const vol = Math.min(1, Math.max(0, bgmVolume));
+  return ttsActive ? Math.min(vol, BGM_DUCK_VOLUME) : vol;
+}
+
+let bgmAudio: HTMLAudioElement | null = null;
+let bgmOn = false;
+let bgmVolume = BGM_DEFAULT_VOLUME;
+
+/** 依据当前开关 / 音量 / TTS 状态重设 BGM 实际音量（所有 duck 转换点统一走这里） */
+function refreshBgmVolume(): void {
+  if (!bgmAudio) return;
+  bgmAudio.volume = computeBgmVolume(bgmOn, bgmVolume, isTtsActive());
+}
+
+/** TTS 即将开始：不等 isTtsActive 翻转，立即按 duck 规则压低（覆盖网络延迟窗口） */
+function duckBgmForTts(): void {
+  if (!bgmAudio) return;
+  bgmAudio.volume = computeBgmVolume(bgmOn, bgmVolume, true);
+}
+
+/** 懒加载 BGM 音频元素（首次开启才创建 Audio，不占首屏资源） */
+export function loadBgm(): HTMLAudioElement {
+  if (typeof window === "undefined") {
+    throw new Error("[audioManager] loadBgm 仅可在浏览器环境调用");
+  }
+  if (!bgmAudio) {
+    bgmAudio = new Audio(BGM_FILE);
+    bgmAudio.loop = true;
+    bgmAudio.preload = "auto";
+  }
+  return bgmAudio;
+}
+
+/**
+ * 播放 BGM（loop）。遵守浏览器自动播放策略：play() 被拦截时静默降级，
+ * 内部状态仍为「开」，等下一次用户手势（configureBgm / playBgm）重试。
+ * 已在播放时调用为幂等无副作用。
+ */
+export function playBgm(): void {
+  if (typeof window === "undefined") return;
+  const audio = loadBgm();
+  refreshBgmVolume();
+  void audio.play().catch(() => {
+    /* 自动播放策略拦截：静默降级 */
+  });
+}
+
+/** 停止 BGM（保留已缓冲音频与元素，重开时立即续播；绝不触碰 TTS 通道） */
+export function stopBgm(): void {
+  if (!bgmAudio) return;
+  bgmAudio.pause();
+}
+
+/** 仅调整 BGM 音量（0–1，内部 clamp），实时生效 */
+export function setBgmVolume(volume: number): void {
+  bgmVolume = volume;
+  refreshBgmVolume();
+}
+
+/**
+ * UI 同步入口（BgmToggle / 家长中心设置）：开关 + 音量一次传入。
+ * - on=true → 尝试播放（处于用户手势链路内通常可成功）；
+ * - on=false → 仅停 BGM；TTS / SFX 不受影响。
+ */
+export function configureBgm(on: boolean, volume: number): void {
+  bgmOn = on;
+  bgmVolume = volume;
+  refreshBgmVolume();
+  if (on) playBgm();
+  else stopBgm();
 }

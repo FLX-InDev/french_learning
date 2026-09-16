@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * 录音回放对比（PRD §7.2.7，Phase 5A T5A.4）：
@@ -16,6 +17,7 @@ export function RecordingPlayback({
   onPlayOriginal: () => void;
 }) {
   const mineRef = useRef<HTMLAudioElement | null>(null);
+  const { t } = useI18n();
 
   function playMine() {
     if (!recUrl) return;
@@ -31,9 +33,9 @@ export function RecordingPlayback({
       <button
         className="min-h-[40px] px-4 rounded-full bg-green-50 text-green-600 text-xs font-bold hover:bg-green-100"
         onClick={onPlayOriginal}
-        aria-label="播放原音"
+        aria-label={t('recording.playOriginal')}
       >
-        🎧 原音
+        {t('recording.original')}
       </button>
       <button
         className={
@@ -44,9 +46,9 @@ export function RecordingPlayback({
         }
         onClick={playMine}
         disabled={!recUrl}
-        aria-label={recUrl ? "播放我的录音" : "尚无录音"}
+        aria-label={recUrl ? t('recording.playMyRecording') : t('recording.noRecording')}
       >
-        🎙️ 我的录音
+        {t('recording.myRecording')}
       </button>
     </div>
   );

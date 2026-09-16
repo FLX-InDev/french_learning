@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useAppState } from "./AppStateProvider";
 import { LevelPicker } from "./LevelPicker";
 import { DAILY_LIMIT_OPTIONS, DEFAULT_DAILY_LIMIT_MIN } from "@/lib/workspace";
 import type { Level } from "@/lib/levels";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * 首次启动引导（PRD §7.12.1 F45）
@@ -12,6 +13,7 @@ import type { Level } from "@/lib/levels";
  */
 export function Onboarding() {
   const { state, update } = useAppState();
+  const { t } = useI18n();
   const [step, setStep] = useState(0);
   const [level, setLevel] = useState<Level>("L3");
   const [limit, setLimit] = useState<number>(DEFAULT_DAILY_LIMIT_MIN);
@@ -33,24 +35,24 @@ export function Onboarding() {
         <div className="text-center mb-5">
           <div className="text-4xl">🦊</div>
           <h2 className="text-xl font-bold text-gray-800 mt-2">
-            欢迎来到法语宝宝学
+            {t('onboarding.welcome')}
           </h2>
           <p className="text-sm text-gray-500 mt-1">
-            我是小狐狸 Félix，先认识一下小朋友吧！
+            {t('onboarding.intro')}
           </p>
         </div>
 
         {step === 0 && (
           <div>
             <h3 className="font-semibold text-gray-700 mb-3">
-              第 1 步 · 选择孩子的学习阶段
+              {t('onboarding.step1')}
             </h3>
             <LevelPicker value={level} onChange={setLevel} />
             <button
               className="btn-primary w-full mt-5"
               onClick={() => setStep(1)}
             >
-              下一步
+              {t('onboarding.next')}
             </button>
           </div>
         )}
@@ -58,7 +60,7 @@ export function Onboarding() {
         {step === 1 && (
           <div>
             <h3 className="font-semibold text-gray-700 mb-3">
-              第 2 步 · 设定每日学习时长
+              {t('onboarding.step2')}
             </h3>
             <div className="grid grid-cols-3 gap-2">
               {DAILY_LIMIT_OPTIONS.map((v) => (
@@ -74,7 +76,7 @@ export function Onboarding() {
                       : "border-gray-100 bg-white text-gray-600 hover:border-purple-200")
                   }
                 >
-                  {v === 0 ? "不限" : `${v} 分钟`}
+                  {v === 0 ? t('onboarding.unlimited') : t('onboarding.minutes', { v: String(v) })}
                 </button>
               ))}
             </div>
@@ -83,10 +85,10 @@ export function Onboarding() {
                 className="btn-secondary flex-1"
                 onClick={() => setStep(0)}
               >
-                上一步
+                {t('onboarding.prev')}
               </button>
               <button className="btn-primary flex-1" onClick={() => setStep(2)}>
-                下一步
+                {t('onboarding.next')}
               </button>
             </div>
           </div>
@@ -96,16 +98,16 @@ export function Onboarding() {
           <div className="text-center">
             <div className="text-5xl">🥚</div>
             <h3 className="font-bold text-gray-800 mt-3">
-              这是你的狐狸蛋，陪你一起长大！
+              {t('onboarding.foxEgg')}
             </h3>
             <p className="text-sm text-gray-500 mt-2">
-              完成学习任务就能喂养它。现在开始今天的冒险吧 🎉
+              {t('onboarding.foxEggDesc')}
             </p>
             <button
               className="btn-primary w-full mt-5"
               onClick={() => finish(level, limit)}
             >
-              开始学习
+              {t('onboarding.start')}
             </button>
           </div>
         )}
@@ -114,7 +116,7 @@ export function Onboarding() {
           className="w-full text-center text-xs text-gray-400 mt-4 py-2"
           onClick={() => finish(level, limit)}
         >
-          跳过，稍后在家长中心设置
+          {t('onboarding.skip')}
         </button>
       </div>
     </div>

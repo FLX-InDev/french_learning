@@ -1,0 +1,7 @@
+{
+  "bgm.title": "Musique de fond",
+  "bgm.desc": "Musique douce en boucle pour accompagner l'apprentissage (désactivée par défaut)",
+  "bgm.toggle.on": "Activée",
+  "bgm.toggle.off": "Désactivée",
+  "bgm.volumeLabel": "Volume {n} %"
+}

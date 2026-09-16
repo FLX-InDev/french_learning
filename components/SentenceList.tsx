@@ -7,6 +7,7 @@ import { usePlaylist, type LangMode } from "@/components/usePlaylist";
 import { matchesLevel } from "@/lib/contentTypes";
 import type { Sentence } from "@/lib/parser";
 import type { Language } from "@/lib/voiceConfig";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * 句子列表（软切换：按 AppState.profile.level 即时过滤，无需重载页面）
@@ -15,6 +16,7 @@ import type { Language } from "@/lib/voiceConfig";
  * Phase 5B T5B.4：新增场景过滤（scene 标注，对应 /life 10 节点）。
  */
 export function SentenceList({ sentences }: { sentences: Sentence[] }) {
+  const { t } = useI18n();
   const { state } = useAppState();
   const level = state?.profile.level ?? "L3";
   const hidden = state?.settings.hiddenContent ?? [];
@@ -61,7 +63,7 @@ export function SentenceList({ sentences }: { sentences: Sentence[] }) {
   if (hidden.includes("sentence")) {
     return (
       <div className="text-center text-gray-400 py-10">
-        该内容已被家长关闭，可在家长中心重新开启。
+        {t("sentence.parentLocked")}
       </div>
     );
   }
@@ -70,7 +72,7 @@ export function SentenceList({ sentences }: { sentences: Sentence[] }) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-sm text-gray-500">
-          当前学段可见 {list.length} / {sentences.length} 句
+          {t("sentence.count", { current: String(list.length), total: String(sentences.length) })}
         </div>
         {/* 场景过滤 chips（T5B.4） */}
         {scenes.length > 0 && (
@@ -83,7 +85,7 @@ export function SentenceList({ sentences }: { sentences: Sentence[] }) {
                 (!sceneFilter ? "bg-purple-600 text-white" : "bg-purple-50 text-purple-600")
               }
             >
-              全部
+              {t("sentence.sceneAll")}
             </button>
             {scenes.map((s) => (
               <button
@@ -107,8 +109,8 @@ export function SentenceList({ sentences }: { sentences: Sentence[] }) {
           <div className="flex rounded-full bg-purple-50 p-0.5" role="group" aria-label="连播语言模式">
             {(
               [
-                ["fr", "仅法语"],
-                ["all", "三语轮读"],
+                ["fr", t("sentence.langOnlyFr")],
+                ["all", t("sentence.langAllThree")],
               ] as const
             ).map(([mode, label]) => (
               <button
@@ -134,16 +136,16 @@ export function SentenceList({ sentences }: { sentences: Sentence[] }) {
                 : "bg-purple-600 text-white hover:bg-purple-700")
             }
             onClick={() => (playlist.playing ? playlist.stop() : playlist.start(0))}
-            aria-label={playlist.playing ? "停止连播" : "开始连播"}
+            aria-label={playlist.playing ? t("sentence.stopBroadcast") : t("sentence.startBroadcast")}
           >
-            {playlist.playing ? "■ 停止连播" : "▶ 连播"}
+            {playlist.playing ? t("sentence.stopBroadcastBtn") : t("sentence.startBroadcastBtn")}
           </button>
         </div>
       </div>
 
       {list.length === 0 ? (
         <div className="text-center text-gray-400 py-10">
-          当前学段暂无句子，可在家长中心切换学段。
+          {t("sentence.empty")}
         </div>
       ) : (
         list.map((sentence, index) => {
@@ -158,7 +160,7 @@ export function SentenceList({ sentences }: { sentences: Sentence[] }) {
                   ? "border-purple-400 ring-2 ring-purple-200 bg-purple-50/60 shadow-md"
                   : "border-gray-100 hover:shadow-md")
               }
-              title={active ? "点击停止" : "点击从此句连播"}
+              title={active ? t("sentence.clickStop") : t("sentence.clickPlayFrom")}
             >
               <div className="flex items-start gap-3">
                 <span
@@ -172,21 +174,21 @@ export function SentenceList({ sentences }: { sentences: Sentence[] }) {
                 <div className="flex-1 space-y-2" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-2">
                     <span className="shrink-0 text-xs font-bold px-1.5 py-0.5 rounded bg-red-50 text-red-500">
-                      中
+                      {t("sentence.langZh")}
                     </span>
                     <span className="text-gray-800">{sentence.zh}</span>
                     <PlayButton text={sentence.zh} lang="zh" size="sm" />
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="shrink-0 text-xs font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-500">
-                      EN
+                      {t("sentence.langEn")}
                     </span>
                     <span className="text-gray-600">{sentence.en}</span>
                     <PlayButton text={sentence.en} lang="en" size="sm" />
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="shrink-0 text-xs font-bold px-1.5 py-0.5 rounded bg-green-50 text-green-600">
-                      FR
+                      {t("sentence.langFr")}
                     </span>
                     <span className="text-gray-600 italic">{sentence.fr}</span>
                     <PlayButton text={sentence.fr} lang="fr" size="sm" />

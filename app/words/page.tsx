@@ -1,4 +1,5 @@
 import { WordGallery } from "@/components/words/WordGallery";
+import { PageHeader } from "@/components/PageHeader";
 import { getAllWords } from "@/lib/parser";
 
 export default function WordsPage() {
@@ -7,12 +8,7 @@ export default function WordsPage() {
 
   return (
     <div className="space-y-6">
-      <header className="text-center">
-        <h1 className="text-2xl font-bold text-gray-800">🃏 词汇图鉴</h1>
-        <p className="text-sm text-gray-400 mt-1">
-          按分类翻卡学词 · 点🎧磨耳朵 · 🎤跟读拿满分
-        </p>
-      </header>
+      <PageHeader titleKey="page.words.title" descKey="page.words.desc" />
       <WordGallery words={words} />
     </div>
   );

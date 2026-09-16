@@ -1,0 +1,7 @@
+{
+  "bgm.title": "Background Music",
+  "bgm.desc": "Soft looping music to accompany learning (off by default)",
+  "bgm.toggle.on": "On",
+  "bgm.toggle.off": "Off",
+  "bgm.volumeLabel": "Volume {n}%"
+}

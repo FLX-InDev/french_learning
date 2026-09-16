@@ -1,6 +1,7 @@
 "use client";
 
 import type { MathQuestion } from "@/lib/mathGenerator";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * 数学题卡（PRD §7.7.2）：按 kind / visual 渲染题面。
@@ -15,6 +16,7 @@ function clockFace(hour: number, minute: number): string {
 
 export function MathQuestionCard({ q }: { q: MathQuestion }) {
   const v = q.visual;
+  const { t } = useI18n();
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-5 text-center">
@@ -81,7 +83,7 @@ export function MathQuestionCard({ q }: { q: MathQuestion }) {
             ))}
           </div>
           <p className="text-xs text-gray-400">
-            🟥 百位 · 🟦 十位 · 🟨 个位
+            {t('math.placeholderLegend')}
           </p>
         </div>
       )}
@@ -105,7 +107,7 @@ export function MathQuestionCard({ q }: { q: MathQuestion }) {
         <div className="flex flex-col items-center gap-1">
           <div className="text-6xl">{clockFace(v.hour, v.minute)}</div>
           {v.minute !== 0 && (
-            <span className="text-sm text-gray-500">分针指向 {v.minute} 分</span>
+            <span className="text-sm text-gray-500">{t('math.clockMinute', { v: String(v.minute) })}</span>
           )}
         </div>
       )}
@@ -126,10 +128,32 @@ export function MathQuestionCard({ q }: { q: MathQuestion }) {
         </div>
       )}
 
+      {/* 长度/质量单位 */}
+      {v && "type" in v && (v.type === "length" || v.type === "mass") && (
+        <div className="space-y-2">
+          <div className="text-3xl font-bold text-gray-800 tabular-nums">
+            {v.value} {v.fromUnit} = ?
+          </div>
+          <p className="text-sm text-gray-500">
+            = ___ {v.toUnit}
+          </p>
+        </div>
+      )}
+
+      {/* 轴对称图形 */}
+      {v && "type" in v && v.type === "symmetry" && (
+        <div className="flex flex-col items-center gap-2">
+          <div className="text-7xl">{v.shape}</div>
+          <p className="text-xs text-gray-400">
+            {v.hasAxis ? t('math.symmetry.yes') : t('math.symmetry.no')}
+          </p>
+        </div>
+      )}
+
       {v && "emoji" in v && "op" in v && v.op === "×" ? null : null}
 
       {/* 凑十/破十分解（可重放展开）由关卡页控制显示 */}
-      {q.unit && <p className="text-xs text-gray-400 mt-2">单位：{q.unit}</p>}
+      {q.unit && <p className="text-xs text-gray-400 mt-2">{t('math.unit', { unit: q.unit })}</p>}
     </div>
   );
 }
@@ -140,10 +164,11 @@ export function DecompositionSteps({
 }: {
   steps: { label: { zh: string; en: string; fr: string }; text: string }[];
 }) {
+  const { t } = useI18n();
   return (
     <div className="bg-purple-50 rounded-xl p-4 mt-3 space-y-2">
       <p className="text-xs font-semibold text-purple-600">
-        分解步骤（点按可重放）
+        {t('math.decompositionSteps')}
       </p>
       {steps.map((s, i) => (
         <div key={i} className="flex items-center gap-2">

@@ -10,6 +10,7 @@ import {
 } from "@/lib/voiceConfig";
 import { pickBestVoice } from "@/lib/webSpeechVoice";
 import { useAppState } from "@/components/AppStateProvider";
+import { useI18n } from "@/lib/i18n";
 
 interface PlayButtonProps {
   text: string;
@@ -60,6 +61,7 @@ export default function PlayButton({
   lang,
   size = "md",
 }: PlayButtonProps) {
+  const { t } = useI18n();
   const [status, setStatus] = useState<"idle" | "playing" | "loading">("idle");
   const [provider, setProvider] = useState<TTSProvider>("webspeech");
   // 全局语速（家长中心设置：0.75 慢速 / 0.9 正常，F5.2）
@@ -80,13 +82,13 @@ export default function PlayButton({
       .then((data) => {
         if (data.provider !== "webspeech" && data.available) {
           setProvider("backend");
-          console.log(`[PlayButton] TTS 方案: ${data.provider} (后端)`);
+          console.log(`[PlayButton] ${t('playbutton.ttsProviderBackend', { provider: data.provider })}`);
         } else {
-          console.log("[PlayButton] TTS 方案: Web Speech API");
+          console.log(`[PlayButton] ${t('playbutton.ttsProviderWebSpeech')}`);
         }
       })
       .catch(() => {
-        console.log("[PlayButton] 无法获取 TTS 配置，使用 Web Speech API");
+        console.log(`[PlayButton] ${t('playbutton.ttsConfigError')}`);
       });
   }, []);
 
@@ -161,7 +163,7 @@ export default function PlayButton({
     };
     utterance.onerror = (e) => {
       if (e.error !== "canceled") {
-        console.warn("[PlayButton] Web Speech 播放出错:", e.error);
+        console.warn(`[PlayButton] ${t('playbutton.webspeechError')}:`, e.error);
       }
       utteranceRef.current = null;
       setStatus("idle");
@@ -186,7 +188,7 @@ export default function PlayButton({
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
         console.error(
-          "[PlayButton] read-aloud 请求失败:",
+          "[PlayButton] " + t('playbutton.requestFailed'),
           response.status,
           errorData?.error || response.statusText
         );
@@ -207,7 +209,7 @@ export default function PlayButton({
         setStatus("idle");
       };
       audio.onerror = () => {
-        console.warn("[PlayButton] read-aloud 音频播放出错");
+        console.warn(`[PlayButton] ${t('playbutton.audioPlayError')}`);
         URL.revokeObjectURL(url);
         audioRef.current = null;
         setStatus("idle");
@@ -216,7 +218,7 @@ export default function PlayButton({
       audioRef.current = audio;
       await audio.play();
     } catch (err) {
-      console.error("[PlayButton] read-aloud 调用出错:", err);
+      console.error(`[PlayButton] ${t('playbutton.callError')}:`, err);
       setStatus("idle");
     }
   }, [text, lang, speechRate]);
