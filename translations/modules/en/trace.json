@@ -1,0 +1,22 @@
+{
+  "trace.title": "Letter tracing",
+  "trace.hint": "Trace along the dashed line (we only record your strokes, no scoring)",
+  "trace.canvasAlt": "Stroke-order tracing canvas:",
+  "trace.playStrokes": "Replay strokes",
+  "trace.replayMine": "Replay my tracing",
+  "trace.stop": "Stop",
+  "trace.clear": "Clear",
+  "trace.done": "Done",
+  "trace.scratch": "Trace with your finger or a stylus",
+  "trace.strokeCount": "{n} stroke(s) traced",
+  "trace.glyphPrev": "Previous glyph",
+  "trace.glyphNext": "Next glyph",
+  "trace.styleLabel": "Letter style",
+  "trace.stylePrint": "Print",
+  "trace.styleCursive": "Cursive",
+  "trace.noData": "No stroke data for this glyph yet",
+  "trace.additiveNote": "Tracing is an extra activity — cards and read-aloud are unchanged",
+  "trace.letterPrev": "Previous letter",
+  "trace.letterNext": "Next letter",
+  "trace.letterOf": "Letter {i} of {n}"
+}

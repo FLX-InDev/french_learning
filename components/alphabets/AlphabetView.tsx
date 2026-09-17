@@ -12,6 +12,8 @@ import {
   buildSpellingPool,
   type SpellingWord,
 } from "@/lib/spelling";
+import { InkTrace } from "./InkTrace";
+import { resolveTraceKey } from "./letterStrokes";
 import type { AlphabetCard, Word } from "@/lib/contentTypes";
 
 /**
@@ -34,6 +36,7 @@ export function AlphabetView({
   const [openId, setOpenId] = useState<string | null>(null);
   const [spellIdx, setSpellIdx] = useState(0);
   const [spellResult, setSpellResult] = useState<null | boolean>(null);
+  const [traceIdx, setTraceIdx] = useState(0);
   const recordedRef = useRef(false);
 
   const level = state?.profile.level ?? "L3";
@@ -54,6 +57,14 @@ export function AlphabetView({
   );
   const spellWord: SpellingWord | undefined =
     spellPool.length > 0 ? spellPool[spellIdx % spellPool.length] : undefined;
+
+  // 描红练习（T6-08）：仅列出当前语言有笔顺数据的字母；教学提示为附加通道，不判分
+  const traceLetters = useMemo(
+    () => cards.map((c) => c.letter).filter((l) => resolveTraceKey(l[0] ?? "", lang) !== undefined),
+    [cards, lang]
+  );
+  const traceLetterIdx = Math.min(traceIdx, Math.max(0, traceLetters.length - 1));
+  const traceLetter = traceLetters[traceLetterIdx] ?? "Aa";
 
   if (hidden.includes("alphabet")) {
     return (
@@ -183,6 +194,66 @@ export function AlphabetView({
           </div>
         )}
       </section>
+
+      {/* 描红练习（T6-08 / S5）：附加通道，只回放不判分；翻卡 / 点读 / 拼词保持原样 */}
+      {traceLetters.length > 0 && (
+        <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+              ✍️ {t("trace.title")}
+            </h2>
+            <span className="text-xs text-gray-400">
+              {t("trace.letterOf", {
+                i: String(traceLetterIdx + 1),
+                n: String(traceLetters.length),
+              })}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 mb-3">
+            <button
+              type="button"
+              onClick={() =>
+                setTraceIdx((i) => (i - 1 + traceLetters.length) % traceLetters.length)
+              }
+              aria-label={t("trace.letterPrev")}
+              className="shrink-0 min-h-[48px] min-w-[48px] rounded-xl border-2 border-gray-100 text-gray-500 hover:border-purple-300"
+            >
+              ‹
+            </button>
+            <div className="flex-1 overflow-x-auto">
+              <div className="flex gap-1.5 py-1">
+                {traceLetters.map((l, i) => (
+                  <button
+                    key={l}
+                    type="button"
+                    onClick={() => setTraceIdx(i)}
+                    aria-pressed={i === traceLetterIdx}
+                    className={
+                      "shrink-0 min-h-[40px] min-w-[40px] px-2 rounded-lg border-2 text-sm font-bold transition " +
+                      (i === traceLetterIdx
+                        ? "border-purple-400 bg-purple-50 text-purple-700"
+                        : "border-gray-100 text-gray-500 hover:border-purple-200")
+                    }
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTraceIdx((i) => (i + 1) % traceLetters.length)}
+              aria-label={t("trace.letterNext")}
+              className="shrink-0 min-h-[48px] min-w-[48px] rounded-xl border-2 border-gray-100 text-gray-500 hover:border-purple-300"
+            >
+              ›
+            </button>
+          </div>
+
+          <InkTrace key={`${lang}-${traceLetter}`} letter={traceLetter} lang={lang} />
+        </section>
+      )}
 
       {/* 翻卡弹窗 */}
       {openCard && (

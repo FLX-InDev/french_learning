@@ -11,8 +11,8 @@
  *   bgm（S1）/ songAudio（S2）/ race（S3）/ reportExport（S4）/
  *   srs · phonics · trace（S5）/ l6（S6）
  *
- * 当前已登记：bgm(S1) / reportExport(S4) / srs(S5) / phonics(S5) / race(S3)。
- * 未登记的模块（songAudio / trace / l6）待对应流交付后由集成者追加。
+ * 当前已登记：bgm(S1) / reportExport(S4) / srs(S5) / phonics(S5) / race(S3) / l6(S6) / trace(S5)。
+ * 未登记的模块（songAudio）待对应流交付后由集成者追加。
  */
 
 import type { Locale } from "./workspace";
@@ -37,6 +37,14 @@ import zhRace from "@/translations/modules/zh/race.json";
 import enRace from "@/translations/modules/en/race.json";
 import frRace from "@/translations/modules/fr/race.json";
 
+import zhL6 from "@/translations/modules/zh/l6.json";
+import enL6 from "@/translations/modules/en/l6.json";
+import frL6 from "@/translations/modules/fr/l6.json";
+
+import zhTrace from "@/translations/modules/zh/trace.json";
+import enTrace from "@/translations/modules/en/trace.json";
+import frTrace from "@/translations/modules/fr/trace.json";
+
 export type Dict = Record<string, string>;
 export type LocaleModuleMap = Record<string, Dict>;
 
@@ -54,6 +62,8 @@ export const MODULE_REGISTRY: Record<Locale, LocaleModuleMap> = {
     srs: zhSrs as Dict,
     phonics: zhPhonics as Dict,
     race: zhRace as Dict,
+    l6: zhL6 as Dict,
+    trace: zhTrace as Dict,
   },
   en: {
     bgm: enBgm as Dict,
@@ -61,6 +71,8 @@ export const MODULE_REGISTRY: Record<Locale, LocaleModuleMap> = {
     srs: enSrs as Dict,
     phonics: enPhonics as Dict,
     race: enRace as Dict,
+    l6: enL6 as Dict,
+    trace: enTrace as Dict,
   },
   fr: {
     bgm: frBgm as Dict,
@@ -68,6 +80,8 @@ export const MODULE_REGISTRY: Record<Locale, LocaleModuleMap> = {
     srs: frSrs as Dict,
     phonics: frPhonics as Dict,
     race: frRace as Dict,
+    l6: frL6 as Dict,
+    trace: frTrace as Dict,
   },
 };
 

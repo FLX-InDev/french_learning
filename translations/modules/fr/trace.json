@@ -1,0 +1,22 @@
+{
+  "trace.title": "Tracé des lettres",
+  "trace.hint": "Suis la ligne pointillée (on enregistre seulement le tracé, pas de note)",
+  "trace.canvasAlt": "Canevas de tracé :",
+  "trace.playStrokes": "Rejouer les tracés",
+  "trace.replayMine": "Rejouer mon tracé",
+  "trace.stop": "Arrêter",
+  "trace.clear": "Effacer",
+  "trace.done": "Terminé",
+  "trace.scratch": "Trace avec le doigt ou le stylet",
+  "trace.strokeCount": "{n} tracé(s)",
+  "trace.glyphPrev": "Glyphe précédent",
+  "trace.glyphNext": "Glyphe suivant",
+  "trace.styleLabel": "Écriture",
+  "trace.stylePrint": "Imprimé",
+  "trace.styleCursive": "Cursive",
+  "trace.noData": "Pas encore de données de tracé pour ce glyphe",
+  "trace.additiveNote": "Le tracé est un exercice supplémentaire — les cartes et la lecture restent inchangées",
+  "trace.letterPrev": "Lettre précédente",
+  "trace.letterNext": "Lettre suivante",
+  "trace.letterOf": "Lettre {i} sur {n}"
+}

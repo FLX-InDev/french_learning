@@ -812,9 +812,6 @@ def main():
         g = extract_glyph(font, m, ch, accent_mode=mode)
         skeletons[ch] = g
         print(f"  {ch}: base={len(g['base'])} 笔, acc={len(g['accents'])}")
-        if ch == 'i':
-            for si, s in enumerate(g['base']):
-                print(f"    DEBUG i base[{si}]: first={s[0]} last={s[-1]}")
 
     data = {"_meta": {
         "spec": "docs/phase-6/trace-data-spec.md",

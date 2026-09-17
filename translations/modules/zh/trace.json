@@ -1,0 +1,22 @@
+{
+  "trace.title": "描红练习",
+  "trace.hint": "沿着虚线描一描（只记录轨迹，不判分）",
+  "trace.canvasAlt": "笔顺描红画布：",
+  "trace.playStrokes": "回放笔顺",
+  "trace.replayMine": "回放我的描红",
+  "trace.stop": "停止",
+  "trace.clear": "清空",
+  "trace.done": "完成",
+  "trace.scratch": "手指或触控笔即可描红",
+  "trace.strokeCount": "已描 {n} 笔",
+  "trace.glyphPrev": "上一个字形",
+  "trace.glyphNext": "下一个字形",
+  "trace.styleLabel": "书写体",
+  "trace.stylePrint": "印刷体",
+  "trace.styleCursive": "手写体",
+  "trace.noData": "该字形暂无笔顺数据",
+  "trace.additiveNote": "描红为附加练习，翻卡与点读不受影响",
+  "trace.letterPrev": "上一个字母",
+  "trace.letterNext": "下一个字母",
+  "trace.letterOf": "第 {i} / {n} 个字母"
+}
