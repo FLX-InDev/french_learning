@@ -63,6 +63,89 @@ export function MathQuestionCard({ q }: { q: MathQuestion }) {
         </div>
       )}
 
+      {/* 竖式（乘除竖式，感知阶段）：横式 + 竖式布局 */}
+      {v && "type" in v && v.type === "columnar" && (
+        <div className="flex items-center justify-center gap-6">
+          <div className="text-5xl font-extrabold text-gray-800 tabular-nums">
+            {v.a} {v.op} {v.b} = ?
+          </div>
+          {v.op === "÷" && (
+            <div className="text-left font-bold text-gray-700 tabular-nums leading-tight">
+              <div className="text-xs text-gray-400 mb-0.5">{t('l6.columnar.hint')}</div>
+              <div className="text-lg">
+                <div className="flex items-end gap-1">
+                  <span className="text-2xl">{v.b}</span>
+                  <span className="text-3xl">⟌</span>
+                  <span className="text-2xl underline underline-offset-4">{v.a}</span>
+                </div>
+                <div className="mt-1 pl-8 text-sm text-gray-400">
+                  {v.remainder > 0
+                    ? `${v.result} … ${v.remainder}`
+                    : String(v.result)}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 分数初步（识别：饼图/条图/emoji；比较：两分数并排） */}
+      {v && "type" in v && v.type === "fraction" && (
+        <div className="space-y-3">
+          {v.style === "pie" && (
+            <div className="flex justify-center">
+              <div
+                className="w-28 h-28 rounded-full border-2 border-gray-200 mx-auto"
+                style={{
+                  background: `conic-gradient(#f59e0b 0 ${(v.numerator / v.denominator) * 100}%, #f3f4f6 ${(v.numerator / v.denominator) * 100}% 100%)`,
+                }}
+              />
+            </div>
+          )}
+          {v.style === "bar" && (
+            <div className="flex rounded-lg overflow-hidden border border-gray-200 h-10 w-40 mx-auto">
+              {Array.from({ length: v.denominator }, (_, i) => (
+                <div
+                  key={i}
+                  className={
+                    i < v.numerator ? "bg-amber-500 flex-1" : "bg-gray-100 flex-1"
+                  }
+                  style={{
+                    borderRight:
+                      i < v.denominator - 1 ? "2px solid #fff" : undefined,
+                  }}
+                />
+              ))}
+            </div>
+          )}
+          {v.style === "emoji" && (
+            <div className="text-3xl tracking-widest break-all">
+              {Array.from({ length: v.itemCount ?? v.denominator }, (_, i) => (
+                <span
+                  key={i}
+                  className={
+                    i < v.numerator ? "" : "opacity-25 grayscale"
+                  }
+                >
+                  {v.emoji ?? "🍕"}
+                </span>
+              ))}
+            </div>
+          )}
+          {v.other && (
+            <div className="flex items-center justify-center gap-6 text-4xl font-extrabold text-gray-800 tabular-nums">
+              <span>
+                {v.numerator}/{v.denominator}
+              </span>
+              <span className="text-purple-500">○</span>
+              <span>
+                {v.other.numerator}/{v.other.denominator}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       {v && "tens" in v && (
         <div className="space-y-2">
           {"hundreds" in v && v.hundreds ? (

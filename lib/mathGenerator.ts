@@ -31,7 +31,9 @@ export type MathKind =
   | "mul"
   | "lengthUnit"
   | "massUnit"
-  | "axisSymmetry";
+  | "axisSymmetry"
+  | "mulDiv"
+  | "fraction";
 
 export type CountVisual = { emoji: string; count: number };
 export type CompareVisual = {
@@ -80,6 +82,37 @@ export type AxisSymmetryVisual = {
   hasAxis: boolean;
 };
 
+/**
+ * 竖式（乘除竖式，CE2）：操作对象为两位数，mode 区分
+ * "mul"（一位数 × 两位数）与 "div"（两位数 ÷ 一位数，可能有余数）。
+ */
+export type MulDivVisual = {
+  type: "columnar";
+  op: "×" | "÷";
+  /** 竖式中的运算数：乘式为 被乘数 × 乘数；除式为 被除数 ÷ 除数 */
+  a: number;
+  b: number;
+  /** 结果：乘式为积；除式为商 */
+  result: number;
+  /** 余数（仅除法，无余数时为 0） */
+  remainder: number;
+};
+
+/** 分数初步（几分之一 / 简单同分母比较） */
+export type FractionVisual = {
+  type: "fraction";
+  numerator: number;
+  denominator: number;
+  /** 显示样式：pie（圆形图）/ bar（条形图）/ emoji（物品平均分） */
+  style: "pie" | "bar" | "emoji";
+  /** emoji 样式下：用来平均分的物品（如 🍕） */
+  emoji?: string;
+  /** emoji 样式下：物品个数（= denominator × 每份个数） */
+  itemCount?: number;
+  /** compare 模式：与 numerator/denominator 比较的另一个分数 */
+  other?: { numerator: number; denominator: number };
+};
+
 export type MathVisual =
   | CountVisual
   | CompareVisual
@@ -91,7 +124,9 @@ export type MathVisual =
   | WordProblemVisual
   | LengthUnitVisual
   | MassUnitVisual
-  | AxisSymmetryVisual;
+  | AxisSymmetryVisual
+  | MulDivVisual
+  | FractionVisual;
 
 export type MathQuestion = {
   id: string; // `${kind}_${seed}_${index}`，同种子同卷（确定性）
@@ -296,6 +331,180 @@ function decompositionFor(a: number, b: number, op: "+" | "-") {
 
 function timeStr(hour: number, minute: number): string {
   return `${hour}:${String(minute).padStart(2, "0")}`;
+}
+
+// ─── L6 竖式（乘除竖式感知，CE2）───────────────────────────────
+/** 合法余数范围 1..除数-1 内的非当前余数（用于干扰项） */
+function divisorBound(divisor: number, remainder: number): number {
+  if (remainder > 1) return remainder - 1;
+  return Math.min(divisor - 1, remainder + 1);
+}
+// 子模式：
+//   mul         一位数 × 两位数（竖式），答案 = 积
+//   divExact    两位数 ÷ 一位数（整除），答案 = 商
+//   divRemainder 两位数 ÷ 一位数（有余数），答案 = "商 余 余数"（choice）
+function generateMulDiv(level: Level, rng: Rng): {
+  visual: MulDivVisual;
+  answer: string;
+} {
+  const roll = rng();
+  if (roll < 0.4) {
+    // 乘法：一位数 × 两位数（12–98，避免整十占比过高）
+    const a = randInt(rng, 2, 9);
+    const b = randInt(rng, 1, 9) * 10 + randInt(rng, 0, 9);
+    const visual: MulDivVisual = {
+      type: "columnar",
+      op: "×",
+      a,
+      b,
+      result: a * b,
+      remainder: 0,
+    };
+    return { visual, answer: String(a * b) };
+  }
+  // 除法：两位数 ÷ 一位数；商 2–10，被除数 ≥ 10 且 ≤ 90（保证 +余数后仍为两位数）
+  let divisor = randInt(rng, 2, 9);
+  let quotient = randInt(rng, 2, 10);
+  let dividend = divisor * quotient;
+  for (let attempt = 0; attempt < 10 && dividend < 10; attempt++) {
+    divisor = randInt(rng, 2, 9);
+    quotient = randInt(rng, 2, 10);
+    dividend = divisor * quotient;
+  }
+  if (dividend < 10) {
+    // 兜底：保证两位数（如 5 × 2 = 10）
+    divisor = 5;
+    quotient = 2;
+    dividend = 10;
+  }
+  if (rng() < 0.6) {
+    // 整除
+    const visual: MulDivVisual = {
+      type: "columnar",
+      op: "÷",
+      a: dividend,
+      b: divisor,
+      result: quotient,
+      remainder: 0,
+    };
+    return { visual, answer: String(quotient) };
+  }
+  // 有余数：被除数 +1..除数-1，保证余数 ∈ 1..除数-1
+  const remainder = randInt(rng, 1, divisor - 1);
+  const visual: MulDivVisual = {
+    type: "columnar",
+    op: "÷",
+    a: dividend + remainder,
+    b: divisor,
+    result: quotient,
+    remainder,
+  };
+  return { visual, answer: `${quotient} 余 ${remainder}` };
+}
+
+// ─── L6 分数初步（CE2）─────────────────────────────────────────
+// 子模式：
+//   identify  看图写分数（涂色 n/den 份），答案 "n/den"（choice）
+//   compare   简单比较（同分母 / 同分子），答案 > < =
+const FRACTION_DENOMS = [2, 3, 4, 5, 6, 8] as const;
+
+function fractionOptions(
+  n: number,
+  d: number,
+  level: Level,
+  rng: Rng
+): string[] {
+  const count = getOptionCount(level);
+  const set = new Set<string>([`${n}/${d}`]);
+  // 同分母干扰：分子取与 n 不同的值
+  const candidates: string[] = [];
+  for (let m = 1; m <= d; m++) if (m !== n) candidates.push(`${m}/${d}`);
+  // 异分母干扰：保持分子，分母取邻近合法值
+  for (const dd of FRACTION_DENOMS) {
+    if (dd !== d && n < dd) candidates.push(`${n}/${dd}`);
+  }
+  for (const c of shuffled(rng, candidates)) {
+    if (set.size >= count) break;
+    set.add(c);
+  }
+  let pad = 1;
+  while (set.size < count) set.add(`${Math.max(1, n + pad++)}/${d}`);
+  return shuffled(rng, Array.from(set));
+}
+
+function generateFraction(level: Level, rng: Rng): {
+  visual: FractionVisual;
+  answer: string;
+  inputMode: "keypad" | "choice";
+  options?: string[];
+} {
+  const optionCount = getOptionCount(level);
+  if (rng() < 0.55) {
+    // identify：看图写分数（涂色份数 ∈ 1..den-1，初步以 1–2 份为主）
+    const d = pick(rng, FRACTION_DENOMS);
+    const n = randInt(rng, 1, Math.min(2, d - 1));
+    const style = pick(rng, ["pie", "bar", "emoji"] as const);
+    const visual: FractionVisual = {
+      type: "fraction",
+      numerator: n,
+      denominator: d,
+      style,
+      ...(style === "emoji"
+        ? { emoji: pick(rng, ["🍕", "🍰", "🍫", "🥧"]), itemCount: d * 2 }
+        : {}),
+    };
+    return {
+      visual,
+      answer: `${n}/${d}`,
+      inputMode: "choice",
+      options: fractionOptions(n, d, level, rng),
+    };
+  }
+  // compare：同分母（2/5 vs 3/5）或同分子（1/2 vs 1/3）
+  if (rng() < 0.5) {
+    // 同分母
+    const d = pick(rng, FRACTION_DENOMS.filter((x) => x >= 3));
+    const n1 = randInt(rng, 1, d - 1);
+    let n2 = randInt(rng, 1, d - 1);
+    if (n1 === n2) n2 = (n2 % (d - 1)) + 1;
+    const answer = n1 > n2 ? ">" : "<";
+    const visual: FractionVisual = {
+      type: "fraction",
+      numerator: n1,
+      denominator: d,
+      style: "pie",
+      other: { numerator: n2, denominator: d },
+    };
+    return {
+      visual,
+      answer,
+      inputMode: "choice",
+      options: shuffled(rng, [">", "<", "="]).slice(0, Math.max(3, optionCount)),
+    };
+  }
+  // 同分子
+  const n = pick(rng, [1, 2] as const);
+  const denoms = FRACTION_DENOMS.filter((x) => x > n);
+  const d1 = pick(rng, denoms);
+  let d2 = pick(rng, denoms);
+  if (d1 === d2) {
+    const idx = denoms.indexOf(d1);
+    d2 = denoms[(idx + 1) % denoms.length]; // 取下一个合法分母，保证不同
+  }
+  const answer = d1 < d2 ? ">" : "<"; // 分子相同，分母小者大
+  const visual: FractionVisual = {
+    type: "fraction",
+    numerator: n,
+    denominator: d1,
+    style: "bar",
+    other: { numerator: n, denominator: d2 },
+  };
+  return {
+    visual,
+    answer,
+    inputMode: "choice",
+    options: shuffled(rng, [">", "<", "="]).slice(0, Math.max(3, optionCount)),
+  };
 }
 
 // ─── 统一 dispatcher ────────────────────────────────────────────
@@ -660,6 +869,86 @@ export function generateMathQuestion(params: GenerateMathParams): MathQuestion {
         visual,
         inputMode: "choice",
         options: opts.slice(0, optionCount),
+      };
+    }
+
+    case "mulDiv": {
+      const { visual, answer } = generateMulDiv(level, rng);
+      const exact = visual.remainder === 0;
+      const prompt: Tri =
+        visual.op === "×"
+          ? {
+              zh: `${visual.a} × ${visual.b} = ?（用竖式算）`,
+              en: `${visual.a} × ${visual.b} = ? (column method)`,
+              fr: `${visual.a} × ${visual.b} = ? (posé)`,
+            }
+          : exact
+            ? {
+                zh: `${visual.a} ÷ ${visual.b} = ?（用竖式算）`,
+                en: `${visual.a} ÷ ${visual.b} = ? (column method)`,
+                fr: `${visual.a} ÷ ${visual.b} = ? (posé)`,
+              }
+            : {
+                zh: `${visual.a} ÷ ${visual.b} = ?（竖式，有余数）`,
+                en: `${visual.a} ÷ ${visual.b} = ? (column method, remainder)`,
+                fr: `${visual.a} ÷ ${visual.b} = ? (posé, reste)`,
+              };
+      if (exact) {
+        return mk(prompt, answer, visual, { inputMode: "keypad" });
+      }
+      // 有余数：答案 "商 余 余数" 无法用数字键盘表达 → choice
+      const quotient = visual.result;
+      const remainder = visual.remainder;
+      const candidates = [
+        `${quotient} 余 ${remainder - 1}`,
+        `${quotient} 余 ${remainder + 1}`,
+        `${quotient - 1} 余 ${remainder}`,
+        `${quotient + 1} 余 ${remainder}`,
+        `${quotient} 余 ${divisorBound(visual.b, remainder)}`,
+      ].filter((s) => s !== answer);
+      const others = shuffled(rng, Array.from(new Set(candidates)));
+      return {
+        id,
+        subject: "math",
+        level,
+        kind,
+        source: "generated",
+        prompt,
+        answer,
+        visual,
+        inputMode: "choice",
+        options: shuffled(rng, [answer, ...others.slice(0, Math.max(1, optionCount - 1))]).slice(0, optionCount),
+      };
+    }
+
+    case "fraction": {
+      const { visual, answer, inputMode, options } = generateFraction(level, rng);
+      let prompt: Tri;
+      if (visual.other) {
+        prompt = {
+          zh: `比较大小：${visual.numerator}/${visual.denominator} ○ ${visual.other.numerator}/${visual.other.denominator}`,
+          en: `Compare: ${visual.numerator}/${visual.denominator} ○ ${visual.other.numerator}/${visual.other.denominator}`,
+          fr: `Compare : ${visual.numerator}/${visual.denominator} ○ ${visual.other.numerator}/${visual.other.denominator}`,
+        };
+      } else {
+        prompt = {
+          zh: "涂色部分占整体的几分之几？",
+          en: "What fraction is shaded?",
+          fr: "Quelle fraction est coloriée ?",
+        };
+      }
+      return {
+        id,
+        subject: "math",
+        level,
+        kind,
+        source: "generated",
+        prompt,
+        answer,
+        visual,
+        inputMode,
+        ...(options ? { options } : {}),
+        unit: "分数",
       };
     }
 

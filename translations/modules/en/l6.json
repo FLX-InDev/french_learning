@@ -1,0 +1,7 @@
+{
+  "l6.columnar.hint": "Solve with the column method",
+  "l6.sudoku.title": "🍎 9-grid Sudoku",
+  "l6.sudoku.hint": "Fill each empty cell so every row, column, and 3×3 box has each fruit once",
+  "l6.sudoku.fill": "Tap a cell, then pick a fruit below",
+  "l6.fraction.hint": "What fraction of the whole is shaded?"
+}

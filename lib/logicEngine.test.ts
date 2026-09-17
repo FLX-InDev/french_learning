@@ -9,7 +9,9 @@ import {
   type OddOnePayload,
   type PatternPayload,
   type SortPayload,
+  type Sudoku9Payload,
 } from "./logicEngine";
+import { generateSudoku9Emoji } from "./logicPuzzles";
 import { mulberry32, seedFromString } from "./mathGenerator";
 import type { LogicItem } from "./contentTypes";
 import type { Level } from "./levels";
@@ -147,6 +149,80 @@ describe("oddOne（找不同 / intrus）", () => {
       expect(restCategory?.members.includes(q.answer)).toBe(false);
       expect(checkLogicAnswer(q, q.answer)).toBe(true);
     }
+  });
+});
+
+describe("sudoku9（9 宫数独 · emoji 版）", () => {
+  it("9×9、3×3 宫；每行/列/宫符号唯一；给定格 ≤ 48；同种子同盘面", () => {
+    const rng = mulberry32(2026);
+    for (let i = 0; i < 5; i++) {
+      const { puzzle, solution, givens } = generateSudoku9Emoji(rng);
+      expect(puzzle).toHaveLength(9);
+      puzzle.forEach((row) => expect(row).toHaveLength(9));
+
+      // 每行/列无重复（完整解）
+      for (let r = 0; r < 9; r++) {
+        expect(new Set(solution[r]).size).toBe(9);
+        expect(new Set(solution.map((row) => row[r])).size).toBe(9);
+      }
+      // 每个 3×3 宫无重复
+      for (let br = 0; br < 3; br++) {
+        for (let bc = 0; bc < 3; bc++) {
+          const box = new Set<string>();
+          for (let r = br * 3; r < br * 3 + 3; r++)
+            for (let c = bc * 3; c < bc * 3 + 3; c++) box.add(solution[r][c]);
+          expect(box.size).toBe(9);
+        }
+      }
+      // 题目中所有给定格等于完整解（非空即给定）
+      for (let r = 0; r < 9; r++)
+        for (let c = 0; c < 9; c++)
+          if (givens[r][c]) expect(puzzle[r][c]).toBe(solution[r][c]);
+
+      // 移格数（给定格数量）合理：保留 41~48 格
+      const givenCount = givens.flat().filter(Boolean).length;
+      expect(givenCount).toBeGreaterThanOrEqual(41);
+      expect(givenCount).toBeLessThanOrEqual(48);
+    }
+  });
+
+  it("generateLogicQuestion 产出 sudoku9 题；判分正确/错误", () => {
+    const rng = mulberry32(77);
+    for (let i = 0; i < 10; i++) {
+      const q = generateLogicQuestion({ level: "L6", kind: "sudoku9", rng });
+      const p = q.payload as Sudoku9Payload;
+      expect(q.kind).toBe("sudoku9");
+      expect(q.domain).toBe("number");
+      expect(p.type).toBe("sudoku9");
+      expect(p.board).toHaveLength(9);
+      expect(p.symbolSet).toHaveLength(9);
+      // emoji 为双 UTF-16 单元，按码点计数应为 81 格
+      expect(Array.from(p.answer)).toHaveLength(81);
+      expect(q.answer).toBe(p.answer);
+      expect(checkLogicAnswer(q, p.answer)).toBe(true);
+      // 错误答案（把第一个空格填成错误符号）应判错
+      expect(checkLogicAnswer(q, "wrong")).toBe(false);
+    }
+  });
+
+  it("replay：同种子同 sudoku9 题", () => {
+    const a = generateLogicQuestion({ level: "L6", kind: "sudoku9", rng: mulberry32(9) });
+    const b = generateLogicQuestion({ level: "L6", kind: "sudoku9", rng: mulberry32(9) });
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
+  });
+
+  it("generateLogicQuiz 含 sudoku9 kinds 可成卷", () => {
+    const quiz = generateLogicQuiz({
+      level: "L6",
+      kinds: ["sudoku9", "pattern"],
+      seed: "sudoku9-mix",
+      count: 3,
+    });
+    expect(quiz).toHaveLength(3);
+    expect(quiz.some((q) => q.kind === "sudoku9")).toBe(true);
+    const s = quiz.find((q) => q.kind === "sudoku9");
+    expect(s).toBeTruthy();
+    if (s) expect((s.payload as Sudoku9Payload).type).toBe("sudoku9");
   });
 });
 

@@ -7,6 +7,12 @@ import { useAppState } from "./AppStateProvider";
 import { ParentGate } from "./ParentGate";
 import { Mascot } from "./Mascot";
 import { useI18n } from "@/lib/i18n";
+import { ImageFallback } from "./ImageFallback";
+import { SUBJECT_ICONS, SUBJECT_EMOJI_FALLBACK, type SubjectIconKey } from "@/lib/imageAssets";
+import type { ContentType, AlphabetCard, Word } from "@/lib/contentTypes";
+import type { Sentence, Story } from "@/lib/parser";
+import { getLevelConfig, levelLabel } from "@/lib/levels";
+import type { ContentStats } from "@/lib/parser";
 
 /** B6 工程加固：今日任务卡为重组件（测验引擎+玩法扩展），动态分割以降低首页首屏 JS */
 const DailyChallenge = dynamic(() => import("./DailyChallenge").then((m) => m.DailyChallenge), {
@@ -17,10 +23,22 @@ const DailyChallenge = dynamic(() => import("./DailyChallenge").then((m) => m.Da
     </div>
   ),
 });
-import type { ContentType, AlphabetCard, Word } from "@/lib/contentTypes";
-import type { Sentence, Story } from "@/lib/parser";
-import { getLevelConfig, levelLabel } from "@/lib/levels";
-import type { ContentStats } from "@/lib/parser";
+
+/** 学科入口 key → 图标 key 映射 */
+const ENTRY_ICON_MAP: Record<string, SubjectIconKey> = {
+  language: "dialogue",
+  alphabet: "spelling",
+  word: "words",
+  math: "math",
+  logic: "logic",
+  song: "music",
+};
+
+const GREETINGS = [
+  { zh: "你好！", en: "Hello!", fr: "Bonjour !" },
+  { zh: "我们一起学法语吧！", en: "Let's learn French!", fr: "Apprenons le français !" },
+  { zh: "今天也要加油哦！", en: "You can do it!", fr: "Allez, courage !" },
+];
 
 /** 学科入口：ready=false 表示页面尚未落地，为占位禁用态 */
 const ENTRIES: {
@@ -47,7 +65,7 @@ const ENTRIES: {
     nameKey: "home.subjects.spelling",
     desc: "home.subjects.alphabetDesc",
     href: "/alphabets",
-    ready: true, // Phase 3 上线
+    ready: true,
     dependsOn: ["alphabet"],
   },
   {
@@ -56,7 +74,7 @@ const ENTRIES: {
     nameKey: "home.subjects.vocabulary",
     desc: "home.subjects.wordDesc",
     href: "/words",
-    ready: true, // Phase 5A 上线
+    ready: true,
     dependsOn: ["word"],
   },
   {
@@ -65,7 +83,7 @@ const ENTRIES: {
     nameKey: "home.subjects.math",
     desc: "home.subjects.mathDesc",
     href: "/math",
-    ready: true, // Phase 2 上线
+    ready: true,
     dependsOn: ["math"],
   },
   {
@@ -74,7 +92,7 @@ const ENTRIES: {
     nameKey: "home.subjects.logic",
     desc: "home.subjects.logicDesc",
     href: "/logic",
-    ready: true, // Phase 2 上线
+    ready: true,
     dependsOn: ["logic"],
   },
   {
@@ -83,15 +101,9 @@ const ENTRIES: {
     nameKey: "home.subjects.music",
     desc: "home.subjects.songDesc",
     href: "/songs",
-    ready: true, // Phase 3 上线
+    ready: true,
     dependsOn: ["song"],
   },
-];
-
-const GREETINGS = [
-  { zh: "你好！", en: "Hello!", fr: "Bonjour !" },
-  { zh: "我们一起学法语吧！", en: "Let's learn French!", fr: "Apprenons le français !" },
-  { zh: "今天也要加油哦！", en: "You can do it!", fr: "Allez, courage !" },
 ];
 
 export function HomeView({
@@ -197,9 +209,16 @@ export function HomeView({
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {visibleEntries.map((e) => {
+            const iconKey = ENTRY_ICON_MAP[e.key] ?? "dialogue";
             const body = (
               <>
-                <div className="text-4xl">{e.emoji}</div>
+                <ImageFallback
+                  src={SUBJECT_ICONS[iconKey]}
+                  alt={t(e.nameKey)}
+                  fallback={SUBJECT_EMOJI_FALLBACK[iconKey]}
+                  size={96}
+                  eager
+                />
                 <div className="mt-2 font-bold text-gray-800">{t(e.nameKey)}</div>
                 <div className="text-xs text-gray-500 mt-0.5">{t(e.desc)}</div>
                 {!e.ready && (

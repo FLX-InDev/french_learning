@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" width="160" height="90">
+  <!-- 故事封面：小猫 — 橘色小猫打哈欠 + 窗外月亮 -->
+  <rect width="160" height="90" fill="#F0E8D8"/>
+  <!-- 窗外（背景） -->
+  <rect x="100" y="12" width="44" height="36" rx="4" fill="#C3AED6" opacity="0.4"/>
+  <!-- 月亮 -->
+  <circle cx="128" cy="30" r="12" fill="#F5A623" opacity="0.8"/>
+  <circle cx="134" cy="26" r="10" fill="#F0E8D8" opacity="0.6"/>
+  <!-- 星星 -->
+  <circle cx="112" cy="22" r="1.5" fill="#F5A623" opacity="0.6"/>
+  <circle cx="140" cy="42" r="1" fill="#FFF8F0" opacity="0.5"/>
+  <!-- 小猫身体 -->
+  <ellipse cx="52" cy="64" rx="24" ry="14" fill="#F5A623"/>
+  <!-- 尾巴 -->
+  <path d="M28 64 Q16 56 22 44" stroke="#F5A623" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <!-- 头 -->
+  <circle cx="66" cy="48" r="16" fill="#F5A623"/>
+  <!-- 耳朵 -->
+  <polygon points="54,38 50,26 60,36" fill="#F5A623"/>
+  <polygon points="78,38 82,26 72,36" fill="#F5A623"/>
+  <polygon points="55,37 52,29 59,36" fill="#FFB347" opacity="0.5"/>
+  <polygon points="77,37 80,29 73,36" fill="#FFB347" opacity="0.5"/>
+  <!-- 条纹 -->
+  <path d="M64 34 Q66 30 68 34" stroke="#E08820" stroke-width="1.5" fill="none"/>
+  <path d="M60 32 Q62 28 64 32" stroke="#E08820" stroke-width="1.5" fill="none"/>
+  <!-- 闭眼（打哈欠） -->
+  <path d="M58 46 Q60 48 62 46" stroke="#4A3728" stroke-width="1.5" fill="none"/>
+  <path d="M70 46 Q72 48 74 46" stroke="#4A3728" stroke-width="1.5" fill="none"/>
+  <!-- 嘴巴（张开） -->
+  <ellipse cx="66" cy="54" rx="5" ry="4" fill="#FF8B94" opacity="0.6"/>
+  <ellipse cx="66" cy="54" rx="3" ry="2.5" fill="#E06070"/>
+  <!-- 胡须 -->
+  <line x1="48" y1="50" x2="40" y2="48" stroke="#E08820" stroke-width="1"/>
+  <line x1="48" y1="54" x2="40" y2="54" stroke="#E08820" stroke-width="1"/>
+  <line x1="84" y1="50" x2="92" y2="48" stroke="#E08820" stroke-width="1"/>
+  <line x1="84" y1="54" x2="92" y2="54" stroke="#E08820" stroke-width="1"/>
+  <!-- ZZZ -->
+  <text x="88" y="38" font-size="8" fill="#C3AED6" opacity="0.8">z</text>
+  <text x="94" y="32" font-size="10" fill="#C3AED6" opacity="0.6">z</text>
+  <text x="100" y="26" font-size="12" fill="#C3AED6" opacity="0.4">z</text>
+</svg>

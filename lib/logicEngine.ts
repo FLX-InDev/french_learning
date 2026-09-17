@@ -7,13 +7,14 @@
  */
 
 import { mulberry32, seedFromString, type Rng } from "./mathGenerator";
+import { generateSudoku9Emoji, SUDOKU9_EMOJIS } from "./logicPuzzles";
 import { getOptionCount, type Level } from "./levels";
 import type { LogicItem, Tri } from "./contentTypes";
 import type { QuizQuestion } from "./workspace";
 
 // ─── 类型 ────────────────────────────────────────────────────────
 
-export type LogicKind = "pattern" | "classify" | "sort" | "oddOne";
+export type LogicKind = "pattern" | "classify" | "sort" | "oddOne" | "sudoku9";
 
 export type LogicQuestion = {
   id: string;
@@ -28,7 +29,7 @@ export type LogicQuestion = {
   /** 标准答案（pattern=接续项；classify=分组映射 JSON；sort=正确顺序；oddOne=多余项） */
   answer: string;
   explanation?: Tri;
-  payload: PatternPayload | ClassifyPayload | SortPayload | OddOnePayload;
+  payload: PatternPayload | ClassifyPayload | SortPayload | OddOnePayload | Sudoku9Payload;
 };
 
 /** 找规律：序列 + 候选（点选接续项） */
@@ -56,6 +57,15 @@ export type OddOnePayload = {
   type: "oddOne";
   items: string[];
   answerIndex: number;
+};
+
+/** 9 宫数独（emoji 版）：9×9 盘面 + 给定格标记 + 可选符号集 */
+export type Sudoku9Payload = {
+  type: "sudoku9";
+  board: string[][]; // 9×9，"" = 空格
+  givens: boolean[][]; // true = 给定格
+  symbolSet: string[]; // 9 个可选符号
+  answer: string; // 完整解（行优先拼接，判分用）
 };
 
 // ─── 分类素材（同域多篮子）───────────────────────────────────────
@@ -254,6 +264,32 @@ function generateOddOne(level: Level, rng: Rng): LogicQuestion {
   };
 }
 
+/** 9 宫数独（emoji 版）：L6 专属 */
+function generateSudoku9(level: Level, rng: Rng): LogicQuestion {
+  const { puzzle, solution, givens } = generateSudoku9Emoji(rng);
+  return {
+    id: `sudoku9_${Math.floor(rng() * 1e9)}`,
+    subject: "logic",
+    level,
+    kind: "sudoku9",
+    domain: "number",
+    source: "generated",
+    stem: {
+      zh: "在空格里填上水果，让每行、每列、每个九宫格都各有一种水果",
+      en: "Fill each empty cell so every row, column, and 3×3 box has each fruit once",
+      fr: "Place un fruit dans chaque case vide : chaque ligne, colonne et carré de 9 doit contenir chaque fruit une fois",
+    },
+    answer: solution.map((r) => r.join("")).join(""),
+    payload: {
+      type: "sudoku9",
+      board: puzzle,
+      givens,
+      symbolSet: SUDOKU9_EMOJIS.slice() as string[],
+      answer: solution.map((r) => r.join("")).join(""),
+    },
+  };
+}
+
 // ─── dispatcher / 成卷 ───────────────────────────────────────────
 
 export function generateLogicQuestion(params: {
@@ -270,6 +306,8 @@ export function generateLogicQuestion(params: {
       return generateSort(params.level, params.rng);
     case "oddOne":
       return generateOddOne(params.level, params.rng);
+    case "sudoku9":
+      return generateSudoku9(params.level, params.rng);
   }
 }
 
@@ -390,6 +428,10 @@ export function checkLogicAnswer(q: LogicQuestion, userAnswer: string): boolean 
       return false;
     }
   }
+  if (q.kind === "sudoku9") {
+    // 用户答案 = 行优先拼接的 81 字符字符串（与 q.answer 同构）
+    return userAnswer === q.answer;
+  }
   return userAnswer === q.answer;
 }
 
@@ -456,5 +498,6 @@ export function logicToChoiceQuestion(
       kind: lq.kind,
     };
   }
+  // sudoku9：整盘作答，无候选选项 → null（调用方回退到单选项重放）
   return null;
 }

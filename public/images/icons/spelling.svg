@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <!-- 学科图标：拼写字母 — 大写字母 A + 铅笔 + 田字格 -->
+  <rect x="2" y="2" width="92" height="92" rx="18" fill="#FFF8F0"/>
+  <!-- 田字格背景 -->
+  <rect x="16" y="16" width="64" height="64" rx="8" fill="#F5EEFF" stroke="#C3AED6" stroke-width="1.5"/>
+  <line x1="48" y1="16" x2="48" y2="80" stroke="#C3AED6" stroke-width="1" stroke-dasharray="4 3"/>
+  <line x1="16" y1="48" x2="80" y2="48" stroke="#C3AED6" stroke-width="1" stroke-dasharray="4 3"/>
+  <!-- 大写字母 A -->
+  <text x="48" y="64" font-size="42" fill="#9B59B6" font-weight="bold" text-anchor="middle" font-family="Georgia, serif">A</text>
+  <!-- 铅笔（斜放右下角） -->
+  <g transform="rotate(-45 76 76)">
+    <rect x="72" y="60" width="8" height="32" rx="2" fill="#F5A623"/>
+    <rect x="72" y="90" width="8" height="4" rx="1" fill="#FFD9B3"/>
+    <polygon points="72,94 76,100 80,94" fill="#4A3728"/>
+  </g>
+  <!-- 小星星点缀 -->
+  <circle cx="24" cy="24" r="3" fill="#F5A623" opacity="0.6"/>
+  <circle cx="72" cy="24" r="2.5" fill="#E91E8C" opacity="0.5"/>
+</svg>

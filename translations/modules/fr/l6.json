@@ -1,0 +1,7 @@
+{
+  "l6.columnar.hint": "Pose l'opération",
+  "l6.sudoku.title": "🍎 Sudoku 9 cases",
+  "l6.sudoku.hint": "Place un fruit dans chaque case vide : chaque ligne, colonne et carré de 9 doit contenir chaque fruit une fois",
+  "l6.sudoku.fill": "Touche une case, puis choisis un fruit",
+  "l6.fraction.hint": "Quelle fraction de l'ensemble est colorée ?"
+}

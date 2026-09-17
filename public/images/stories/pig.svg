@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" width="160" height="90">
+  <!-- 故事封面：小猪 — 粉色小猪在泥坑 + 彩虹 -->
+  <rect width="160" height="90" fill="#FFF8F0"/>
+  <!-- 彩虹（三段同心弧） -->
+  <path d="M18 66 Q80 22 142 66" stroke="#FF8B94" stroke-width="5" fill="none" opacity="0.55" stroke-linecap="round"/>
+  <path d="M26 66 Q80 32 134 66" stroke="#F5A623" stroke-width="5" fill="none" opacity="0.55" stroke-linecap="round"/>
+  <path d="M34 66 Q80 42 126 66" stroke="#A8E6CF" stroke-width="5" fill="none" opacity="0.55" stroke-linecap="round"/>
+  <!-- 泥坑 -->
+  <ellipse cx="80" cy="72" rx="50" ry="15" fill="#A98856" opacity="0.8"/>
+  <ellipse cx="80" cy="72" rx="40" ry="10" fill="#8B6914" opacity="0.5"/>
+  <!-- 小猪身体（半身浸在泥里） -->
+  <ellipse cx="76" cy="64" rx="22" ry="14" fill="#FFB3BA"/>
+  <!-- 腿（泥色） -->
+  <rect x="62" y="72" width="7" height="10" rx="3" fill="#A98856" opacity="0.85"/>
+  <rect x="74" y="74" width="7" height="10" rx="3" fill="#A98856" opacity="0.85"/>
+  <rect x="84" y="72" width="7" height="10" rx="3" fill="#A98856" opacity="0.85"/>
+  <!-- 头 -->
+  <circle cx="96" cy="52" r="13" fill="#FFB3BA"/>
+  <!-- 耳朵 -->
+  <polygon points="87,42 84,32 92,40" fill="#FFB3BA"/>
+  <polygon points="105,42 108,32 100,40" fill="#FFB3BA"/>
+  <polygon points="88,41 86,34 91,40" fill="#FF8B94" opacity="0.4"/>
+  <polygon points="104,41 106,34 101,40" fill="#FF8B94" opacity="0.4"/>
+  <!-- 眼睛 -->
+  <circle cx="92" cy="50" r="2" fill="#4A3728"/>
+  <circle cx="101" cy="50" r="2" fill="#4A3728"/>
+  <!-- 鼻头 -->
+  <ellipse cx="96" cy="56" rx="6" ry="4.5" fill="#FF8B94" opacity="0.7"/>
+  <circle cx="94" cy="56" r="1.5" fill="#E06070" opacity="0.8"/>
+  <circle cx="98" cy="56" r="1.5" fill="#E06070" opacity="0.8"/>
+  <!-- 尾巴（卷卷） -->
+  <path d="M54 60 Q48 58 50 52 Q52 48 56 50" stroke="#FFB3BA" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- 泥点飞溅 -->
+  <circle cx="58" cy="66" r="2" fill="#A98856" opacity="0.6"/>
+  <circle cx="112" cy="62" r="1.5" fill="#A98856" opacity="0.6"/>
+  <circle cx="118" cy="70" r="2.5" fill="#A98856" opacity="0.5"/>
+</svg>

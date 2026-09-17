@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <!-- 学科图标：数学 — 算盘 + 加减乘除符号 -->
+  <rect x="2" y="2" width="92" height="92" rx="18" fill="#FFF8F0"/>
+  <!-- 算盘框 -->
+  <rect x="20" y="18" width="40" height="56" rx="6" fill="#C3AED6"/>
+  <line x1="20" y1="38" x2="60" y2="38" stroke="#FFF8F0" stroke-width="2"/>
+  <!-- 算珠 -->
+  <circle cx="30" cy="28" r="5" fill="#F5A623"/>
+  <circle cx="42" cy="28" r="5" fill="#FF8B94"/>
+  <circle cx="54" cy="28" r="5" fill="#88C6F0"/>
+  <circle cx="30" cy="48" r="5" fill="#A8E6CF"/>
+  <circle cx="42" cy="48" r="5" fill="#F5A623"/>
+  <circle cx="30" cy="62" r="5" fill="#FF8B94"/>
+  <circle cx="42" cy="62" r="5" fill="#88C6F0"/>
+  <!-- 四则运算符号 -->
+  <text x="74" y="30" font-size="20" fill="#9B59B6" font-weight="bold" text-anchor="middle">+</text>
+  <text x="74" y="52" font-size="20" fill="#E91E8C" font-weight="bold" text-anchor="middle">−</text>
+  <text x="74" y="74" font-size="20" fill="#27AE60" font-weight="bold" text-anchor="middle">×</text>
+  <text x="16" y="40" font-size="20" fill="#F5A623" font-weight="bold" text-anchor="middle">÷</text>
+</svg>

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <!-- 学科图标：逻辑游戏 — 积木 + 齿轮 + 问号圆形构图 -->
+  <rect x="2" y="2" width="92" height="92" rx="18" fill="#FFF8F0"/>
+  <!-- 齿轮 -->
+  <circle cx="32" cy="32" r="12" fill="#C3AED6"/>
+  <circle cx="32" cy="32" r="5" fill="#FFF8F0"/>
+  <rect x="30" y="16" width="4" height="8" rx="1" fill="#C3AED6"/>
+  <rect x="30" y="40" width="4" height="8" rx="1" fill="#C3AED6"/>
+  <rect x="16" y="30" width="8" height="4" rx="1" fill="#C3AED6"/>
+  <rect x="40" y="30" width="8" height="4" rx="1" fill="#C3AED6"/>
+  <!-- 积木块 -->
+  <rect x="20" y="52" width="16" height="16" rx="3" fill="#FF8B94"/>
+  <text x="28" y="64" font-size="10" fill="#FFF8F0" font-weight="bold" text-anchor="middle">B</text>
+  <rect x="40" y="52" width="16" height="16" rx="3" fill="#A8E6CF"/>
+  <text x="48" y="64" font-size="10" fill="#FFF8F0" font-weight="bold" text-anchor="middle">A</text>
+  <!-- 问号圆形 -->
+  <circle cx="70" cy="68" r="16" fill="#88C6F0"/>
+  <text x="70" y="78" font-size="22" fill="#FFF8F0" font-weight="bold" text-anchor="middle">?</text>
+  <!-- 小星星 -->
+  <circle cx="78" cy="24" r="3" fill="#F5A623" opacity="0.6"/>
+  <circle cx="18" cy="78" r="2.5" fill="#E91E8C" opacity="0.5"/>
+</svg>

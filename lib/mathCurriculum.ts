@@ -145,6 +145,12 @@ export const MATH_CURRICULUM: Record<Level, MathGroup[]> = {
       s("l6-mul-8", "mul", ["8 的口诀", "Table of 8", "Table de 8"], 10, 8),
       s("l6-mul-9", "mul", ["9 的口诀", "Table of 9", "Table de 9"], 10, 9),
     ]),
+    g("l6-columnar", "➗", ["乘除竖式", "Column method", "Posé"], "乘除法竖式（感知）", "≈ CE2", [
+      s("l6-mulDiv", "mulDiv", ["两位数乘一位数 / 除法竖式", "Multiply & divide", "Multiplication / division posée"], 10),
+    ]),
+    g("l6-fraction", "🍕", ["分数初步", "Fractions", "Fractions"], "分数初步（几分之一）", "≈ CE2", [
+      s("l6-fraction", "fraction", ["几分之一 / 分数比较", "Fractions & compare", "Fractions et comparaison"], 10),
+    ]),
     g("l6-sequence", "🔢", ["数列", "Sequences", "Suites"], "万以内数与规律", "≈ CE2", [
       s("l6-sequence", "sequence", ["等差数列", "Number patterns", "Suites arithmétiques"], 10),
     ]),
@@ -182,7 +188,7 @@ export const LOGIC_DOMAINS: {
   id: string;
   title: { zh: string; en: string; fr: string };
   emoji: string;
-  kinds: ("pattern" | "classify" | "sort" | "oddOne")[];
+  kinds: ("pattern" | "classify" | "sort" | "oddOne" | "sudoku9")[];
   ready: boolean;
 }[] = [
   {
@@ -217,8 +223,8 @@ export const LOGIC_DOMAINS: {
     id: "number",
     title: { zh: "数理推理", en: "Numbers", fr: "Raisonnement" },
     emoji: "🧮",
-    kinds: [],
-    ready: false,
+    kinds: ["sudoku9"],
+    ready: true,
   },
   {
     id: "deduce",

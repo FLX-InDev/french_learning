@@ -483,3 +483,101 @@ describe("axisSymmetry（轴对称判断）", () => {
     expect(JSON.stringify(quizA)).toBe(JSON.stringify(quizB));
   });
 });
+
+// ─── T6-09：L6 竖式（乘除竖式感知，CE2）────────────────────────
+
+describe("mulDiv（竖式：乘/除）", () => {
+  it("L6 生成 30 题：乘式 a∈2–9 且 b 为两位数；除式整除或带余且答案自洽", () => {
+    const rng = mulberry32(1300);
+    for (let i = 0; i < 30; i++) {
+      const q = generateMathQuestion({ level: "L6", kind: "mulDiv", rng });
+      expect(q.kind).toBe("mulDiv");
+      const v = q.visual as {
+        type: "columnar";
+        op: "×" | "÷";
+        a: number;
+        b: number;
+        result: number;
+        remainder: number;
+      };
+      expect(v.type).toBe("columnar");
+      if (v.op === "×") {
+        // 一位数 × 两位数：a ∈ 2–9，b 为 10–99
+        expect(v.a).toBeGreaterThanOrEqual(2);
+        expect(v.a).toBeLessThanOrEqual(9);
+        expect(v.b).toBeGreaterThanOrEqual(10);
+        expect(v.b).toBeLessThanOrEqual(99);
+        expect(v.remainder).toBe(0);
+        expect(Number(q.answer)).toBe(v.a * v.b);
+        expect(q.inputMode).toBe("keypad");
+      } else {
+        // 两位数 ÷ 一位数：被除数 ≤ 99，商 2–10，余数 ∈ 0..除数-1
+        expect(v.a).toBeGreaterThanOrEqual(10);
+        expect(v.a).toBeLessThanOrEqual(99);
+        expect(v.b).toBeGreaterThanOrEqual(2);
+        expect(v.b).toBeLessThanOrEqual(9);
+        expect(v.remainder).toBeGreaterThanOrEqual(0);
+        expect(v.remainder).toBeLessThan(v.b);
+        expect(v.result).toBeGreaterThanOrEqual(2);
+        expect(v.result).toBeLessThanOrEqual(10);
+        expect(v.a).toBe(v.b * v.result + v.remainder);
+        if (v.remainder === 0) {
+          expect(q.answer).toBe(String(v.result));
+          expect(q.inputMode).toBe("keypad");
+        } else {
+          expect(q.answer).toBe(`${v.result} 余 ${v.remainder}`);
+          expect(q.inputMode).toBe("choice");
+          expect(q.options).toContain(q.answer);
+        }
+      }
+    }
+  });
+
+  it("同种子同卷重放一致", () => {
+    const seed = "mulDiv-replay";
+    const quizA = generateMathQuiz({ level: "L6", kind: "mulDiv", count: 5, seed });
+    const quizB = generateMathQuiz({ level: "L6", kind: "mulDiv", count: 5, seed });
+    expect(JSON.stringify(quizA)).toBe(JSON.stringify(quizB));
+  });
+});
+
+describe("fraction（分数初步，CE2）", () => {
+  it("看图写分数：答案为 n/d，选项含答案且唯一", () => {
+    const rng = mulberry32(1400);
+    let sawIdentify = false;
+    for (let i = 0; i < 40; i++) {
+      const q = generateMathQuestion({ level: "L6", kind: "fraction", rng });
+      const v = q.visual as {
+        type: "fraction";
+        numerator: number;
+        denominator: number;
+        style: string;
+        other?: { numerator: number; denominator: number };
+      };
+      expect(v.type).toBe("fraction");
+      expect(v.denominator).toBeGreaterThan(0);
+      expect(v.numerator).toBeGreaterThan(0);
+      if (v.other) {
+        // compare：答案为 > < =
+        expect([">", "<", "="]).toContain(q.answer);
+        expect(q.inputMode).toBe("choice");
+        expect(q.options).toContain(q.answer);
+      } else {
+        sawIdentify = true;
+        expect(q.answer).toBe(`${v.numerator}/${v.denominator}`);
+        expect(q.inputMode).toBe("choice");
+        expect(q.options).toContain(q.answer);
+        expect(new Set(q.options).size).toBe(q.options!.length);
+        expect(v.numerator).toBeLessThan(v.denominator);
+      }
+    }
+    expect(sawIdentify).toBe(true);
+  });
+
+  it("同种子同卷重放一致", () => {
+    const seed = "fraction-replay";
+    const quizA = generateMathQuiz({ level: "L6", kind: "fraction", count: 5, seed });
+    const quizB = generateMathQuiz({ level: "L6", kind: "fraction", count: 5, seed });
+    expect(JSON.stringify(quizA)).toBe(JSON.stringify(quizB));
+  });
+});

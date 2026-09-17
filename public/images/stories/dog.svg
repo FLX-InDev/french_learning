@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" width="160" height="90">
+  <!-- 故事封面：小狗 — 棕色小狗拿红色球 + 草地 -->
+  <rect width="160" height="90" fill="#FFF8F0"/>
+  <!-- 太阳 -->
+  <circle cx="136" cy="18" r="10" fill="#F5A623" opacity="0.7"/>
+  <!-- 草地 -->
+  <ellipse cx="80" cy="88" rx="82" ry="16" fill="#A8E6CF"/>
+  <ellipse cx="30" cy="84" rx="30" ry="8" fill="#88D8B0"/>
+  <ellipse cx="130" cy="82" rx="28" ry="8" fill="#88D8B0"/>
+  <!-- 小狗身体 -->
+  <ellipse cx="70" cy="62" rx="22" ry="16" fill="#C8A878"/>
+  <!-- 腿 -->
+  <rect x="56" y="72" width="7" height="14" rx="3" fill="#B89868"/>
+  <rect x="68" y="74" width="7" height="14" rx="3" fill="#B89868"/>
+  <rect x="80" y="72" width="7" height="14" rx="3" fill="#B89868"/>
+  <!-- 头 -->
+  <circle cx="92" cy="44" r="14" fill="#C8A878"/>
+  <!-- 耳朵（垂下） -->
+  <ellipse cx="80" cy="36" rx="7" ry="12" fill="#A88858" transform="rotate(15 80 36)"/>
+  <ellipse cx="104" cy="36" rx="7" ry="12" fill="#A88858" transform="rotate(-15 104 36)"/>
+  <!-- 眼睛 -->
+  <circle cx="87" cy="42" r="2.5" fill="#4A3728"/>
+  <circle cx="97" cy="42" r="2.5" fill="#4A3728"/>
+  <!-- 鼻子 + 嘴 -->
+  <ellipse cx="92" cy="49" rx="3.5" ry="2.5" fill="#4A3728"/>
+  <path d="M90 51 Q92 54 94 51" stroke="#4A3728" stroke-width="1" fill="none"/>
+  <!-- 尾巴 -->
+  <path d="M48 58 Q40 52 42 44" stroke="#C8A878" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <!-- 红色球 -->
+  <circle cx="118" cy="72" r="14" fill="#FF8B94"/>
+  <circle cx="114" cy="68" r="4" fill="#FFB3BB" opacity="0.7"/>
+  <path d="M118 58 Q122 72 118 86" stroke="#E06070" stroke-width="1.5" fill="none"/>
+</svg>

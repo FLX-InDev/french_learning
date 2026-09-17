@@ -83,6 +83,54 @@ export function generateSudoku(rng: Rng): { puzzle: SudokuBoard; solution: Sudok
   return { puzzle: board, solution, size, blockRows: br, blockCols: bc };
 }
 
+// ── 9 宫数独（emoji 版，3×3 宫，唯一解）────────────────────────
+
+/** 9 个互不混淆的 emoji 符号（CE2 儿童友好，颜色区分明显） */
+export const SUDOKU9_EMOJIS = ["🍎", "🍌", "🍇", "🍓", "🍊", "🍉", "🍑", "🍒", "🥝"] as const;
+
+export type Sudoku9Board = string[][]; // 9×9，空格为 ""
+
+/** 生成 9×9 emoji 数独：唯一解、约 40 个空格（留 41 个给定格） */
+export function generateSudoku9Emoji(rng: Rng): {
+  puzzle: Sudoku9Board;
+  solution: Sudoku9Board;
+  givens: boolean[][];
+} {
+  // 1) 数字版完整解（回溯，3×3 宫）
+  const board = emptyBoard(9);
+  solveSudoku(board, 9, 3, 3);
+  const solutionNums = board.map((r) => r.slice());
+
+  // 2) 打乱符号映射（数字 i → emojis[i]），同种子同盘面
+  const emojis = shuffleArray(SUDOKU9_EMOJIS.slice() as string[], rng);
+
+  // 3) 逐格尝试移除，保持唯一解
+  const cells = shuffleArray(
+    Array.from({ length: 81 }, (_, i) => [Math.floor(i / 9), i % 9] as [number, number]),
+    rng
+  );
+  let removed = 0;
+  for (const [r, c] of cells) {
+    if (removed >= 40) break;
+    const backup = board[r][c];
+    board[r][c] = null;
+    const copy = board.map((row) => row.slice());
+    if (countSolutions(copy, 9, 3, 3) !== 1) {
+      board[r][c] = backup; // 移除会导致多解，恢复
+    } else {
+      removed++;
+    }
+  }
+
+  // 4) 映射为 emoji（null → 空格 ""）
+  const toEmoji = (v: number | null) => (v === null ? "" : emojis[v - 1]);
+  const puzzle = board.map((row) => row.map(toEmoji));
+  const solution = solutionNums.map((row) => row.map(toEmoji));
+  const givens = board.map((row) => row.map((v) => v !== null));
+
+  return { puzzle, solution, givens };
+}
+
 // ── 迷宫生成器（DFS，5×5 到 10×10）────────────────────────────────
 
 export type MazeCell = { top: boolean; right: boolean; bottom: boolean; left: boolean };

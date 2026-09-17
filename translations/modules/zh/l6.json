@@ -1,0 +1,7 @@
+{
+  "l6.columnar.hint": "用竖式算一算",
+  "l6.sudoku.title": "🍎 9 宫数独",
+  "l6.sudoku.hint": "在空格里填上水果，让每行、每列、每个九宫格都各有一种水果",
+  "l6.sudoku.fill": "先点选空格，再从下方选水果",
+  "l6.fraction.hint": "涂色部分占整体的几分之几？"
+}

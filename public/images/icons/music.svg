@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <!-- 学科图标：儿歌音乐 — 小狐狸吉祥物举着 8 分音符 -->
+  <rect x="2" y="2" width="92" height="92" rx="18" fill="#FFF8F0"/>
+  <!-- 狐狸头部 -->
+  <polygon points="36,28 28,14 40,24" fill="#F5A623"/>
+  <polygon points="48,28 56,14 44,24" fill="#F5A623"/>
+  <circle cx="42" cy="36" r="14" fill="#F5A623"/>
+  <circle cx="37" cy="33" r="2.5" fill="#4A3728"/>
+  <circle cx="47" cy="33" r="2.5" fill="#4A3728"/>
+  <path d="M38 41 Q42 45 46 41" stroke="#4A3728" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  <circle cx="42" cy="38" r="2" fill="#FF8B94"/>
+  <!-- 8 分音符（举起的手） -->
+  <line x1="54" y1="36" x2="66" y2="24" stroke="#F5A623" stroke-width="3.5" stroke-linecap="round"/>
+  <circle cx="67" cy="23" r="5" fill="#E91E8C"/>
+  <line x1="72" y1="23" x2="72" y2="8" stroke="#E91E8C" stroke-width="2" stroke-linecap="round"/>
+  <path d="M72 8 Q80 8 82 14" stroke="#E91E8C" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- 尾巴 -->
+  <path d="M30 44 Q18 52 14 64 Q10 72 18 72" stroke="#F5A623" stroke-width="5" fill="none" stroke-linecap="round"/>
+  <!-- 音符点缀 -->
+  <text x="74" y="56" font-size="14" fill="#9B59B6" opacity="0.7">♪</text>
+  <text x="16" y="24" font-size="12" fill="#A8E6CF" opacity="0.8">♫</text>
+</svg>

@@ -13,6 +13,7 @@ import {
   type ClassifyPayload,
   type LogicQuestion,
   type SortPayload,
+  type Sudoku9Payload,
 } from "@/lib/logicEngine";
 import { addPoints, todayStr, type StudySession } from "@/lib/workspace";
 import type { LogicItem } from "@/lib/contentTypes";
@@ -99,7 +100,7 @@ function LogicQuizRunner({
   onExit,
 }: {
   domainId: string;
-  kinds: ("pattern" | "classify" | "sort" | "oddOne")[];
+  kinds: ("pattern" | "classify" | "sort" | "oddOne" | "sudoku9")[];
   fixedItems: LogicItem[];
   onExit: () => void;
 }) {
@@ -245,6 +246,13 @@ function LogicQuizRunner({
         )}
         {q.payload.type === "sort" && (
           <SortBoard q={q} locked={feedback !== "none"} onAnswer={answerAndNext} />
+        )}
+        {q.payload.type === "sudoku9" && (
+          <Sudoku9Board
+            q={q}
+            locked={feedback !== "none"}
+            onAnswer={answerAndNext}
+          />
         )}
 
         {feedback === "right" && (
@@ -667,3 +675,113 @@ function SortBoard({
 
 // 供 /logic 页面使用的固定题类型（避免页面直接依赖内部类型）
 export type { LogicItem as LogicFixedItem };
+
+// ─── sudoku9：9 宫数独（emoji 版）──────────────────────────────
+
+function Sudoku9Board({
+  q,
+  locked,
+  onAnswer,
+}: {
+  q: LogicQuestion;
+  locked: boolean;
+  onAnswer: (a: string) => void;
+}) {
+  const { t } = useI18n();
+  const p = q.payload as Sudoku9Payload;
+  const [board, setBoard] = useState<string[][]>(() =>
+    p.board.map((row) => row.slice())
+  );
+  const [selected, setSelected] = useState<string | null>(null); // 选中空格的 symbol
+  const [selRow, setSelRow] = useState<number | null>(null);
+  const [selCol, setSelCol] = useState<number | null>(null);
+
+  // 供上方 LogicQuizRunner 判断是否已填满（用于自动判分按钮）
+  const filled = board.every((row) => row.every((c) => c !== ""));
+
+  function pickSymbol(sym: string) {
+    if (locked) return;
+    setSelected(sym);
+    if (selRow !== null && selCol !== null) {
+      setBoard((cur) => {
+        const next = cur.map((r) => r.slice());
+        next[selRow][selCol] = sym;
+        return next;
+      });
+    }
+  }
+
+  function tapCell(r: number, c: number) {
+    if (locked || p.givens[r][c]) return;
+    setSelRow(r);
+    setSelCol(c);
+    setSelected(board[r][c] || null);
+  }
+
+  function check() {
+    onAnswer(board.map((row) => row.join("")).join(""));
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-center text-xs text-gray-400">
+        {t('l6.sudoku.fill')}
+      </p>
+      <div className="grid grid-cols-9 gap-[2px] mx-auto max-w-sm">
+        {board.map((row, r) =>
+          row.map((cell, c) => {
+            const given = p.givens[r][c];
+            const isSel = selRow === r && selCol === c;
+            const box = Math.floor(r / 3) + Math.floor(c / 3); // 3×3 宫区分
+            return (
+              <button
+                key={`${r}-${c}`}
+                onClick={() => tapCell(r, c)}
+                disabled={given || locked}
+                aria-label={`cell ${r + 1}-${c + 1}`}
+                className={
+                  "aspect-square flex items-center justify-center text-lg sm:text-xl rounded-[2px] transition select-none " +
+                  (given
+                    ? "bg-gray-100 text-gray-700"
+                    : "bg-white border border-gray-200 hover:bg-teal-50 " +
+                      (isSel ? "ring-2 ring-teal-500" : "")) +
+                  (box % 2 === 1 ? " bg-gray-50" : "")
+                }
+              >
+                {cell}
+              </button>
+            );
+          })
+        )}
+      </div>
+
+      {/* 符号面板 */}
+      <div className="flex justify-center gap-1.5 flex-wrap">
+        {p.symbolSet.map((sym) => (
+          <button
+            key={sym}
+            onClick={() => pickSymbol(sym)}
+            disabled={locked}
+            aria-label={`symbol ${sym}`}
+            className={
+              "w-9 h-9 rounded-full text-xl flex items-center justify-center border transition " +
+              (selected === sym
+                ? "bg-teal-600 text-white border-teal-600"
+                : "bg-white border-gray-200 hover:bg-teal-50")
+            }
+          >
+            {sym}
+          </button>
+        ))}
+      </div>
+
+      <button
+        className="btn-primary w-full min-h-[48px]"
+        disabled={locked || !filled}
+        onClick={check}
+      >
+        {t('logic.check')}
+      </button>
+    </div>
+  );
+}

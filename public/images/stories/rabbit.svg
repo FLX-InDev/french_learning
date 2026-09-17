@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 90" width="160" height="90">
+  <!-- 故事封面：小兔子 — 白兔坐草地 + 暖黄太阳 -->
+  <rect width="160" height="90" fill="#FFF8F0"/>
+  <!-- 太阳 -->
+  <circle cx="130" cy="20" r="12" fill="#F5A623" opacity="0.8"/>
+  <line x1="130" y1="4" x2="130" y2="8" stroke="#F5A623" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  <line x1="144" y1="10" x2="141" y2="13" stroke="#F5A623" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  <line x1="146" y1="20" x2="142" y2="20" stroke="#F5A623" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  <!-- 草地 -->
+  <ellipse cx="80" cy="88" rx="82" ry="18" fill="#A8E6CF"/>
+  <ellipse cx="40" cy="84" rx="40" ry="10" fill="#88D8B0"/>
+  <!-- 小兔子 -->
+  <ellipse cx="60" cy="62" rx="22" ry="16" fill="#F5F0E8"/>
+  <!-- 耳朵 -->
+  <ellipse cx="48" cy="34" rx="6" ry="14" fill="#F5F0E8" transform="rotate(-12 48 34)"/>
+  <ellipse cx="48" cy="36" rx="3" ry="10" fill="#FF8B94" opacity="0.5" transform="rotate(-12 48 36)"/>
+  <ellipse cx="66" cy="34" rx="6" ry="14" fill="#F5F0E8" transform="rotate(8 66 34)"/>
+  <ellipse cx="66" cy="36" rx="3" ry="10" fill="#FF8B94" opacity="0.5" transform="rotate(8 66 36)"/>
+  <!-- 眼睛 -->
+  <circle cx="52" cy="58" r="2.5" fill="#4A3728"/>
+  <circle cx="68" cy="58" r="2.5" fill="#4A3728"/>
+  <!-- 鼻子 + 嘴 -->
+  <polygon points="59,64 56,62 62,62" fill="#FF8B94"/>
+  <path d="M57 65 Q60 68 63 65" stroke="#4A3728" stroke-width="1" fill="none"/>
+  <!-- 尾巴 -->
+  <circle cx="80" cy="68" r="6" fill="#F5F0E8"/>
+  <!-- 花朵 -->
+  <circle cx="100" cy="80" r="3" fill="#FF8B94"/>
+  <circle cx="112" cy="76" r="3" fill="#F5A623"/>
+  <circle cx="92" cy="74" r="2.5" fill="#C3AED6"/>
+</svg>

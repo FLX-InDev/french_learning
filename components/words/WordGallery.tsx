@@ -6,6 +6,8 @@ import { useAppState } from "@/components/AppStateProvider";
 import { PopIn } from "@/components/celebrate";
 import { RecordingPlayback } from "@/components/RecordingPlayback";
 import { usePronunciationCheck } from "@/components/usePronunciationCheck";
+import { ImageFallback } from "@/components/ImageFallback";
+import { WORD_PLACEHOLDER, WORD_PLACEHOLDER_EMOJI } from "@/lib/imageAssets";
 import {
   cancelSpeech,
   configureSpeech,
@@ -221,9 +223,13 @@ export function WordGallery({ words }: { words: Word[] }) {
                 }
                 aria-label={`词卡 ${w.zh}（${w.fr}）${st ? t('words.hasLearned') : ''}`}
               >
-                <div className="text-3xl" aria-hidden>
-                  {w.emoji || "🃏"}
-                </div>
+                <ImageFallback
+                  src={WORD_PLACEHOLDER}
+                  alt={w.fr}
+                  fallback={w.emoji || WORD_PLACEHOLDER_EMOJI}
+                  size={48}
+                  lazy
+                />
                 <div className="text-sm font-bold text-gray-800 mt-1 truncate">
                   {w.fr}
                 </div>
@@ -313,9 +319,12 @@ export function WordGallery({ words }: { words: Word[] }) {
                 className="w-full py-12 rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-100 hover:border-purple-300 transition"
                 aria-label={`${t('words.flip')} ${current.zh}`}
               >
-                <div className="text-7xl" aria-hidden>
-                  {current.emoji || "🃏"}
-                </div>
+                <ImageFallback
+                  src={WORD_PLACEHOLDER}
+                  alt={current.fr}
+                  fallback={current.emoji || WORD_PLACEHOLDER_EMOJI}
+                  size={96}
+                />
                 <div className="mt-3">
                   <button
                     onClick={(e) => {

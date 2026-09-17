@@ -106,7 +106,7 @@ function seededShuffle<T>(arr: T[], rng: Rng): T[] {
   return a;
 }
 
-/** 每日挑战可用的逻辑题型（选项型；classify/sort 属题组玩法，不进每日挑战） */
+/** 每日挑战可用的逻辑题型（选项型；classify/sort/sudoku9 属题组玩法，不进每日挑战） */
 const DAILY_LOGIC_KINDS: LogicKind[] = ["pattern", "oddOne"];
 
 /**

@@ -5,6 +5,8 @@ import { useI18n } from "@/lib/i18n";
 import { useAppState } from "@/components/AppStateProvider";
 import { matchesLevel } from "@/lib/contentTypes";
 import type { Story } from "@/lib/parser";
+import { ImageFallback } from "./ImageFallback";
+import { STORY_COVERS, STORY_EMOJI_FALLBACK } from "@/lib/imageAssets";
 
 const COLORS = [
   "from-pink-400 to-rose-400",
@@ -18,6 +20,7 @@ const COLORS = [
 ];
 
 const EMOJIS = ["🐰", "🐻", "🐦", "🐶", "🐱", "🐷", "🐑", "🦆"];
+const STORY_KEYS = ["rabbit", "bear", "bird", "dog", "cat", "pig", "sheep", "duck"];
 
 /**
  * 故事列表（软切换：按 AppState.profile.level 即时过滤）
@@ -50,7 +53,11 @@ export function StoryList({ stories }: { stories: Story[] }) {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {list.map((story, index) => (
+          {list.map((story, index) => {
+            const storyKey = STORY_KEYS[index % STORY_KEYS.length];
+            const coverSrc = STORY_COVERS[storyKey] ?? "";
+            const coverFallback = STORY_EMOJI_FALLBACK[storyKey] ?? EMOJIS[index % EMOJIS.length];
+            return (
             <Link key={story.id} href={`/stories/${story.id}`} className="group">
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
                 <div
@@ -58,9 +65,13 @@ export function StoryList({ stories }: { stories: Story[] }) {
                     COLORS[index % COLORS.length]
                   } flex items-center justify-center`}
                 >
-                  <span className="text-4xl">
-                    {story.emoji || EMOJIS[index % EMOJIS.length]}
-                  </span>
+                  <ImageFallback
+                    src={coverSrc}
+                    alt={story.title}
+                    fallback={coverFallback}
+                    size={96}
+                    lazy
+                  />
                 </div>
                 <div className="p-5">
                   <h2 className="text-lg font-bold text-gray-800 group-hover:text-purple-600 transition-colors">
@@ -75,7 +86,8 @@ export function StoryList({ stories }: { stories: Story[] }) {
                 </div>
               </div>
             </Link>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
