@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { cancelSpeech, configureSpeech, speak } from "@/lib/audioManager";
 import { useAppState } from "@/components/AppStateProvider";
+import { useI18n } from "@/lib/i18n";
 import type { Word } from "@/lib/contentTypes";
 
 /**
@@ -22,6 +23,7 @@ export function ListenPickQuizCard({
   onSelect: (index: number) => void;
 }) {
   const { state } = useAppState();
+  const { t } = useI18n();
   const speechRate = state?.settings.speechRate ?? 0.9;
 
   // 进入题目自动播放一次（word 变化即重播）
@@ -41,11 +43,11 @@ export function ListenPickQuizCard({
             cancelSpeech();
             void speak(word.fr, "fr");
           }}
-          aria-label={`重听法语词（共 ${options.length} 个选项）`}
+          aria-label={t("listenPick.replayAria", { n: String(options.length) })}
         >
           ▶
         </button>
-        <span className="text-sm text-gray-500">听一听，选出对应的图</span>
+        <span className="text-sm text-gray-500">{t("listenPick.hint")}</span>
       </div>
 
       <div
@@ -58,14 +60,14 @@ export function ListenPickQuizCard({
             : "grid-cols-2 max-w-[440px] mx-auto")
         }
         role="group"
-        aria-label="选项图片"
+        aria-label={t("listenPick.optionsAria")}
       >
         {options.map((w, i) => (
           <button
             key={w.id}
             onClick={() => onSelect(i)}
             aria-pressed={selected === i}
-            aria-label={`选项 ${i + 1}`}
+            aria-label={t("listenPick.optionAria", { n: String(i + 1) })}
             className={
               "min-h-[96px] rounded-2xl border-2 p-3 transition select-none " +
               (selected === i

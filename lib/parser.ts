@@ -43,7 +43,12 @@ export interface Sentence {
 
 export interface Story {
   id: string;
+  /** 中文标题（来自 `##` 标题行） */
   title: string;
+  /** 英文标题（组级 `- title_en:`，缺省时界面回落中文标题） */
+  titleEn?: string;
+  /** 法语标题（组级 `- title_fr:`，缺省时界面回落中文标题） */
+  titleFr?: string;
   sentences: Sentence[];
   level?: Level | null;
   emoji?: string;
@@ -219,6 +224,9 @@ const SCALAR_KEYS = new Set([
   "lang",
   "letter",
   "time",
+  // 故事标题的英/法译文（组级键，保留 `##` 中文标题为 zh）
+  "title_en",
+  "title_fr",
 ]);
 
 /** 可作为三语组的键（紧凑写法） */
@@ -453,6 +461,12 @@ function slug(prefix: string, index: number): string {
   return `${prefix}-${index + 1}`;
 }
 
+/** 去空白；空/缺省返回 undefined（供可选字段回落用） */
+function nonEmpty(v: string | undefined): string | undefined {
+  const s = (v ?? "").trim();
+  return s.length > 0 ? s : undefined;
+}
+
 // ─── 分类解析器 ──────────────────────────────────────────────────
 
 export function parseSentencesFromFile(filepath: string): Sentence[] {
@@ -495,6 +509,9 @@ export function parseStoriesFromFile(filepath: string): Story[] {
     stories.push({
       id: String(stories.length + 1),
       title: g.heading,
+      // 组级可选标题译文（缺省留 undefined，由展示层回落中文标题）
+      titleEn: nonEmpty(g.meta.title_en),
+      titleFr: nonEmpty(g.meta.title_fr),
       sentences,
       level: parseLevel(g.items[0]?.meta.level ?? g.meta.level),
       emoji: g.items[0]?.meta.emoji ?? g.meta.emoji,

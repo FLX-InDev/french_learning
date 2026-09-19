@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, localizedHref } from "@/lib/i18n";
 import { useAppState } from "./AppStateProvider";
 import { MathQuestionCard, DecompositionSteps } from "./MathQuestionCard";
 import { KeypadInput } from "./KeypadInput";
@@ -41,7 +41,7 @@ export function MathQuiz({
   stageId: string;
   fixedItems: MathItem[];
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { state, update } = useAppState();
   const found = findStage(stageId);
   const level = state?.profile.level ?? "L3";
@@ -96,7 +96,7 @@ export function MathQuiz({
     return (
       <div className="text-center py-20">
         <p className="text-gray-500">{t("math.levelNotFound")}</p>
-        <Link href="/math" className="btn-primary mt-4 inline-block">
+        <Link href={localizedHref(locale, "/math")} className="btn-primary mt-4 inline-block">
           {t("math.backToMap")}
         </Link>
       </div>
@@ -109,7 +109,7 @@ export function MathQuiz({
         <p className="text-gray-500">
           {t("math.levelLocked", { level: found.level })}
         </p>
-        <Link href="/math" className="btn-primary mt-4 inline-block">
+        <Link href={localizedHref(locale, "/math")} className="btn-primary mt-4 inline-block">
           {t("math.backToMap")}
         </Link>
       </div>
@@ -150,9 +150,15 @@ export function MathQuiz({
           id: `s_math_${stageId}_${today}`,
           date: today,
           durationMin: sessionDurationMin(startedAtRef.current),
-          contentRef: { type: "mixed", title: `数学 · ${group.title.zh} · ${stage.title.zh}` },
+          contentRef: {
+            type: "mixed",
+            title: t("math.sessionTitle", {
+              group: group.title[locale],
+              stage: stage.title[locale],
+            }),
+          },
           quiz: {
-            title: `${stage.title.zh} · ${today}`,
+            title: `${stage.title[locale]} · ${today}`,
             questions: questions.map((mq, i) =>
               toQuizQuestion(mq, { userAnswer: nextAnswers[i] })
             ),
@@ -161,8 +167,13 @@ export function MathQuiz({
           subject: "math",
         };
 
-        let points = addPoints(st.points, 10, `完成数学关卡 ${stage.title.zh}`);
-        if (acc >= 80) points = addPoints(points, 5, "数学高正确率奖励");
+        let points = addPoints(
+          st.points,
+          10,
+          t("math.rewardLevel", { stage: stage.title[locale] })
+        );
+        if (acc >= 80)
+          points = addPoints(points, 5, t("math.rewardHighAccuracy"));
 
         update((s) => ({
           ...s,
@@ -197,14 +208,17 @@ export function MathQuiz({
         <Confetti active={confetti.active} />
         <Mascot mood="happy" size={120} className="mx-auto" />
         <h1 className="text-2xl font-bold text-gray-800 mt-2">
-          {t("math.completed", { stage: stage.title.zh })}
+          {t("math.completed", { stage: stage.title[locale] })}
         </h1>
         <div className="mt-4 flex justify-center">
           <StarReveal stars={finished.stars} />
         </div>
         <p className="text-sm text-gray-500 mt-3">
-          正确率 {finished.acc}% · 本关获得 {finished.gained} 颗星（累计{" "}
-          {state.rewards.stars}）
+          {t("math.resultDetail", {
+            acc: String(finished.acc),
+            gained: String(finished.gained),
+            total: String(state.rewards.stars),
+          })}
         </p>
         {finished.gained === 0 && finished.stars < 3 && (
           <p className="text-xs text-gray-400 mt-1">
@@ -225,7 +239,7 @@ export function MathQuiz({
           >
             {t("math.retry")}
           </button>
-          <Link href="/math" className="btn-primary">
+          <Link href={localizedHref(locale, "/math")} className="btn-primary">
             {t("math.backToMap")}
           </Link>
         </div>
@@ -240,7 +254,7 @@ export function MathQuiz({
   return (
     <div className="max-w-xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
-        <Link href="/math" className="text-sm text-purple-500">
+        <Link href={localizedHref(locale, "/math")} className="text-sm text-purple-500">
           {t("math.backArrow")}
         </Link>
         <span className="text-sm text-gray-400">
@@ -250,7 +264,10 @@ export function MathQuiz({
 
       <div className="text-center">
         <h1 className="font-bold text-gray-800">
-          {t("math.title", { group: group.title.zh, stage: stage.title.zh })}
+          {t("math.title", {
+            group: group.title[locale],
+            stage: stage.title[locale],
+          })}
         </h1>
         <p className="text-[11px] text-gray-400 mt-1">
           {t("math.chinaProgress", { progress: group.cnProgress, benchmark: group.frBenchmark })}

@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, localizedHref } from "@/lib/i18n";
 import { useAppState } from "@/components/AppStateProvider";
 import {
   generateMathQuestion,
@@ -58,7 +58,7 @@ export function RaceGame() {
 }
 
 function RaceGameInner({ level }: { level: Level }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const cfg = getLevelConfig(level);
   const recommended = defaultRaceDuration(level); // DG-4：初值取学段
 
@@ -359,7 +359,7 @@ function RaceGameInner({ level }: { level: Level }) {
                 🔄 {t("race.playAgain")}
               </button>
               <Link
-                href="/math"
+                href={localizedHref(locale, "/math")}
                 className="flex-1 inline-flex items-center justify-center rounded-xl border-2 border-gray-200 text-gray-600 font-bold min-h-[48px] hover:border-gray-400 transition"
               >
                 {t("race.backToMap")}

@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { playSfx } from "@/lib/audioManager";
+import { useI18n } from "@/lib/i18n";
 
 /**
  * 星星结算逐颗亮星（PRD §7.3.5 / §7.11.2，Dev-Plan T4.3）：
  * 每颗间隔 420ms 弹出，伴随 star 音效（触发矩阵：0.6s/颗，不可打断）。
  */
 export function StarReveal({ stars }: { stars: number }) {
+  const { t } = useI18n();
   const [lit, setLit] = useState(0);
   const count = Math.min(3, Math.max(1, Math.round(stars)));
 
@@ -28,7 +30,7 @@ export function StarReveal({ stars }: { stars: number }) {
     <div
       className="text-5xl tracking-widest"
       role="img"
-      aria-label={`${count} 颗星`}
+      aria-label={t("celebrate.starAria", { count: String(count) })}
     >
       {[1, 2, 3].map((n) =>
         n <= lit ? (

@@ -165,13 +165,17 @@ export function DailyChallenge({
       id: `s_daily_${today}`,
       date: today,
       durationMin: sessionDurationMin(startedAtRef.current),
-      contentRef: { type: "mixed", title: `每日挑战 · ${today}` },
-      quiz: { title: `每日挑战 · ${today}`, questions },
+      contentRef: {
+        type: "mixed",
+        title: `${i18nT("dailyChallenge.title")} · ${today}`,
+      },
+      quiz: { title: `${i18nT("dailyChallenge.title")} · ${today}`, questions },
       reviewed: false,
       subject: "language", // 每题自带 subject，错题本按题归组
     };
-    let points = addPoints(state.points, 10, "完成每日挑战");
-    if (acc >= 80) points = addPoints(points, 5, "每日挑战高正确率");
+    let points = addPoints(state.points, 10, i18nT("dailyChallenge.rewardDone"));
+    if (acc >= 80)
+      points = addPoints(points, 5, i18nT("dailyChallenge.rewardHighAccuracy"));
 
     // T6-06：SRS 复习结算 —— 每题按对/错复习一次（答对 grade 2 / 答错 grade 0），
     // 题键稳定（srsKeyFor）跨天累计；listenPick 等无稳定键的题不入 SRS。
@@ -280,7 +284,7 @@ export function DailyChallenge({
                   <button
                     className="w-9 h-9 rounded-full bg-purple-50 text-purple-600 text-lg shrink-0"
                     onClick={() => setOpen(false)}
-                    aria-label="关闭"
+                    aria-label={i18nT("common.close")}
                   >
                     ×
                   </button>

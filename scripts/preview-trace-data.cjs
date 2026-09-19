@@ -16,6 +16,7 @@
  *   node scripts/preview-trace-data.cjs                        # → data/trace/preview.html
  *   node scripts/preview-trace-data.cjs out.html               # 自定义输出路径
  *   node scripts/preview-trace-data.cjs out.html --only=^cursive:   # 只渲染匹配键的字形
+ *   node scripts/preview-trace-data.cjs out.html --src=data/trace/letter-strokes.smoothed.json
  */
 
 "use strict";
@@ -24,12 +25,14 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
-const SRC = path.join(ROOT, "data", "trace", "letter-strokes.json");
-
 const argv = process.argv.slice(2);
 /** 可选 --only=<正则>：只渲染匹配的字形键（抽查单字形 / 单个批次用） */
 const onlyArg = argv.find((a) => a.startsWith("--only="));
 const onlyRe = onlyArg ? new RegExp(onlyArg.slice("--only=".length)) : null;
+const srcArg = argv.find((a) => a.startsWith("--src="));
+const SRC = srcArg
+  ? path.resolve(process.cwd(), srcArg.slice("--src=".length))
+  : path.join(ROOT, "data", "trace", "letter-strokes.json");
 const outArg = argv.find((a) => !a.startsWith("--"));
 const OUT = outArg
   ? path.resolve(process.cwd(), outArg)
@@ -82,7 +85,8 @@ function flagsFor(g) {
     if (typeof g.guides.slant !== "number") out.push("未设 slant（cursive 规格建议 15–20°）");
     if (!g.connect) out.push("缺少 connect（cursive 必需）");
     // i / j 的点、变音音符按规格「另计」，故只在 base > 1 且非 i/j 时提示
-    if (base.length > 1 && !/^[ij]$/.test(g.glyph)) {
+    // （x 按教学笔序规范本就是两笔交叉，见 cursive-stroke-rules.md §2）
+    if (base.length > 1 && !/^[ijx]$/.test(g.glyph)) {
       out.push(`base 笔画 ${base.length} 笔（cursive 通常一笔连写）`);
     }
   }
@@ -466,7 +470,7 @@ const html = `<!DOCTYPE html>
 <header>
   <h1>描红笔顺数据预览 <span style="font-weight:400;color:#94a3b8;font-size:13px">Phase 6 · T6-08 人工校验工具</span></h1>
   <div class="sub">
-    数据源 <code>data/trace/letter-strokes.json</code> ｜ 生成于 <span id="gen"></span> ｜
+    数据源 <code>${path.relative(ROOT, SRC).replace(/\\/g, "/")}</code> ｜ 生成于 <span id="gen"></span> ｜
     当前显示 <span id="stat"></span> ｜ 生成器：<code>scripts/preview-trace-data.cjs</code>
   </div>
   <div class="toolbar">

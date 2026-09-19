@@ -73,7 +73,7 @@ export function FlashCard({
         <button
           onClick={handleFlip}
           className="w-full py-14 rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-100 hover:border-purple-300 transition"
-          aria-label={`翻面查看字母 ${card.letter}`}
+          aria-label={t("flashcard.flipAria", { letter: card.letter })}
         >
           <div className="text-8xl font-extrabold text-gray-800 tracking-wide">
             {card.letter}
@@ -95,11 +95,11 @@ export function FlashCard({
               <span className="text-gray-800">{card.word.zh}</span>
             </div>
             <div className="flex items-center justify-center gap-2">
-              <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-500">EN</span>
+              <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-500">{t("sentence.langEn")}</span>
               <span className="text-gray-600">{card.word.en}</span>
             </div>
             <div className="flex items-center justify-center gap-2">
-              <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-green-50 text-green-600">FR</span>
+              <span className="text-xs font-bold px-1.5 py-0.5 rounded bg-green-50 text-green-600">{t("sentence.langFr")}</span>
               <span className="text-gray-600 italic">{card.word.fr}</span>
             </div>
           </div>
@@ -115,14 +115,14 @@ export function FlashCard({
             <button
               className="min-h-[48px] px-5 rounded-full bg-purple-600 text-white text-sm font-bold hover:bg-purple-700"
               onClick={() => play(letterName, card.lang)}
-              aria-label={`播放字母名 ${letterName}`}
+              aria-label={t("flashcard.playLetterNameAria", { name: letterName })}
             >
               {t("flashcard.letterName")}
             </button>
             <button
               className="min-h-[48px] px-5 rounded-full bg-green-600 text-white text-sm font-bold hover:bg-green-700"
               onClick={() => play(card.word.fr, "fr")}
-              aria-label={`播放例词 ${card.word.fr}`}
+              aria-label={t("flashcard.playExampleAria", { word: card.word.fr })}
             >
               {t("flashcard.exampleWord")}
             </button>

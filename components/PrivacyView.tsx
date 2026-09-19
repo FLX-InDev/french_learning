@@ -2,7 +2,7 @@
 
 import { Fragment } from "react";
 import Link from "next/link";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, localizedHref } from "@/lib/i18n";
 
 /**
  * 隐私声明视图（Phase 6 T6-01）
@@ -56,7 +56,7 @@ const CARDS = [
 const SECTIONS = ["s1", "s2", "s3", "s4"] as const;
 
 export function PrivacyView() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 py-6">
@@ -100,7 +100,7 @@ export function PrivacyView() {
       </section>
 
       <div className="text-center">
-        <Link href="/" className="btn-secondary inline-block">
+        <Link href={localizedHref(locale, "/")} className="btn-secondary inline-block">
           {t("page.privacy.backHome")}
         </Link>
       </div>

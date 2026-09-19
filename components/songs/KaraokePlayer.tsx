@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, localizedHref } from "@/lib/i18n";
+import { TriTitle } from "@/components/TriTitle";
 import { useAppState } from "@/components/AppStateProvider";
 import {
   cancelSpeech,
@@ -37,7 +38,7 @@ const LANG_ROWS: { key: Exclude<KaraokeLang, "all">; badge: string }[] = [
  * - song.audio 字段预留：有真人音频时切换音频驱动（按时间戳高亮）。
  */
 export function KaraokePlayer({ song }: { song: Song }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { state, update } = useAppState();
   const [langMode, setLangMode] = useState<KaraokeLang>("all");
   const [singAlong, setSingAlong] = useState(false);
@@ -74,9 +75,9 @@ export function KaraokePlayer({ song }: { song: Song }) {
     update((s) => ({
       ...s,
       taskFlags: { ...s.taskFlags, [key]: ds },
-      points: addPoints(s.points, 5, "听完儿歌任务"),
+      points: addPoints(s.points, 5, t("karaoke.rewardListen")),
     }));
-  }, [update, state, song.id]);
+  }, [update, state, song.id, t]);
 
   const stop = useCallback(() => {
     cancelSpeech();
@@ -202,9 +203,7 @@ export function KaraokePlayer({ song }: { song: Song }) {
         <div className="text-5xl" aria-hidden>
           {song.emoji || "🎵"}
         </div>
-        <h1 className="text-xl font-bold text-gray-800 mt-2">{song.title.zh}</h1>
-        <p className="text-sm text-gray-500">{song.title.fr}</p>
-        <p className="text-xs text-gray-400">{song.title.en}</p>
+        <TriTitle tri={song.title} mainClass="text-xl font-bold text-gray-800 mt-2" subClass="text-sm text-gray-500" />
       </div>
 
       {/* 控制条 */}
@@ -320,7 +319,7 @@ export function KaraokePlayer({ song }: { song: Song }) {
       )}
 
       <div className="text-center pt-2">
-        <Link href="/songs" className="text-sm text-purple-500">
+        <Link href={localizedHref(locale, "/songs")} className="text-sm text-purple-500">
           {t("karaoke.backToSongs")}
         </Link>
       </div>

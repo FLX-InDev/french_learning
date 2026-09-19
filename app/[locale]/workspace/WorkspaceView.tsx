@@ -36,7 +36,7 @@ import {
   shuffle,
   todayStr,
   REWARDS,
-  SUBJECT_LABELS,
+  SUBJECT_LABEL_KEYS,
   type AppState,
   type QuizMode,
   type QuizQuestion,
@@ -58,6 +58,7 @@ import {
   type LogicKind,
 } from "@/lib/logicEngine";
 import { useAppState } from "@/components/AppStateProvider";
+import { useI18n, localizedHref } from "@/lib/i18n";
 // ── 拆分出的展示组件（见 components/workspace/）──
 import { LiveQuizModal } from "@/components/workspace/LiveQuizModal";
 import { QuizModal } from "@/components/workspace/QuizModal";
@@ -73,6 +74,8 @@ export default function WorkspaceView({
   stories: Story[];
   sentences: Sentence[];
 }) {
+  // 别名 tr：文件内 t 已被 todayStr() 占用（多处 const t = todayStr()）
+  const { t: tr, locale } = useI18n();
   // 状态树 v2：由全局 AppStateProvider 提供（localStorage + 迁移 + 持久化）
   const { state: ws, update } = useAppState();
   const [activeQuizId, setActiveQuizId] = useState<string | null>(null);
@@ -150,7 +153,7 @@ export default function WorkspaceView({
     persist({
       ...ws,
       checkins: [...ws.checkins, t],
-      points: addPoints(ws.points, 10, "每日打卡"),
+      points: addPoints(ws.points, 10, tr("workspace.checkin")),
     });
   }
   function redeem(id: string) {
@@ -163,7 +166,11 @@ export default function WorkspaceView({
         total: ws.points.total - r.cost,
         history: [
           ...ws.points.history,
-          { date: todayStr(), delta: -r.cost, reason: "兑换 " + r.name },
+          {
+            date: todayStr(),
+            delta: -r.cost,
+            reason: tr("workspace.redeem") + tr(r.nameKey),
+          },
         ],
       },
       redeemed: [...ws.redeemed, { id: r.id, date: todayStr(), cost: r.cost }],
@@ -174,7 +181,7 @@ export default function WorkspaceView({
     const sessions = ws.sessions.map((s) =>
       s.id === id ? { ...s, reviewed: true } : s
     );
-    persist({ ...ws, sessions, points: addPoints(ws.points, 5, "测验点评") });
+    persist({ ...ws, sessions, points: addPoints(ws.points, 5, tr("workspace.quizReview")) });
   }
   /** 导出 v2 备份（含 profile / 星星 / 养成 / 设置，F16 升级）*/
   function exportJson() {
@@ -193,7 +200,7 @@ export default function WorkspaceView({
     rd.onload = () => {
       const next = importBackup(String(rd.result ?? ""));
       if (!next) {
-        alert("文件格式不正确，未改动现有数据");
+        alert(tr("workspace.importBadFormat"));
         return;
       }
       persist(next);
@@ -201,7 +208,7 @@ export default function WorkspaceView({
     rd.readAsText(file);
   }
   function clearAll() {
-    if (!confirm("确定清空全部学习数据？此操作不可撤销。")) return;
+    if (!confirm(tr("workspace.confirmClear"))) return;
     persist(createInitialState(ws?.profile.level ?? "L3"));
   }
 
@@ -388,15 +395,15 @@ export default function WorkspaceView({
     const acc = Math.round((score / answered.length) * 100);
     const t = todayStr();
     const kind = liveReview
-      ? "错题复习"
+      ? tr("workspace.mistakeReview")
       : liveMode === "listen"
-      ? "听力"
-      : "选择";
+      ? tr("workspace.quizTypeListening")
+      : tr("workspace.quizTypeChoice");
     const crTitle = liveReview
-      ? "错题复习"
+      ? tr("workspace.mistakeReview")
       : liveMode === "listen"
-      ? "听力小测验"
-      : "选择题小测验";
+      ? tr("workspace.quizTypeListening2")
+      : tr("workspace.quizTypeChoice2");
     const newSession: StudySession = {
       id: "s_live_" + t,
       date: t,
@@ -412,8 +419,8 @@ export default function WorkspaceView({
       reviewed: false,
       subject: "language",
     };
-    let pts = addPoints(ws.points, 10, "完成新测验");
-    if (acc >= 80) pts = addPoints(pts, 5, "高正确率奖励");
+    let pts = addPoints(ws.points, 10, tr("workspace.rewardNewQuiz"));
+    if (acc >= 80) pts = addPoints(pts, 5, tr("workspace.rewardHighAccuracy"));
     // 按 id 去重（而非按日期），避免同一天的不同类型测验互相覆盖
     const sessions = [
       ...ws.sessions.filter((s) => s.id !== newSession.id),
@@ -431,7 +438,7 @@ export default function WorkspaceView({
     const Ctor = getSpeechRecognitionCtor();
     if (!Ctor) {
       setRecState("unsupported");
-      setRecMsg("当前浏览器不支持语音识别，建议使用 Chrome / Edge。");
+      setRecMsg(tr("workspace.speechNotSupported"));
       return;
     }
 
@@ -490,16 +497,16 @@ export default function WorkspaceView({
       const code = event.error;
       if (code === "not-allowed" || code === "service-not-allowed") {
         setRecState("denied");
-        setRecMsg("麦克风权限被拒绝，请在浏览器设置中允许使用麦克风后重试。");
+        setRecMsg(tr("workspace.microphoneDenied"));
       } else if (code === "network") {
         setRecState("error");
-        setRecMsg("识别服务不可用，请检查网络连接后重试。");
+        setRecMsg(tr("workspace.asrNetwork"));
       } else if (code === "no-speech") {
         setRecState("error");
-        setRecMsg("没有检测到语音，请靠近麦克风再试一次。");
+        setRecMsg(tr("workspace.asrNoSpeech"));
       } else {
         setRecState("error");
-        setRecMsg("识别失败：" + (code || "未知错误"));
+        setRecMsg(tr("workspace.asrFailed", { code: code || tr("workspace.asrUnknown") }));
       }
     };
 
@@ -511,7 +518,7 @@ export default function WorkspaceView({
       rec.start();
     } catch {
       setRecState("error");
-      setRecMsg("无法启动录音，请检查麦克风权限。");
+      setRecMsg(tr("workspace.asrStartFailed"));
     }
   }
 
@@ -531,16 +538,16 @@ export default function WorkspaceView({
       id: "s_live_" + t + "_speak",
       date: t,
       durationMin: sessionDurationMin(liveStartedAt),
-      contentRef: { type: "mixed", title: "跟读打分小测验" },
+      contentRef: { type: "mixed", title: tr("workspace.readingQuiz") },
       quiz: {
-        title: "跟读 · " + t,
+        title: tr("workspace.readingShort") + " · " + t,
         questions: liveQuestions,
       },
       reviewed: false,
       subject: "language",
     };
-    let pts = addPoints(ws.points, 10, "完成跟读测验");
-    if (avg >= 80) pts = addPoints(pts, 5, "发音优秀奖励");
+    let pts = addPoints(ws.points, 10, tr("workspace.readingQuizComplete"));
+    if (avg >= 80) pts = addPoints(pts, 5, tr("workspace.rewardGoodPronunciation"));
     const sessions = [
       ...ws.sessions.filter((s) => s.id !== newSession.id),
       newSession,
@@ -561,7 +568,11 @@ export default function WorkspaceView({
   }, [activeQuizId]);
 
   if (!ws) {
-    return <div className="py-20 text-center text-gray-400">加载中…</div>;
+    return (
+      <div className="py-20 text-center text-gray-400">
+        {tr("workspace.loading")}
+      </div>
+    );
   }
 
   const t = todayStr();
@@ -638,30 +649,30 @@ export default function WorkspaceView({
   if (!ws.checkins.includes(t))
     tasks.push({
       overdue: false,
-      title: "今日打卡未完成",
-      sub: "连续打卡可获得积分奖励",
-      pill: "今日",
-      act: "去打卡",
+      title: tr("workspace.checkinPending"),
+      sub: tr("workspace.checkinStreakHint"),
+      pill: tr("workspace.today"),
+      act: tr("workspace.goCheckin"),
       fn: doCheckin,
     });
   for (const s of ws.sessions) {
     if (!s.reviewed && s.date < t)
       tasks.push({
         overdue: true,
-        title: mdLabel(s.date) + " 的测验未点评",
+        title: tr("workspace.quizUnreviewed", { date: mdLabel(s.date) }),
         sub: s.contentRef.title,
-        pill: "逾期",
-        act: "去点评",
+        pill: tr("workspace.overdue"),
+        act: tr("workspace.goReview"),
         fn: () => setActiveQuizId(s.id),
       });
   }
   if (!todaySession)
     tasks.push({
       overdue: false,
-      title: "今日学习尚未开始",
-      sub: "完成一节约儿法语，自动记录成果",
-      pill: "建议",
-      act: "去学习",
+      title: tr("workspace.notStarted"),
+      sub: tr("workspace.recordHint"),
+      pill: tr("workspace.suggest"),
+      act: tr("workspace.goStudy"),
       fn: () => {},
     });
 
@@ -670,11 +681,11 @@ export default function WorkspaceView({
       {/* 今天要处理 */}
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
         <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
-          ⏰ 今天要处理
+          {tr("workspace.pendingToday")}
         </h2>
         {tasks.length === 0 ? (
           <div className="text-center text-gray-400 py-3">
-            今天都搞定啦 🎉 保持节奏，明天继续！
+            {tr("workspace.allDone")}
           </div>
         ) : (
           <div className="space-y-3">
@@ -723,19 +734,17 @@ export default function WorkspaceView({
       {/* 今日学习成果 */}
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
         <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
-          📊 今日学习成果
+          {tr("workspace.todayResults")}
         </h2>
         {!todaySession ? (
           <div className="text-center text-gray-400 py-6">
             <div className="text-3xl mb-2">🌱</div>
-            今天还没有学习记录
+            {tr("workspace.noRecords")}
             <br />
-            <span className="text-sm">
-              完成学习后，这里会显示时长、内容与测验点评。
-            </span>
+            <span className="text-sm">{tr("workspace.resultsHint")}</span>
             <div className="mt-4">
-              <Link href="/stories" className="btn-primary">
-                去学一个故事
+              <Link href={localizedHref(locale, "/stories")} className="btn-primary">
+                {tr("workspace.goStory")}
               </Link>
             </div>
           </div>
@@ -747,7 +756,7 @@ export default function WorkspaceView({
         )}
         <div className="mt-4 pt-4 border-t border-dashed border-gray-100">
           <h3 className="text-sm font-semibold text-gray-500 mb-2">
-            历史学习记录
+            {tr("workspace.history")}
           </h3>
           <div className="space-y-2">
             {ws.sessions
@@ -779,7 +788,7 @@ export default function WorkspaceView({
                       }
                       onClick={() => setActiveQuizId(s.id)}
                     >
-                      {s.reviewed ? "已点评" : "点评"}
+                      {s.reviewed ? tr("workspace.reviewed") : tr("workspace.review")}
                     </button>
                   </div>
                 );
@@ -791,13 +800,13 @@ export default function WorkspaceView({
       {/* 自主测验 */}
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
         <h2 className="text-xl font-bold text-gray-800 mb-2 flex items-center gap-2">
-          🎯 自主测验
+          {tr("workspace.selfQuiz")}
         </h2>
         <p className="text-xs text-gray-500 mb-3">
-          从真实学习内容随机出题，巩固今日所学。完成后自动记录到「今日学习成果」并奖励积分。
+          {tr("workspace.selfQuizDesc")}
         </p>
         <div className="flex flex-wrap items-center gap-2 mb-3">
-          <span className="text-sm text-gray-500">题型：</span>
+          <span className="text-sm text-gray-500">{tr("workspace.quizType")}</span>
           <button
             className={
               "text-sm px-4 py-2 rounded-full font-medium transition " +
@@ -807,7 +816,7 @@ export default function WorkspaceView({
             }
             onClick={() => setLiveMode("choice")}
           >
-            选择题（法→中）
+            {tr("workspace.quizChoice")}
           </button>
           <button
             className={
@@ -818,7 +827,7 @@ export default function WorkspaceView({
             }
             onClick={() => setLiveMode("listen")}
           >
-            🔊 听力题（听→选义）
+            {tr("workspace.quizListening")}
           </button>
           <button
             disabled={!asrSupported}
@@ -831,13 +840,9 @@ export default function WorkspaceView({
                 : "bg-gray-100 text-gray-400 cursor-not-allowed")
             }
             onClick={() => asrSupported && setLiveMode("speak")}
-            title={
-              !asrSupported
-                ? "当前浏览器不支持语音识别，建议使用 Chrome / Edge"
-                : undefined
-            }
+            title={!asrSupported ? tr("workspace.speechNotSupported") : undefined}
           >
-            🎤 跟读打分（听→说→评分）
+            {tr("workspace.quizReading")}
           </button>
         </div>
         <button
@@ -846,30 +851,36 @@ export default function WorkspaceView({
           disabled={liveMode === "speak" && !asrSupported}
         >
           {liveMode === "speak"
-            ? "开始跟读打分"
+            ? tr("workspace.startReadingQuiz")
             : liveMode === "listen"
-            ? "开始听力测验"
-            : "开始选择测验"}
+            ? tr("workspace.startListeningQuiz")
+            : tr("workspace.startChoiceQuiz")}
         </button>
       </section>
 
       {/* 学习统计 */}
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
         <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
-          📈 学习统计
+          {tr("workspace.stats")}
         </h2>
         <div className="grid grid-cols-2 gap-3 mb-4">
-          <StatCard label="累计学习时长" value={stats.totalMin + " 分钟"} />
-          <StatCard label="累计测验题数" value={stats.quizCount + " 题"} />
-          <StatCard label="平均正确率" value={stats.avgAcc + "%"} />
           <StatCard
-            label="已练句子"
+            label={tr("workspace.statTotalTime")}
+            value={stats.totalMin + " " + tr("progress.minutes")}
+          />
+          <StatCard
+            label={tr("workspace.statTotalQuizzes")}
+            value={stats.quizCount + " " + tr("workspace.unitQuestion")}
+          />
+          <StatCard label={tr("workspace.statAvgAccuracy")} value={stats.avgAcc + "%"} />
+          <StatCard
+            label={tr("workspace.statSentences")}
             value={stats.practicedCount + " / " + pool.length}
           />
         </div>
         <div className="mb-4">
           <div className="flex justify-between text-xs text-gray-500 mb-1">
-            <span>内容覆盖度</span>
+            <span>{tr("workspace.contentCoverage")}</span>
             <span>{stats.coverage}%</span>
           </div>
           <div className="h-2 rounded-full bg-purple-50 overflow-hidden">
@@ -880,7 +891,7 @@ export default function WorkspaceView({
           </div>
         </div>
         <h3 className="text-sm font-semibold text-gray-500 mb-2">
-          近 7 天学习时长
+          {tr("workspace.weeklyTime")}
         </h3>
         <div className="flex items-end gap-2 h-24">
           {last7.map((d, i) => (
@@ -894,7 +905,7 @@ export default function WorkspaceView({
               <div
                 className="w-full rounded-md bg-purple-500"
                 style={{ height: Math.max(4, (d.min / maxMin) * 80) + "px" }}
-                title={d.ds + " · " + d.min + " 分钟"}
+                title={d.ds + " · " + d.min + " " + tr("progress.minutes")}
               />
               <span className="text-[10px] text-gray-400">{d.label}</span>
             </div>
@@ -905,21 +916,21 @@ export default function WorkspaceView({
       {/* 错题本 */}
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
         <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
-          📕 错题本
+          {tr("workspace.mistakeBook")}
         </h2>
         {mistakes.length === 0 ? (
           <div className="text-center text-gray-400 py-3">
-            暂无错题，保持得很好 🎉
+            {tr("workspace.noMistakes")}
           </div>
         ) : (
           <>
             <div className="flex items-center gap-2 mb-3 flex-wrap">
               {(
                 [
-                  ["all", "全部"],
-                  ["language", "语言"],
-                  ["math", "数学"],
-                  ["logic", "逻辑"],
+                  ["all", tr("workspace.filterAll")],
+                  ["language", tr("workspace.filterLanguage")],
+                  ["math", tr("workspace.filterMath")],
+                  ["logic", tr("workspace.filterLogic")],
                 ] as const
               ).map(([key, label]) => {
                 const count =
@@ -944,7 +955,9 @@ export default function WorkspaceView({
               })}
             </div>
             <button className="btn-primary mb-3" onClick={startReview}>
-              复习错题（{visibleMistakes.length}）
+              {tr("workspace.reviewMistakes", {
+                count: String(visibleMistakes.length),
+              })}
             </button>
             <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
               {visibleMistakes.map((m, i) => (
@@ -963,7 +976,7 @@ export default function WorkspaceView({
                           : "bg-purple-100 text-purple-600")
                       }
                     >
-                      {SUBJECT_LABELS[m.subject]}
+                      {tr(SUBJECT_LABEL_KEYS[m.subject])}
                     </span>
                     <span className="text-xs text-gray-400 truncate">
                       {m.title}
@@ -974,10 +987,14 @@ export default function WorkspaceView({
                   </div>
                   <div className="text-xs mt-1 flex flex-wrap gap-x-3 gap-y-1">
                     <span className="text-red-500">
-                      你的答案：{m.q.options[m.q.userIndex ?? 0]}
+                      {tr("workspace.yourAnswer", {
+                        answer: m.q.options[m.q.userIndex ?? 0],
+                      })}
                     </span>
                     <span className="text-green-600">
-                      正确答案：{m.q.options[m.q.correctIndex]}
+                      {tr("workspace.correctAnswer", {
+                        answer: m.q.options[m.q.correctIndex],
+                      })}
                     </span>
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
@@ -993,7 +1010,7 @@ export default function WorkspaceView({
       {/* 每日打卡 */}
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
         <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
-          ✅ 每日打卡
+          {tr("workspace.dailyCheckin")}
         </h2>
         <div className="flex items-center justify-between gap-3 mb-4">
           <button
@@ -1001,20 +1018,26 @@ export default function WorkspaceView({
             disabled={ws.checkins.includes(t)}
             onClick={doCheckin}
           >
-            {ws.checkins.includes(t) ? "今日已打卡 ✓" : "今日打卡"}
+            {ws.checkins.includes(t)
+              ? tr("workspace.checkinDone")
+              : tr("workspace.todayCheckin")}
           </button>
           <div className="flex gap-6">
             <div className="text-center">
               <div className="text-3xl font-extrabold text-purple-600 leading-none">
                 {computeStreak(ws.checkins)}
               </div>
-              <div className="text-xs text-gray-500 mt-1">当前连续</div>
+              <div className="text-xs text-gray-500 mt-1">
+                {tr("workspace.currentStreak")}
+              </div>
             </div>
             <div className="text-center border-l border-gray-100 pl-6">
               <div className="text-3xl font-extrabold text-pink-500 leading-none">
                 {computeLongestStreak(ws.checkins)}
               </div>
-              <div className="text-xs text-gray-500 mt-1">最长连续</div>
+              <div className="text-xs text-gray-500 mt-1">
+                {tr("workspace.longestStreak")}
+              </div>
             </div>
           </div>
         </div>
@@ -1027,7 +1050,7 @@ export default function WorkspaceView({
             return (
               <div
                 key={i}
-                title={ds + (on ? " · 已打卡" : "")}
+                title={ds + (on ? " · " + tr("workspace.checkedIn") : "")}
                 className={
                   "aspect-square rounded-md " +
                   (on ? "bg-purple-500" : "bg-purple-50") +
@@ -1038,23 +1061,25 @@ export default function WorkspaceView({
           })}
         </div>
         <div className="flex items-center justify-end gap-1.5 text-xs text-gray-400 mt-2">
-          <span>未打卡</span>
+          <span>{tr("workspace.notCheckedIn")}</span>
           <span className="w-3 h-3 rounded-md bg-purple-50" />
           <span className="w-3 h-3 rounded-md bg-purple-500" />
-          <span>已打卡</span>
+          <span>{tr("workspace.checkedIn")}</span>
         </div>
       </section>
 
       {/* 奖励积分 */}
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
         <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
-          🎁 奖励积分
+          {tr("workspace.rewardPoints")}
         </h2>
         <div className="flex items-baseline gap-2 mb-3">
           <span className="text-3xl font-extrabold text-pink-500">
             {ws.points.total}
           </span>
-          <span className="text-sm text-gray-500">可用积分</span>
+          <span className="text-sm text-gray-500">
+            {tr("workspace.availablePoints")}
+          </span>
         </div>
         <div className="grid grid-cols-2 gap-3">
           {REWARDS.map((r) => {
@@ -1066,17 +1091,17 @@ export default function WorkspaceView({
               >
                 <div className="text-2xl">{r.icon}</div>
                 <div className="font-semibold text-sm text-gray-800">
-                  {r.name}
+                  {tr(r.nameKey)}
                 </div>
                 <div className="text-xs font-bold text-pink-500">
-                  {r.cost} 积分
+                  {tr("workspace.costPoints", { cost: String(r.cost) })}
                 </div>
                 <button
                   className="btn-primary mt-1"
                   disabled={!can}
                   onClick={() => redeem(r.id)}
                 >
-                  {can ? "兑换" : "积分不足"}
+                  {can ? tr("workspace.redeemBtn") : tr("workspace.insufficientPoints")}
                 </button>
               </div>
             );
@@ -1084,7 +1109,7 @@ export default function WorkspaceView({
         </div>
         <div className="mt-4 pt-3 border-t border-dashed border-gray-100">
           <h3 className="text-sm font-semibold text-gray-500 mb-2">
-            最近积分记录
+            {tr("workspace.pointsHistory")}
           </h3>
           <div className="space-y-1">
             {[...ws.points.history]
@@ -1115,32 +1140,44 @@ export default function WorkspaceView({
 
       {/* Phase 5D：吉祥物养成 + 成就勋章 + 每日任务（T5D.1-3） */}
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-        <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">🦊 成长中心</h2>
+        <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
+          {tr("workspace.growthCenter")}
+        </h2>
         <MascotPen />
-        <div className="mt-4"><h3 className="text-sm font-semibold text-gray-500 mb-2">🏅 成就勋章</h3><BadgeWall /></div>
-        <div className="mt-4"><h3 className="text-sm font-semibold text-gray-500 mb-2">📋 每日任务</h3><DailyQuestList /></div>
+        <div className="mt-4">
+          <h3 className="text-sm font-semibold text-gray-500 mb-2">
+            {tr("workspace.achievements")}
+          </h3>
+          <BadgeWall />
+        </div>
+        <div className="mt-4">
+          <h3 className="text-sm font-semibold text-gray-500 mb-2">
+            {tr("workspace.dailyQuests")}
+          </h3>
+          <DailyQuestList />
+        </div>
       </section>
 
       {/* Phase 5D：分学科统计（T5D.5） */}
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-        <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">📊 分学科统计</h2>
+        <h2 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
+          {tr("workspace.subjectStats")}
+        </h2>
         <SubjectStats sessions={ws.sessions} />
       </section>
 
       {/* 数据备份 */}
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
         <h2 className="text-xl font-bold text-gray-800 mb-2 flex items-center gap-2">
-          💾 数据备份
+          {tr("workspace.dataBackup")}
         </h2>
-        <p className="text-xs text-gray-500 mb-3">
-          本地数据保存在此浏览器。建议定期导出备份，换设备时通过「导入恢复」迁移。
-        </p>
+        <p className="text-xs text-gray-500 mb-3">{tr("workspace.backupDesc")}</p>
         <div className="flex flex-wrap gap-2">
           <button className="btn-secondary" onClick={exportJson}>
-            导出 JSON 备份
+            {tr("workspace.exportJson")}
           </button>
           <label className="btn-secondary cursor-pointer">
-            导入恢复
+            {tr("workspace.importRestore")}
             <input
               type="file"
               accept="application/json"
@@ -1153,7 +1190,7 @@ export default function WorkspaceView({
             />
           </label>
           <button className="btn-secondary" onClick={clearAll}>
-            清空全部数据
+            {tr("workspace.clearAllData")}
           </button>
         </div>
       </section>
@@ -1192,7 +1229,7 @@ export default function WorkspaceView({
               submitted={liveSubmitted}
               revealed={revealed}
               audioState={audioState}
-              title={liveReview ? "📕 错题复习" : undefined}
+              title={liveReview ? tr("workspace.mistakeReview") : undefined}
               // ── BUG-1：以下四个 props 原先漏传，导致跟读打分链路断裂 ──
               speakResults={speakResults}
               recState={recState}

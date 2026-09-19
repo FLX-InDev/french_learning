@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, localizedHref } from "@/lib/i18n";
 import { useAppState } from "./AppStateProvider";
 import { LevelPicker } from "./LevelPicker";
 import { ParentGate } from "./ParentGate";
@@ -32,7 +32,7 @@ export function ParentsCenter({
   manifest: ParentManifestItem[];
   counts: Partial<Record<ContentType, number>>;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { state, update, replace } = useAppState();
   const [passed, setPassed] = useState(false);
   const [pendingLevel, setPendingLevel] = useState<Level | null>(null);
@@ -56,7 +56,7 @@ export function ParentsCenter({
         <ParentGate
           title={t("home.parentsModal.title")}
           onPass={() => setPassed(true)}
-          onCancel={() => (window.location.href = "/")}
+          onCancel={() => (window.location.href = localizedHref(locale, "/"))}
         />
       </div>
     );
@@ -109,7 +109,9 @@ export function ParentsCenter({
       <div className="text-center">
         <h1 className="text-3xl font-bold text-gray-800">{t("home.parentsModal.title")}</h1>
         <p className="text-gray-500 mt-2 text-sm">
-          当前学段：{levelLabel(state.profile.level)}
+          {t("parentsCenter.currentLevel", {
+            level: levelLabel(state.profile.level, locale),
+          })}
         </p>
       </div>
 
@@ -133,7 +135,9 @@ export function ParentsCenter({
 
       {/* 时长 */}
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-        <h2 className="text-xl font-bold text-gray-800 mb-1">⏱ 每日时长</h2>
+        <h2 className="text-xl font-bold text-gray-800 mb-1">
+          {t("parentsCenter.dailyLimit")}
+        </h2>
         <p className="text-xs text-gray-500 mb-3">
           {t('parentsCenter.todayUsed', { min: String(usedMin) })}
           {Number.isFinite(leftSec)
@@ -249,7 +253,7 @@ export function ParentsCenter({
                 <span className="text-xl">{meta.emoji}</span>
                 <span className="flex-1 min-w-0">
                   <span className="block font-semibold text-sm text-gray-800">
-                    {item.name}
+                    {t(meta.nameKey)}
                   </span>
                   <span className="block text-xs text-gray-400 truncate">
                     {item.filename} · {counts[item.type] ?? 0} {t('parentsCenter.items')}
@@ -293,7 +297,7 @@ export function ParentsCenter({
             onClick={() => {
               if (!confirm(t("workspace.confirmClear"))) return;
               replace(createInitialState(state.profile.level));
-              setMsg("已清空，回到初始状态");
+              setMsg(t("parentsCenter.cleared"));
             }}
           >
             {t('parentsCenter.clearAll')}

@@ -162,10 +162,19 @@ export function getOptionCount(level: unknown): number {
   return getLevelConfig(level).optionCount;
 }
 
-/** 徽标文案：L2 · 4-5 岁（中班 / Moyenne section） */
-export function levelLabel(level: unknown): string {
+/**
+ * 徽标文案：L2 · 4-5 岁（中班 / Moyenne section）
+ * locale 非 zh 时只显示法语学制名，避免在非中文界面里掺中文。
+ */
+export function levelLabel(
+  level: unknown,
+  locale: "zh" | "en" | "fr" = "zh"
+): string {
   const c = getLevelConfig(level);
-  return `${c.id} · ${c.ageRange.replace("-", "-")} 岁（${c.cnName} / ${c.frName}）`;
+  const age = c.ageRange.replace("-", "-");
+  return locale === "zh"
+    ? `${c.id} · ${age} 岁（${c.cnName} / ${c.frName}）`
+    : `${c.id} · ${age} ans（${c.frName}）`;
 }
 
 /** 每日挑战学科配比展开为题数列表，如 ["language"×3, "math"×2, ...] */

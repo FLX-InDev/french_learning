@@ -33,19 +33,19 @@ export const CONTENT_TYPES: ContentType[] = [
   "logic",
 ];
 
-/** 内容类型 → 中文名 / emoji / 路由（首页入口与家长中心开关共用） */
+/** 内容类型 → 名称 i18n key / emoji / 路由（首页入口与家长中心开关共用） */
 export const CONTENT_META: Record<
   ContentType,
-  { name: string; emoji: string; href: string }
+  { nameKey: string; emoji: string; href: string }
 > = {
-  sentence: { name: "句子", emoji: "📝", href: "/sentences" },
-  story: { name: "故事", emoji: "📖", href: "/stories" },
-  word: { name: "词汇", emoji: "🃏", href: "/words" },
-  song: { name: "儿歌", emoji: "🎵", href: "/songs" },
-  dialogue: { name: "对话", emoji: "💬", href: "/dialogues" },
-  alphabet: { name: "字母", emoji: "🔤", href: "/alphabets" },
-  math: { name: "数学", emoji: "🔢", href: "/math" },
-  logic: { name: "逻辑", emoji: "🧩", href: "/logic" },
+  sentence: { nameKey: "content.sentence", emoji: "📝", href: "/sentences" },
+  story: { nameKey: "content.story", emoji: "📖", href: "/stories" },
+  word: { nameKey: "content.word", emoji: "🃏", href: "/words" },
+  song: { nameKey: "content.song", emoji: "🎵", href: "/songs" },
+  dialogue: { nameKey: "content.dialogue", emoji: "💬", href: "/dialogues" },
+  alphabet: { nameKey: "content.alphabet", emoji: "🔤", href: "/alphabets" },
+  math: { nameKey: "content.math", emoji: "🔢", href: "/math" },
+  logic: { nameKey: "content.logic", emoji: "🧩", href: "/logic" },
 };
 
 // ─── 六类内容 ────────────────────────────────────────────────────

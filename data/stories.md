@@ -2,7 +2,13 @@
 
 *中英法三语对照（按句子拆分）*
 
+> NEEDS_REVIEW：故事标题的英/法译文为 AI 初稿，需法语母语者校对后移除本标记。
+> 格式：`##` 为故事中文标题；标题下可写 `- title_en:` / `- title_fr:` 提供英/法标题（缺省时回落中文标题）；其后为逐句三语对照。
+
 ## 小兔子的新朋友
+
+- title_en: Little Rabbit's New Friend
+- title_fr: Le nouvel ami du petit lapin
 
 - zh: 小兔子在森林里散步, 看到了一只小松鼠。
 - en: Little Rabbit was walking in the forest and saw a little squirrel.
@@ -26,6 +32,9 @@
 
 ## 小熊的生日派对
 
+- title_en: Little Bear's Birthday Party
+- title_fr: La fête d'anniversaire de Petit Ours
+
 - zh: 今天是小熊的生日, 他邀请了所有的朋友来参加派对。
 - en: Today was Little Bear's birthday, and he invited all his friends to a party.
 - fr: Aujourd'hui, c'était l'anniversaire de Petit Ours, et il avait invité tous ses amis à une fête.
@@ -43,6 +52,9 @@
 - fr: Il a remercié ses amis en disant : « Merci à tous d'être venus à ma fête d'anniversaire ! »
 
 ## 小鸟的翅膀受伤了
+
+- title_en: The Little Bird's Hurt Wing
+- title_fr: L'aile blessée du petit oiseau
 
 - zh: 小鸟在飞行时不小心摔倒了, 翅膀受伤了。
 - en: Little Bird fell while flying and hurt his wing.
@@ -70,6 +82,9 @@
 
 ## 小狗和丢失的球
 
+- title_en: The Puppy and the Lost Ball
+- title_fr: Le chiot et la balle perdue
+
 - zh: 小狗在公园里玩球, 突然球滚到了草丛里。
 - en: Little Dog was playing with his ball in the park when it rolled into the bushes.
 - fr: Le petit chien jouait avec son ballon au parc quand celui-ci a roulé dans les buissons.
@@ -91,6 +106,9 @@
 - fr: Le petit chien a dit : « Merci, Petit Chat ! »
 
 ## 小猫和小老鼠的冲突
+
+- title_en: The Kitten and the Little Mouse Quarrel
+- title_fr: La querelle du chaton et de la petite souris
 
 - zh: 小猫和小老鼠在一起玩, 突然小猫不小心推倒了小老鼠。
 - en: Little Cat and Little Mouse were playing together when Little Cat accidentally knocked over Little Mouse.
@@ -118,6 +136,9 @@
 
 ## 小猪的新玩具
 
+- title_en: The Piglet's New Toy
+- title_fr: Le nouveau jouet du petit cochon
+
 - zh: 小猪得到了一个新玩具, 他很开心地玩着。
 - en: Little Pig got a new toy and was happily playing with it.
 - fr: Le petit cochon a reçu un nouveau jouet et jouait joyeusement avec.
@@ -136,6 +157,9 @@
 
 ## 小羊迷路了
 
+- title_en: The Lamb Gets Lost
+- title_fr: Le petit agneau s'est perdu
+
 - zh: 小羊在森林里迷路了, 他害怕地说: "我找不到回家的路了！我该怎么办？"
 - en: Little Lamb got lost in the forest and said fearfully, "I can't find my way home! What should I do?"
 - fr: Le petit agneau s'est perdu dans la forêt et a dit avec peur : « Je ne trouve plus le chemin pour rentrer à la maison ! Que faire ? »
@@ -153,6 +177,9 @@
 - fr: Le petit agneau a dit : « Merci, Petit Cerf ! Tu es très gentil ! »
 
 ## 小鸭子的新衣服
+
+- title_en: The Duckling's New Clothes
+- title_fr: Les nouveaux habits du caneton
 
 - zh: 小鸭子有一件新衣服, 他很自豪地穿着它。
 - en: Little Duck had a new outfit and was proudly wearing it.
@@ -175,6 +202,9 @@
 - fr: Le petit canard a dit : « Allons ensemble au magasin pour regarder ! »
 
 ## 小马和小牛的比赛
+
+- title_en: The Race Between the Pony and the Calf
+- title_fr: La course entre le poney et le veau
 
 - zh: 小马和小牛决定比赛跑步。
 - en: Little Horse and Little Cow decided to have a running race.
@@ -201,6 +231,9 @@
 - fr: Le petit bœuf a dit : « D'accord ! Entraînons-nous ensemble. »
 
 ## 小狐狸的道歉
+
+- title_en: The Little Fox's Apology
+- title_fr: Les excuses du petit renard
 
 - zh: 小狐狸不小心弄坏了小兔子的玩具。
 - en: Little Fox accidentally broke Little Rabbit's toy.

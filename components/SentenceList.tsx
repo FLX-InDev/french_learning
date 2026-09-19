@@ -106,7 +106,7 @@ export function SentenceList({ sentences }: { sentences: Sentence[] }) {
         )}
         {/* 连播控制（T3.6） */}
         <div className="flex items-center gap-2">
-          <div className="flex rounded-full bg-purple-50 p-0.5" role="group" aria-label="连播语言模式">
+          <div className="flex rounded-full bg-purple-50 p-0.5" role="group" aria-label={t("story.autoplayGroup")}>
             {(
               [
                 ["fr", t("sentence.langOnlyFr")],

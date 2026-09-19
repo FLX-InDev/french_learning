@@ -14,19 +14,21 @@ export function LevelPicker({
   value: Level;
   onChange: (level: Level) => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
       {LEVEL_ORDER.map((id) => {
         const c = LEVELS[id];
         const active = id === value;
+        // 非中文界面显示法语学制名（cnName 是中文，不能直接透传）
+        const stageName = locale === "zh" ? c.cnName : c.frName;
         return (
           <button
             key={id}
             type="button"
             onClick={() => onChange(id)}
             aria-pressed={active}
-            aria-label={t('levelPicker.ariaLabel', { id, age: String(c.ageRange), cnName: c.cnName })}
+            aria-label={t('levelPicker.ariaLabel', { id, age: String(c.ageRange), cnName: stageName })}
             className={
               "min-h-[96px] rounded-2xl border-2 p-3 text-left transition " +
               (active
@@ -38,7 +40,7 @@ export function LevelPicker({
             <div className="mt-1 font-bold text-gray-800">
               {t('levelPicker.idAge', { id, age: String(c.ageRange) })}
             </div>
-            <div className="text-xs text-gray-500 mt-0.5">{t('levelPicker.cnName', { cnName: c.cnName })}</div>
+            <div className="text-xs text-gray-500 mt-0.5">{t('levelPicker.cnName', { cnName: stageName })}</div>
             <div className="text-xs text-gray-400">{c.frName}</div>
           </button>
         );

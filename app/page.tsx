@@ -1,23 +1,14 @@
-import { getContentStats, getEnabledContentTypes, getAllStories, getAllSentences, getAllWords, getAllAlphabets } from "@/lib/parser";
-import { buildPool } from "@/lib/workspace";
-import { HomeView } from "@/components/HomeView";
+import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { DEFAULT_LOCALE, isLocale } from "@/lib/workspace";
 
-export default function HomePage() {
-  // 统计数字全部来自解析结果（修复 BUG-2：不再硬编码 300+/10/3）
-  const stats = getContentStats();
-  const enabled = getEnabledContentTypes();
-  // 每日挑战题源：语言池（服务端构建）与拼词池素材（词卡+字母代表词）在构建期注入
-  const pool = buildPool(getAllStories(), getAllSentences());
-  const words = getAllWords();
-  const alphabets = getAllAlphabets();
+/**
+ * `/` 入口：按 cookie 记忆的界面语言跳转到对应语言前缀路由（C1 方案①）。
+ * 保留为页面（而非仅 middleware）以便客户端导航（<Link href="/">）也能正确重定向。
+ */
+export const dynamic = "force-dynamic";
 
-  return (
-    <HomeView
-      stats={stats}
-      enabled={enabled}
-      pool={pool}
-      words={words}
-      alphabets={alphabets}
-    />
-  );
+export default function RootPage() {
+  const stored = cookies().get("flx_locale")?.value;
+  redirect(`/${isLocale(stored) ? stored : DEFAULT_LOCALE}`);
 }

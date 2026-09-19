@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, localizedHref } from "@/lib/i18n";
 import { useAppState } from "./AppStateProvider";
 import { ParentGate } from "./ParentGate";
 import { isTimeUp } from "@/lib/workspace";
+import { setScreenTimePaused } from "@/lib/screenTimePause";
 
 /** 连续使用多久弹出休息提示 */
 const BREAK_EVERY_SEC = 15 * 60;
 /** 休息遮罩时长 */
-const BREAK_SEC = 20;
+const BREAK_SEC = 30;
 /** 家长门解锁一次延长的时长 */
 const EXTEND_SEC = 10 * 60;
 
@@ -31,10 +32,10 @@ function hhmmss(ms: number): string {
 /**
  * 时长控制与护眼（PRD §7.12.4 F46）
  * - 每日时长用尽 → 护眼页遮罩所有学习入口，仅家长门可解锁；
- * - 连续使用 15 分钟 → 20 秒休息遮罩。
+ * - 连续使用 15 分钟 → 30 秒休息遮罩。
  */
 export function ScreenTimeGuard() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { state, update } = useAppState();
   const [gateOpen, setGateOpen] = useState(false);
   const [breakLeft, setBreakLeft] = useState<number | null>(null);
@@ -45,23 +46,40 @@ export function ScreenTimeGuard() {
   const limit = state?.settings.dailyLimitMin ?? 0;
   const timeUp = !!state && isTimeUp(state.screenTime, limit);
 
+  // 倒计时期间读最新 used（用 ref，避免把 used 放进倒计时 effect 的依赖里反复重启定时器）
+  const usedRef = useRef(used);
+  useEffect(() => {
+    usedRef.current = used;
+  }, [used]);
+
   // 连续使用 15 分钟 → 休息遮罩
   useEffect(() => {
     if (!state || timeUp) return;
-    if (used - lastBreakRef.current >= BREAK_EVERY_SEC) setBreakLeft(BREAK_SEC);
-  }, [used, timeUp, state]);
+    if (breakLeft !== null) return; // 已在休息中：不再重复触发
+    if (used - lastBreakRef.current >= BREAK_EVERY_SEC) {
+      // 先落基线：否则倒计时期间 used 持续增长会反复满足条件、把倒计时重置回 30s
+      lastBreakRef.current = used;
+      setBreakLeft(BREAK_SEC);
+    }
+  }, [used, timeUp, state, breakLeft]);
 
-  // 休息倒计时
+  // 休息倒计时（只依赖 breakLeft，保证每秒稳定递减）
   useEffect(() => {
     if (breakLeft === null) return;
     if (breakLeft <= 0) {
-      lastBreakRef.current = used;
+      lastBreakRef.current = usedRef.current;
       setBreakLeft(null);
       return;
     }
     const id = window.setTimeout(() => setBreakLeft((v) => (v ?? 1) - 1), 1000);
     return () => window.clearTimeout(id);
-  }, [breakLeft, used]);
+  }, [breakLeft]);
+
+  // 休息遮罩期间：暂停当日时长累计（休息时间不算学习时长）
+  useEffect(() => {
+    setScreenTimePaused(breakLeft !== null);
+    return () => setScreenTimePaused(false);
+  }, [breakLeft]);
 
   // 护眼页的「明日恢复」倒计时
   useEffect(() => {
@@ -91,7 +109,7 @@ export function ScreenTimeGuard() {
             <button className="btn-primary" onClick={() => setGateOpen(true)}>
               {t('screenTime.parentUnlock')}
             </button>
-            <a className="btn-secondary" href="/parents">
+            <a className="btn-secondary" href={localizedHref(locale, "/parents")}>
               {t('screenTime.goParents')}
             </a>
           </div>

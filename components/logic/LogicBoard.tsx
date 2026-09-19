@@ -30,7 +30,7 @@ type Ghost = { id: string; x: number; y: number } | null;
  */
 export function LogicCenter({ fixedItems }: { fixedItems: LogicItem[] }) {
   const { state } = useAppState();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [activeDomain, setActiveDomain] = useState<string | null>(null);
 
   if (!state) {
@@ -68,7 +68,7 @@ export function LogicCenter({ fixedItems }: { fixedItems: LogicItem[] }) {
             key={d.id}
             disabled={!d.ready}
             onClick={() => setActiveDomain(d.id)}
-            aria-label={`enter domain ${d.title.zh}`}
+            aria-label={`enter domain ${d.title[locale]}`}
             className={
               "rounded-2xl border-2 p-5 text-center transition " +
               (d.ready
@@ -77,9 +77,9 @@ export function LogicCenter({ fixedItems }: { fixedItems: LogicItem[] }) {
             }
           >
             <div className="text-4xl">{d.emoji}</div>
-            <div className="mt-2 font-bold text-gray-800">{d.title.zh}</div>
+            <div className="mt-2 font-bold text-gray-800">{d.title[locale]}</div>
             <div className="text-xs text-gray-400">{d.title.fr}</div>
-            {!d.ready && <div className="text-[11px] text-gray-400 mt-1">即将上线</div>}
+            {!d.ready && <div className="text-[11px] text-gray-400 mt-1">{t('logic.comingSoon')}</div>}
           </button>
         ))}
       </div>
@@ -104,9 +104,11 @@ function LogicQuizRunner({
   fixedItems: LogicItem[];
   onExit: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { state, update } = useAppState();
   const level = state?.profile.level ?? "L3";
+  const domainTitle =
+    LOGIC_DOMAINS.find((d) => d.id === domainId)?.title[locale] ?? domainId;
 
   const questions = useMemo<LogicQuestion[]>(() => {
     const domainFixed = fixedItems
@@ -152,9 +154,9 @@ function LogicQuizRunner({
           id: `s_logic_${domainId}_${today}`,
           date: today,
           durationMin: 8,
-          contentRef: { type: "mixed", title: `逻辑 · ${domainId}` },
+          contentRef: { type: "mixed", title: t("logic.sessionTitle", { domain: domainTitle }) },
           quiz: {
-            title: `逻辑 · ${domainId} · ${today}`,
+            title: t("logic.sessionTitle", { domain: domainTitle }) + " · " + today,
             questions: questions.map((lq, i) =>
               toQuizQuestion(lq, nextResults[i])
             ),
@@ -164,7 +166,7 @@ function LogicQuizRunner({
         };
         update((s) => ({
           ...s,
-          points: addPoints(s.points, 5, "完成逻辑题组"),
+          points: addPoints(s.points, 5, t("logic.rewardGroup")),
           sessions: [...s.sessions.filter((x) => x.id !== session.id), session],
         }));
         setFinished({ acc });
@@ -193,7 +195,7 @@ function LogicQuizRunner({
   }
 
   if (!q) {
-    return <div className="py-20 text-center text-gray-400">出题中…</div>;
+    return <div className="py-20 text-center text-gray-400">{t('logic.generating')}</div>;
   }
 
   return (

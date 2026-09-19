@@ -42,7 +42,7 @@ export function StorySentences({ sentences }: { sentences: Sentence[] }) {
     <div className="space-y-4">
       {/* 连播控制 */}
       <div className="flex flex-wrap items-center justify-center gap-2">
-        <div className="flex rounded-full bg-purple-50 p-0.5" role="group" aria-label="连播语言模式">
+        <div className="flex rounded-full bg-purple-50 p-0.5" role="group" aria-label={t("story.autoplayGroup")}>
           {(
             [
               ["fr", t('story.frOnly')],
@@ -95,7 +95,7 @@ export function StorySentences({ sentences }: { sentences: Sentence[] }) {
             <div className="space-y-3">
               <div className="flex items-start gap-3">
                 <span className="shrink-0 text-xs font-bold px-2 py-1 rounded-lg bg-red-50 text-red-500 mt-0.5">
-                  {t('story.chinese')}
+                  {t('sentence.langZh')}
                 </span>
                 <p className="text-gray-800 text-lg leading-relaxed flex-1">
                   {sentence.zh}
@@ -107,7 +107,7 @@ export function StorySentences({ sentences }: { sentences: Sentence[] }) {
               <div className="border-t border-dashed border-gray-100" />
               <div className="flex items-start gap-3">
                 <span className="shrink-0 text-xs font-bold px-2 py-1 rounded-lg bg-blue-50 text-blue-500 mt-0.5">
-                  EN
+                  {t('sentence.langEn')}
                 </span>
                 <p className="text-gray-600 leading-relaxed flex-1">
                   {sentence.en}
@@ -118,7 +118,7 @@ export function StorySentences({ sentences }: { sentences: Sentence[] }) {
               </div>
               <div className="flex items-start gap-3">
                 <span className="shrink-0 text-xs font-bold px-2 py-1 rounded-lg bg-green-50 text-green-600 mt-0.5">
-                  FR
+                  {t('sentence.langFr')}
                 </span>
                 <p className="text-gray-600 italic leading-relaxed flex-1">
                   {sentence.fr}

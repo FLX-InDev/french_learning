@@ -10213,7 +10213,7 @@
         ]
       },
       {
-        "kind": "base",
+        "kind": "diacritic",
         "points": [
           [
             56.1,
@@ -10248,14 +10248,14 @@
         42.9
       ],
       "exit": [
-        57.8,
-        27.7
+        59.2,
+        63.2
       ]
     },
     "source": {
       "by": "内容轨（路径A·中心线·cursive 提取）",
       "date": "2026-09-16",
-      "note": "中心线提取（scripts/generate-cursive-line.cjs）：base 1 + 音符 1；待母语者对照参考图复核"
+      "note": "2026-09-19 对照 cursive.jpeg 复核：点为后补符号，kind 修正为 diacritic；exit 改为底部出钩点 [59.2,63.2]"
     }
   },
   "cursive:j": {
@@ -10380,7 +10380,7 @@
         ]
       },
       {
-        "kind": "base",
+        "kind": "diacritic",
         "points": [
           [
             54.7,
@@ -10415,14 +10415,14 @@
         46.2
       ],
       "exit": [
-        55.5,
-        27.5
+        63,
+        59.7
       ]
     },
     "source": {
       "by": "内容轨（路径A·中心线·cursive 提取）",
       "date": "2026-09-16",
-      "note": "中心线提取（scripts/generate-cursive-line.cjs）：base 1 + 音符 1；待母语者对照参考图复核"
+      "note": "2026-09-19 对照 cursive.jpeg 复核：点为后补符号，kind 修正为 diacritic；exit 改为底部出钩点 [63,59.7]"
     }
   },
   "cursive:k": {
@@ -11815,7 +11815,7 @@
     "source": {
       "by": "内容轨（路径A·中心线·cursive 提取）",
       "date": "2026-09-16",
-      "note": "中心线提取（scripts/generate-cursive-line.cjs）：base 2；待母语者对照参考图复核"
+      "note": "2026-09-19 对照 cursive.jpeg 复核：教学图为“一笔含横”，但一笔合并需回笔/跳笔，不符合连笔自然走向；保留 2 笔（竖+横），待教师复核"
     }
   },
   "cursive:u": {
@@ -12318,7 +12318,12 @@
           [
             60.3,
             38.8
-          ],
+          ]
+        ]
+      },
+      {
+        "kind": "base",
+        "points": [
           [
             60.8,
             38.6
@@ -12367,7 +12372,7 @@
     "source": {
       "by": "内容轨（路径A·中心线·cursive 提取）",
       "date": "2026-09-16",
-      "note": "中心线提取（scripts/generate-cursive-line.cjs）：base 1；待母语者对照参考图复核"
+      "note": "2026-09-19 对照 cursive.jpeg 复核：拆为 2 笔：第 1 笔左环+右上伸（至 60.8,38.6 提笔），第 2 笔自右上起、向右下交叉收笔"
     }
   },
   "cursive:y": {

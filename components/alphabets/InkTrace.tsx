@@ -32,8 +32,19 @@ const USER_COLOR = "#f472b6";
 const ENTRY_COLOR = "#22c55e";
 const EXIT_COLOR = "#3b82f6";
 
-/** 每帧沿路径推进的点数（越快越接近真实书写速度） */
-const POINTS_PER_FRAME = 2;
+/**
+ * 回放线速度（归一化单位/秒；画布边长 = 100 单位）。
+ *
+ * 改用「线速度」而非「每帧推进点数」：笔顺数据的点间距约 4.2 单位，
+ * 而用户描红轨迹的点间距约 1.2–1.6 单位——若按点数推进，标准笔顺会比
+ * 用户自己的描红快约 3.4 倍（一笔仅 ~150ms，幼儿看不清）。
+ * 按弧长推进后两者速度一致；150 单位/秒 ≈ 原本「回放我的描红」的速度。
+ */
+const USER_REPLAY_UNITS_PER_SEC = 150;
+/** 标准笔顺回放更慢：一笔约 0.75 秒（平均笔长 75 单位 ÷ 0.75s） */
+const GUIDE_REPLAY_UNITS_PER_SEC = 100;
+/** 笔与笔之间的停顿，让小朋友看清换笔 */
+const STROKE_PAUSE_MS = 180;
 
 function clamp01to100(v: number): number {
   return Math.max(0, Math.min(100, v));
@@ -262,21 +273,46 @@ export function InkTrace({
     if (!playing) return;
     const strokes = playing === "guide" ? entry?.strokes.map((x) => x.points) : userStrokes;
     if (!strokes || strokes.length === 0) return; // 无可回放轨迹（按钮已禁用 / 清空时已复位）
+    // 每笔的累计弧长（按线速度推进，抵消「点密度」差异）
+    const cumLen = strokes.map((pts) => {
+      const acc = [0];
+      for (let i = 1; i < pts.length; i++) {
+        const dx = pts[i][0] - pts[i - 1][0];
+        const dy = pts[i][1] - pts[i - 1][1];
+        acc.push(acc[i - 1] + Math.sqrt(dx * dx + dy * dy));
+      }
+      return acc;
+    });
     animRef.current = { strokeIdx: 0, pointIdx: 0 };
     let cancelled = false;
     let raf = 0;
+    let strokeStart = 0;
 
-    const step = () => {
+    const step = (now: number) => {
       if (cancelled) return;
+      if (!strokeStart) strokeStart = now;
       const cur = strokes[animRef.current.strokeIdx];
       if (!cur) {
         setPlaying(null);
         return;
       }
-      animRef.current.pointIdx += POINTS_PER_FRAME;
-      if (animRef.current.pointIdx >= cur.length) {
+      const acc = cumLen[animRef.current.strokeIdx];
+      const totalLen = acc[acc.length - 1] ?? 0;
+      const elapsed = Math.max(0, now - strokeStart - STROKE_PAUSE_MS);
+      const speed =
+        playing === "guide"
+          ? GUIDE_REPLAY_UNITS_PER_SEC
+          : USER_REPLAY_UNITS_PER_SEC;
+      const targetLen = (elapsed / 1000) * speed;
+      // 按弧长定位当前笔已画到的点序号
+      let idx = animRef.current.pointIdx;
+      while (idx < acc.length - 1 && acc[idx] < targetLen) idx += 1;
+      animRef.current.pointIdx = idx;
+      if (targetLen >= totalLen) {
+        // 本笔走完 → 换下一笔（重置计时，形成笔间停顿）
         animRef.current.strokeIdx += 1;
         animRef.current.pointIdx = 0;
+        strokeStart = now;
       }
       drawRef.current();
       raf = requestAnimationFrame(step);

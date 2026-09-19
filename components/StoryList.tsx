@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, localizedHref } from "@/lib/i18n";
 import { useAppState } from "@/components/AppStateProvider";
 import { matchesLevel } from "@/lib/contentTypes";
 import type { Story } from "@/lib/parser";
 import { ImageFallback } from "./ImageFallback";
+import { TriTitle } from "./TriTitle";
 import { STORY_COVERS, STORY_EMOJI_FALLBACK } from "@/lib/imageAssets";
 
 const COLORS = [
@@ -26,7 +27,7 @@ const STORY_KEYS = ["rabbit", "bear", "bird", "dog", "cat", "pig", "sheep", "duc
  * 故事列表（软切换：按 AppState.profile.level 即时过滤）
  */
 export function StoryList({ stories }: { stories: Story[] }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { state } = useAppState();
   const level = state?.profile.level ?? "L3";
   const hidden = state?.settings.hiddenContent ?? [];
@@ -55,10 +56,16 @@ export function StoryList({ stories }: { stories: Story[] }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {list.map((story, index) => {
             const storyKey = STORY_KEYS[index % STORY_KEYS.length];
+            // 三语标题：en/fr 缺省回落中文标题
+            const triTitle = {
+              zh: story.title,
+              en: story.titleEn || story.title,
+              fr: story.titleFr || story.title,
+            };
             const coverSrc = STORY_COVERS[storyKey] ?? "";
             const coverFallback = STORY_EMOJI_FALLBACK[storyKey] ?? EMOJIS[index % EMOJIS.length];
             return (
-            <Link key={story.id} href={`/stories/${story.id}`} className="group">
+            <Link key={story.id} href={localizedHref(locale, `/stories/${story.id}`)} className="group">
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300 hover:-translate-y-1">
                 <div
                   className={`h-24 bg-gradient-to-br ${
@@ -67,16 +74,18 @@ export function StoryList({ stories }: { stories: Story[] }) {
                 >
                   <ImageFallback
                     src={coverSrc}
-                    alt={story.title}
+                    alt={triTitle[locale]}
                     fallback={coverFallback}
                     size={96}
                     lazy
                   />
                 </div>
                 <div className="p-5">
-                  <h2 className="text-lg font-bold text-gray-800 group-hover:text-purple-600 transition-colors">
-                    {story.title}
-                  </h2>
+                  <TriTitle
+                    tri={triTitle}
+                    mainClass="text-lg font-bold text-gray-800 group-hover:text-purple-600 transition-colors"
+                    subClass="text-xs text-gray-400 mt-0.5"
+                  />
                   <p className="text-sm text-gray-400 mt-1">
                     {t("story.linesCount", { n: String(story.sentences.length) })}
                   </p>

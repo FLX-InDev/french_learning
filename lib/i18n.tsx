@@ -30,6 +30,9 @@ import frBase from "@/translations/fr.json";
 export type { Locale };
 export type Translations = Record<string, string>;
 
+/** 语言路由白名单与链接工具（C1 方案①；纯函数在 localeRoute.ts，服务端亦可导入） */
+export { UI_LOCALES, localizedHref, pathWithoutLocale } from "./localeRoute";
+
 /** 基础界面 chrome（导航/页脚/各页面文案） */
 const BASE: Record<Locale, Translations> = {
   zh: zhBase as Translations,
@@ -71,18 +74,29 @@ type I18nCtx = {
 
 const I18nContext = createContext<I18nCtx | null>(null);
 
-export function I18nProvider({ children }: { children: React.ReactNode }) {
+export function I18nProvider({
+  children,
+  initialLocale,
+}: {
+  children: React.ReactNode;
+  /** 语言路由段 [locale]：存在时以 URL 为唯一真源（C1 方案①） */
+  initialLocale?: string;
+}) {
   const { state, update } = useAppState();
 
   const stored = state?.settings.locale;
-  const locale: Locale = isLocale(stored) ? stored : DEFAULT_LOCALE;
+  const routeLocale = isLocale(initialLocale) ? initialLocale : null;
+  const locale: Locale = routeLocale ?? (isLocale(stored) ? stored : DEFAULT_LOCALE);
 
-  // <html lang> 随语言变化（服务端静态 zh，挂载后由客户端纠正，不产生 hydration 差异）
+  // <html lang> 随语言变化；语言镜像到 cookie（供 `/` 与旧地址重定向）与设置持久化
   useEffect(() => {
-    if (typeof document !== "undefined") {
-      document.documentElement.lang = locale;
+    if (typeof document === "undefined") return;
+    document.documentElement.lang = locale;
+    document.cookie = `flx_locale=${locale}; path=/; max-age=31536000; samesite=lax`;
+    if (isLocale(stored) && stored !== locale) {
+      update((s) => ({ ...s, settings: { ...s.settings, locale } }));
     }
-  }, [locale]);
+  }, [locale, stored, update]);
 
   const setLocale = useCallback(
     (next: Locale) => {

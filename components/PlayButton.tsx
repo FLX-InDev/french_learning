@@ -12,6 +12,13 @@ import { pickBestVoice } from "@/lib/webSpeechVoice";
 import { useAppState } from "@/components/AppStateProvider";
 import { useI18n } from "@/lib/i18n";
 
+/** 音频语言 → 语言名 i18n key（显示随界面语言，不用 VOICE_CONFIG.label） */
+const LANG_NAME_KEY: Record<Language, string> = {
+  zh: "lang.nameZh",
+  en: "lang.nameEn",
+  fr: "lang.nameFr",
+};
+
 interface PlayButtonProps {
   text: string;
   voice?: string;
@@ -253,7 +260,8 @@ export default function PlayButton({
 
   // ── Render ──
 
-  const displayLabel = label ?? (lang ? VOICE_CONFIG[lang].label : "🔊");
+  // 语言名随界面语言（D1 裁决）：zh 界面「中文/英语/法语」，fr 界面「Chinois/Anglais/Français」
+  const displayLabel = label ?? (lang ? t(LANG_NAME_KEY[lang]) : "🔊");
   const style = lang ? langStyles[lang] : langStyles.en;
   const sizeClasses =
     size === "sm"
@@ -272,8 +280,8 @@ export default function PlayButton({
         ${isActive ? `ring-2 ${style.ring}` : ""}
         ${sizeClasses}
       `}
-      title={`朗读: ${text}`}
-      aria-label={`朗读 ${displayLabel}`}
+      title={t("playButton.readTitle", { text })}
+      aria-label={t("playButton.readAria", { label: displayLabel })}
     >
       {status === "loading" ? (
         <svg

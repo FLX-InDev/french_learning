@@ -35,7 +35,7 @@ export function KeypadInput({
         <div
           className="inline-block min-w-[140px] px-6 py-3 rounded-xl border-2 border-purple-200 text-3xl font-extrabold text-gray-800 tabular-nums bg-purple-50"
           aria-live="polite"
-          aria-label={t('keypad.currentInput', { value: value || "空" })}
+          aria-label={t('keypad.currentInput', { value: value || t('keypad.empty') })}
         >
           {value || <span className="text-gray-300">0</span>}
         </div>

@@ -6,7 +6,7 @@
  */
 
 import Link from "next/link";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, localizedHref } from "@/lib/i18n";
 import { I18nSwitcher } from "./I18nSwitcher";
 
 const LINKS = [
@@ -21,13 +21,13 @@ const LINKS = [
 ] as const;
 
 export function AppNav() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   return (
     <nav className="sticky top-0 z-50 backdrop-blur-md bg-white/70 border-b border-purple-100 shadow-sm">
       <div className="max-w-5xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-2">
         <Link
-          href="/"
+          href={localizedHref(locale, "/")}
           className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-500 bg-clip-text text-transparent hover:opacity-80 transition-opacity"
         >
           {t("nav.brand")}
@@ -36,7 +36,7 @@ export function AppNav() {
           {LINKS.map((l) => (
             <Link
               key={l.href}
-              href={l.href}
+              href={localizedHref(locale, l.href)}
               className="text-gray-600 hover:text-purple-600 transition-colors px-3 py-1.5 rounded-full hover:bg-purple-50"
             >
               {t(l.key)}

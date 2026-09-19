@@ -16,6 +16,7 @@ import {
   type AppState,
 } from "@/lib/workspace";
 import { configureSfx } from "@/lib/audioManager";
+import { isScreenTimePaused } from "@/lib/screenTimePause";
 
 type AppStateCtx = {
   state: AppState | null;
@@ -76,6 +77,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       const sec = (now - last) / 1000;
       last = now;
       if (document.hidden) return;
+      // 休息遮罩期间不计入当日累计时长（last 已推进，恢复后不补记）
+      if (isScreenTimePaused()) return;
       // 忽略休眠/后台标签造成的时间跳变
       if (sec <= 0 || sec > 120) return;
       setState((s) =>

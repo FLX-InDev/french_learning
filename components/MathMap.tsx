@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, localizedHref } from "@/lib/i18n";
 import { useAppState } from "./AppStateProvider";
 import { MATH_CURRICULUM, type MathStage } from "@/lib/mathCurriculum";
 import { getLevelConfig } from "@/lib/levels";
@@ -12,7 +12,7 @@ import { getLevelConfig } from "@/lib/levels";
  * 硬切换：升段新增关卡未解锁（历史星级保留）；降段隐藏但数据不丢。
  */
 export function MathMap() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const router = useRouter();
   const { state } = useAppState();
   const level = state?.profile.level ?? "L3";
@@ -46,14 +46,18 @@ export function MathMap() {
           <span className="text-orange-500">🔢</span> {t("math.questTitle")}
         </h1>
         <p className="text-gray-500 mt-2 text-sm">
-          当前学段 {cfg.emoji} {cfg.cnName} / {cfg.frName} · 共 {stageOrder.length} 关
+          {t("math.currentStage", {
+            emoji: cfg.emoji,
+            name: locale === "zh" ? cfg.cnName : cfg.frName,
+            n: String(stageOrder.length),
+          })}
         </p>
       </div>
 
       {/* 限时赛入口（T6-04 / S3，接入点补丁由 I 执行） */}
       <button
         type="button"
-        onClick={() => router.push("/math/race")}
+        onClick={() => router.push(localizedHref(locale, "/math/race"))}
         aria-label={t("race.entry")}
         className="w-full flex items-center justify-between gap-3 rounded-2xl border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50 p-4 text-left transition hover:border-orange-400 hover:shadow-sm"
       >
@@ -82,7 +86,7 @@ export function MathMap() {
             <div className="flex items-center gap-3">
               <span className="text-3xl">{group.emoji}</span>
               <div>
-                <h2 className="font-bold text-gray-800">{group.title.zh}</h2>
+                <h2 className="font-bold text-gray-800">{group.title[locale]}</h2>
                 <p className="text-xs text-gray-400">{group.title.fr}</p>
               </div>
             </div>
@@ -104,8 +108,8 @@ export function MathMap() {
                 <button
                   key={stage.id}
                   disabled={st === "locked"}
-                  onClick={() => router.push(`/math/${stage.id}`)}
-                  aria-label={`进入关卡 ${stage.title.zh}`}
+                  onClick={() => router.push(localizedHref(locale, `/math/${stage.id}`))}
+                  aria-label={t("math.stageAria", { name: stage.title[locale] })}
                   className={
                     "rounded-xl border-2 p-3 text-left min-h-[72px] transition " +
                     (st === "locked"
@@ -123,7 +127,7 @@ export function MathMap() {
                     </span>
                   </div>
                   <div className="mt-1 text-sm font-semibold text-gray-800">
-                    {stage.title.zh}
+                    {stage.title[locale]}
                   </div>
                   <div className="text-[11px] text-gray-400">
                     {t("math.questionCount", { n: String(stage.count) })} · {stage.kind}

@@ -59,15 +59,16 @@ export type PointRecord = { date: string; delta: number; reason: string };
 export type RewardItem = {
   id: string;
   icon: string;
-  name: string;
+  /** 名称 i18n key（界面语言决定显示；不存中文原文） */
+  nameKey: string;
   cost: number;
 };
 
 export const REWARDS: RewardItem[] = [
-  { id: "sticker", icon: "🎨", name: "专属贴纸包", cost: 30 },
-  { id: "story", icon: "📚", name: "额外故事解锁", cost: 50 },
-  { id: "song", icon: "🎵", name: "儿歌音频集", cost: 80 },
-  { id: "medal", icon: "🏆", name: "月度学霸勋章", cost: 150 },
+  { id: "sticker", icon: "🎨", nameKey: "reward.sticker", cost: 30 },
+  { id: "story", icon: "📚", nameKey: "reward.story", cost: 50 },
+  { id: "song", icon: "🎵", nameKey: "reward.song", cost: 80 },
+  { id: "medal", icon: "🏆", nameKey: "reward.medal", cost: 150 },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────
@@ -618,12 +619,12 @@ export function starsForAccuracy(acc: number): 1 | 2 | 3 {
   return acc >= 90 ? 3 : acc >= 70 ? 2 : 1;
 }
 
-/** 学科中文名（错题本分组 / 统计展示） */
-export const SUBJECT_LABELS: Record<Subject, string> = {
-  language: "语言",
-  math: "数学",
-  logic: "逻辑",
-  life: "生活",
+/** 学科名 i18n key（错题本分组 / 统计展示；界面语言决定显示） */
+export const SUBJECT_LABEL_KEYS: Record<Subject, string> = {
+  language: "subject.language",
+  math: "subject.math",
+  logic: "subject.logic",
+  life: "subject.life",
 };
 
 // ─── 学习会话真实计时（Phase 5B T5B.5，F52 / BUG-3）──────────────

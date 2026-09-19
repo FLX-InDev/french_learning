@@ -16,6 +16,7 @@
     "check:trace": "node scripts/validate-trace-data.cjs",
     "generate:trace": "node scripts/generate-print-trace.cjs && node scripts/generate-cursive-line.cjs",
     "generate:print": "node scripts/generate-print-trace.cjs",
+    "smooth:trace": "node scripts/smooth-trace-data.cjs",
     "author:trace": "node scripts/trace-authoring.cjs",
     "preview:trace": "node scripts/preview-trace-data.cjs",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run check:i18n && npm run build"

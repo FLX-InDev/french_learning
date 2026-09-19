@@ -159,6 +159,51 @@ describe("v1 内容回归（sentences / stories 零修改）", () => {
   });
 });
 
+// ─── 故事标题三语（title_en / title_fr）─────────────────────────
+
+describe("故事标题三语", () => {
+  it("组级 `- title_en:` / `- title_fr:` 写入 group.meta，且不影响句子项", () => {
+    const md = [
+      "## 小兔子的新朋友",
+      "- title_en: Little Rabbit's New Friend",
+      "- title_fr: Le nouvel ami du petit lapin",
+      "- zh: 小兔子在森林里散步。",
+      "- en: Little Rabbit was walking in the forest.",
+      "- fr: Le petit lapin se promenait dans la forêt.",
+    ].join("\n");
+    const { groups } = parseMarkdown(md);
+    const g = groups.find((x) => x.heading === "小兔子的新朋友")!;
+    expect(g.meta.title_en).toBe("Little Rabbit's New Friend");
+    expect(g.meta.title_fr).toBe("Le nouvel ami du petit lapin");
+    // 两个标题键不参与三语内容项组合：仍只有 1 条句子
+    expect(g.items.filter((it) => it.zh || it.en || it.fr)).toHaveLength(1);
+  });
+
+  it("缺省时 group.meta 无 title_en/title_fr（展示层回落中文标题）", () => {
+    const md = [
+      "## 小羊迷路了",
+      "- zh: 小羊迷路了。",
+      "- en: Little Lamb got lost.",
+      "- fr: Le petit agneau s'est perdu.",
+    ].join("\n");
+    const { groups } = parseMarkdown(md);
+    const g = groups.find((x) => x.heading === "小羊迷路了")!;
+    expect(g.meta.title_en).toBeUndefined();
+    expect(g.meta.title_fr).toBeUndefined();
+  });
+
+  it("stories.md：10 篇故事均解析出英/法标题", () => {
+    const stories = getAllStories();
+    expect(stories).toHaveLength(10);
+    stories.forEach((s) => {
+      expect(s.titleEn).toBeTruthy();
+      expect(s.titleFr).toBeTruthy();
+    });
+    expect(stories[0].titleEn).toBe("Little Rabbit's New Friend");
+    expect(stories[0].titleFr).toBe("Le nouvel ami du petit lapin");
+  });
+});
+
 // ─── 六类新内容（C1 种子）───────────────────────────────────────
 
 describe("六类新内容解析", () => {

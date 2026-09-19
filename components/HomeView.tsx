@@ -6,7 +6,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { useAppState } from "./AppStateProvider";
 import { ParentGate } from "./ParentGate";
 import { Mascot } from "./Mascot";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, localizedHref } from "@/lib/i18n";
 import { ImageFallback } from "./ImageFallback";
 import { SUBJECT_ICONS, SUBJECT_EMOJI_FALLBACK, type SubjectIconKey } from "@/lib/imageAssets";
 import type { ContentType, AlphabetCard, Word } from "@/lib/contentTypes";
@@ -39,6 +39,9 @@ const GREETINGS = [
   { zh: "我们一起学法语吧！", en: "Let's learn French!", fr: "Apprenons le français !" },
   { zh: "今天也要加油哦！", en: "You can do it!", fr: "Allez, courage !" },
 ];
+
+/** 问候语三语顺序：主行按界面语言，副行显示另外两种 */
+const GREETING_ORDER = ["zh", "en", "fr"] as const;
 
 /** 学科入口：ready=false 表示页面尚未落地，为占位禁用态 */
 const ENTRIES: {
@@ -121,7 +124,7 @@ export function HomeView({
   alphabets: AlphabetCard[];
 }) {
   const { state } = useAppState();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [greet, setGreet] = useState(GREETINGS[0]);
   const [gateOpen, setGateOpen] = useState(false);
 
@@ -154,24 +157,26 @@ export function HomeView({
             {t('home.brand')}
           </span>
         </h1>
-        <p className="text-gray-500 mt-2">{greet.fr}</p>
+        <p className="text-gray-500 mt-2">{greet[locale]}</p>
         <p className="text-gray-400 text-sm">
-          {greet.zh} · {greet.en}
+          {GREETING_ORDER.filter((l) => l !== locale)
+            .map((l) => greet[l])
+            .join(" · ")}
         </p>
 
         <div className="mt-4 flex items-center justify-center gap-2 flex-wrap">
           <button
             onClick={() => setGateOpen(true)}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-50 text-purple-700 font-semibold text-sm hover:bg-purple-100 min-h-[48px]"
-            aria-label="切换学习阶段（需家长验证）"
+            aria-label={t("home.switchStageAria")}
           >
             <span className="text-lg">{cfg.emoji}</span>
-            {levelLabel(level)}
+            {levelLabel(level, locale)}
           <span className="text-xs text-purple-400">{t('home.clickToSwitch')}</span>
           </button>
           <span
             className="inline-flex items-center gap-1 px-4 py-2 rounded-full bg-amber-50 text-amber-600 font-bold text-sm"
-            title="累计星星（数学关卡与每日挑战获得）"
+            title={t("home.starsTooltip")}
           >
             ⭐ {state?.rewards.stars ?? 0}
           </span>
@@ -188,7 +193,7 @@ export function HomeView({
             alphabets={alphabets}
           />
           <Link
-            href="/sentences"
+            href={localizedHref(locale, "/sentences")}
             className="rounded-xl bg-purple-50 p-4 hover:bg-purple-100 transition"
           >
             <div className="font-bold text-gray-800">{t('home.todaySentence.title')}</div>
@@ -232,7 +237,7 @@ export function HomeView({
               "block bg-white rounded-2xl shadow-sm border border-gray-100 p-5 text-center transition " +
               (e.ready ? "hover:shadow-md hover:-translate-y-0.5" : "opacity-60");
             return e.ready ? (
-              <Link key={e.key} href={e.href} className={cls}>
+              <Link key={e.key} href={localizedHref(locale, e.href)} className={cls}>
                 {body}
               </Link>
             ) : (
@@ -247,14 +252,14 @@ export function HomeView({
       {/* 更多入口 */}
       <section className="grid grid-cols-2 gap-4">
         <Link
-          href="/stories"
+          href={localizedHref(locale, "/stories")}
           className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 text-center hover:shadow-md transition"
         >
           <div className="text-3xl">📖</div>
           <div className="mt-2 font-bold text-gray-800">{t('home.stories')}</div>
         </Link>
         <Link
-          href="/workspace"
+          href={localizedHref(locale, "/workspace")}
           className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 text-center hover:shadow-md transition"
         >
           <div className="text-3xl">📊</div>
@@ -288,7 +293,7 @@ export function HomeView({
           title={t('home.parentsModal.title')}
           onPass={() => {
             setGateOpen(false);
-            window.location.href = "/parents";
+            window.location.href = localizedHref(locale, "/parents");
           }}
           onCancel={() => setGateOpen(false)}
         />

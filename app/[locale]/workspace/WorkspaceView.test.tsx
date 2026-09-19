@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import WorkspaceView from "@/app/workspace/WorkspaceView";
+import WorkspaceView from "@/app/[locale]/workspace/WorkspaceView";
 import { AppStateProvider } from "@/components/AppStateProvider";
 import type { Sentence } from "@/lib/parser";
 

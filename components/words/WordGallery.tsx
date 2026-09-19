@@ -21,7 +21,7 @@ import {
 } from "@/lib/workspace";
 import { matchesLevel, type Word } from "@/lib/contentTypes";
 import type { WordStatus } from "@/lib/workspace";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, localizedHref } from "@/lib/i18n";
 
 /**
  * 词汇图鉴与闪卡（PRD §7.6.1/§7.6.2/§7.6.5，Dev-Plan T5A.1/T5A.3/T5A.4/T5A.5）：
@@ -34,7 +34,7 @@ import { useI18n } from "@/lib/i18n";
  */
 export function WordGallery({ words }: { words: Word[] }) {
   const { state, update } = useAppState();
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const level = state?.profile.level ?? "L3";
   const hidden = state?.settings.hiddenContent ?? [];
   const speechRate = state?.settings.speechRate ?? 0.9;
@@ -221,7 +221,11 @@ export function WordGallery({ words }: { words: Word[] }) {
                     ? "border-green-200"
                     : "border-gray-100")
                 }
-                aria-label={`词卡 ${w.zh}（${w.fr}）${st ? t('words.hasLearned') : ''}`}
+                aria-label={t("words.cardAria", {
+                  zh: w.zh,
+                  fr: w.fr,
+                  extra: st ? t('words.hasLearned') : '',
+                })}
               >
                 <ImageFallback
                   src={WORD_PLACEHOLDER}
@@ -262,7 +266,7 @@ export function WordGallery({ words }: { words: Word[] }) {
           <PopIn className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs px-2 py-1 rounded-full bg-purple-50 text-purple-600 font-semibold truncate max-w-[60%]">
-                {current.category || "词汇"} · {level}
+                {current.category || t("content.word")} · {level}
               </span>
               <div className="flex items-center gap-2">
                 {/* 磨耳朵开关（PRD §7.6.2：3s/张 三语轮读） */}
@@ -282,7 +286,7 @@ export function WordGallery({ words }: { words: Word[] }) {
                 <button
                   className="w-9 h-9 rounded-full bg-purple-50 text-purple-600 text-lg"
                   onClick={closeDeck}
-                  aria-label="关闭闪卡"
+                  aria-label={t("words.closeCard")}
                 >
                   ×
                 </button>
@@ -317,7 +321,7 @@ export function WordGallery({ words }: { words: Word[] }) {
                   setFace("back");
                 }}
                 className="w-full py-12 rounded-2xl bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-100 hover:border-purple-300 transition"
-                aria-label={`${t('words.flip')} ${current.zh}`}
+                aria-label={t("words.flipAria", { zh: current.zh })}
               >
                 <ImageFallback
                   src={WORD_PLACEHOLDER}
@@ -334,7 +338,7 @@ export function WordGallery({ words }: { words: Word[] }) {
                       void speak(current.fr, "fr");
                     }}
                     className="w-12 h-12 rounded-full bg-green-500 text-white text-lg hover:bg-green-600"
-                    aria-label="播放法语"
+                    aria-label={t("words.playFrench")}
                   >
                     ▶
                   </button>
@@ -357,7 +361,7 @@ export function WordGallery({ words }: { words: Word[] }) {
                         cancelSpeech();
                         void speak(current.zh, "zh");
                       }}
-                      aria-label="播放中文"
+                      aria-label={t("words.playChinese")}
                     >
                       ▶
                     </button>
@@ -372,7 +376,7 @@ export function WordGallery({ words }: { words: Word[] }) {
                         cancelSpeech();
                         void speak(current.en, "en");
                       }}
-                      aria-label="播放英语"
+                      aria-label={t("words.playEnglish")}
                     >
                       ▶
                     </button>
@@ -387,7 +391,7 @@ export function WordGallery({ words }: { words: Word[] }) {
                         cancelSpeech();
                         void speak(current.fr, "fr");
                       }}
-                      aria-label="播放法语"
+                      aria-label={t("words.playFrench")}
                     >
                       ▶
                     </button>
@@ -452,7 +456,7 @@ export function WordGallery({ words }: { words: Word[] }) {
 
             <div className="text-center mt-3">
               <Link
-                href="/alphabets"
+                href={localizedHref(locale, "/alphabets")}
                 className="text-xs text-gray-300 hover:text-purple-400"
               >
                 {t('words.practiceSpelling')} →

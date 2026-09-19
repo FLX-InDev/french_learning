@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
+import { pageMeta } from "@/lib/metaDict";
 import { getContentStats, parseManifest } from "@/lib/parser";
 import { ParentsCenter, type ParentManifestItem } from "@/components/ParentsCenter";
 
-export const metadata: Metadata = {
-  title: "家长中心 - 法语宝宝学",
-  description: "学段、每日时长、内容开关与数据备份（家长门保护）",
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: { locale: string };
+}): Promise<Metadata> {
+  return pageMeta(params.locale, "meta.parents");
+}
 
 export default function ParentsPage() {
   const manifest: ParentManifestItem[] = parseManifest()

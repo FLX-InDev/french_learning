@@ -1,9 +1,14 @@
+import type { Metadata } from "next";
 import { PrivacyView } from "@/components/PrivacyView";
+import { pageMeta } from "@/lib/metaDict";
 
-export const metadata = {
-  title: "隐私声明 · 法语宝宝学",
-  description: "法语宝宝学的儿童隐私保护说明：不采集、无广告、数据仅存本机",
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: { locale: string };
+}): Promise<Metadata> {
+  return pageMeta(params.locale, "meta.privacy");
+}
 
 /**
  * 隐私声明页（PRD §7.13.6 / §11 儿童隐私合规，Dev-Plan T4.4 / F51）：

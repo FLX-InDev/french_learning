@@ -20,7 +20,7 @@ function makeQuestion() {
 export function ParentGate({
   onPass,
   onCancel,
-  title = "家长中心",
+  title,
   hint,
 }: {
   onPass: () => void;
@@ -82,12 +82,14 @@ export function ParentGate({
     <div className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-gray-900/60 backdrop-blur-sm p-0 sm:p-4">
       <div className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] shadow-xl">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-gray-800">🔒 {title}</h2>
+          <h2 className="text-lg font-bold text-gray-800">
+            🔒 {title ?? t("home.parentsModal.title")}
+          </h2>
           {onCancel && (
             <button
               onClick={onCancel}
               className="text-sm text-gray-400 hover:text-gray-600 px-2 py-1"
-              aria-label="关闭家长门"
+              aria-label={t("parentGate.closeAria")}
             >
               ✕
             </button>
@@ -132,7 +134,7 @@ export function ParentGate({
               inputMode="numeric"
               autoFocus
               className="w-40 mx-auto text-center text-2xl font-bold border-2 border-purple-200 rounded-xl px-3 py-2 outline-none focus:border-purple-500"
-              aria-label="请输入算式答案"
+              aria-label={t("parentGate.answerAria")}
             />
             {error && <p className="text-sm text-red-500 mt-2">{error}</p>}
             <button

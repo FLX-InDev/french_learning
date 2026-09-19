@@ -30,7 +30,7 @@ export function AlphabetView({
   alphabets: AlphabetCard[];
   words: Word[];
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { state, update } = useAppState();
   const [lang, setLang] = useState<"fr" | "en">("fr");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -83,7 +83,10 @@ export function AlphabetView({
       if (update && spellWord) {
         if (correct) {
           // +2 积分：拼词来源（wordProgress correct 与 misspelled 清理由 SpellingAttempt 完成）
-          update((s) => ({ ...s, points: addPoints(s.points, 2, "拼对单词") }));
+          update((s) => ({
+            ...s,
+            points: addPoints(s.points, 2, t("alphabet.spellWord")),
+          }));
         } else {
           // 拼错：记入 misspelled 队列，下次每日挑战优先重现（PRD §7.5.5）
           update((s) => ({
@@ -152,14 +155,19 @@ export function AlphabetView({
                 "bg-white rounded-2xl border-2 p-3 text-center transition hover:shadow-md hover:-translate-y-0.5 min-h-[72px] " +
                 (learned ? "border-green-200" : "border-gray-100")
               }
-              aria-label={`字母 ${a.letter}，${a.word.zh}`}
+              aria-label={t("alphabet.letterAria", {
+                letter: a.letter,
+                word: a.word[locale] ?? a.word.zh,
+              })}
             >
               <div className="text-2xl font-extrabold text-gray-800">{a.letter}</div>
               <div className="text-xl mt-1" aria-hidden>
                 {a.emoji}
               </div>
               {learned && (
-                <div className="text-[10px] text-green-500 mt-0.5">✓ 学过</div>
+                <div className="text-[10px] text-green-500 mt-0.5">
+                  {t("alphabet.learned")}
+                </div>
               )}
             </button>
           );
@@ -174,9 +182,7 @@ export function AlphabetView({
           </h2>
           <span className="text-xs text-gray-400">{t("alphabet.questionCount", { n: String(spellPool.length) })}</span>
         </div>
-        <p className="text-xs text-gray-500 mb-4">
-          看图听音，点选字母瓦片拼出法语单词；拼错的词会在「每日挑战」里再次出现。
-        </p>
+        <p className="text-xs text-gray-500 mb-4">{t("alphabet.spellingHint")}</p>
         {spellWord ? (
           <>
             <SpellingAttempt key={spellWord.id + "_" + spellIdx} word={spellWord} onResult={handleSpellResult} />
