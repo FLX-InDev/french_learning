@@ -2,6 +2,7 @@
 
 import type { QuizQuestion } from "@/lib/workspace";
 import { useI18n } from "@/lib/i18n";
+import { formatMathAnswer } from "@/lib/mathAnswer";
 
 /** 测验点评中的单题卡片（从 WorkspaceView 拆分，逻辑未改动） */
 export function QuestionCard({
@@ -13,7 +14,8 @@ export function QuestionCard({
   index: number;
   onPlay: (text: string) => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const isMath = q.subject === "math";
   const labels = ["A", "B", "C", "D"];
   return (
     <div className="bg-purple-50 rounded-xl p-3">
@@ -28,7 +30,7 @@ export function QuestionCard({
         >
           🔊
         </button>
-        <span className="italic">« {q.fr} » 是什么意思？</span>
+        <span className="italic">{isMath ? q[locale] : `« ${q.fr} » 是什么意思？`}</span>
       </div>
       <div className="space-y-1.5">
         {q.options.map((opt, o) => {
@@ -54,7 +56,7 @@ export function QuestionCard({
               >
                 {isCorrect ? "✓" : isUserWrong ? "✕" : labels[o]}
               </span>
-              <span className="text-sm text-gray-800">{opt}</span>
+              <span className="text-sm text-gray-800">{isMath ? formatMathAnswer(opt, locale) : opt}</span>
             </div>
           );
         })}

@@ -356,6 +356,7 @@ describe("createInitialState", () => {
       tapSfxOn: false,
       dailyLimitMin: 20,
       hiddenContent: [],
+      mathFreePlay: false,
     });
     expect(DAILY_LIMIT_OPTIONS).toContain(20);
   });
@@ -522,7 +523,6 @@ describe("Phase 3 状态字段", () => {
 
 // ── Phase 5A：词卡 500 内容校验（C3）───────────────────────────────
 import { getAllWords } from "./parser";
-import type { Word } from "./contentTypes";
 
 describe("C3 词卡内容（500 词 + 学段分布）", () => {
   it("总词数 = 500，学段分布符合 §6.10 规划", () => {

@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
+  ACCENT_KEYS,
+  accentsInWord,
   splitTiles,
   isSpellingEligible,
   scrambleTiles,
@@ -11,6 +13,42 @@ import {
 } from "./spelling";
 import { mulberry32, seedFromString } from "./mathGenerator";
 import { getAllWords, getAllAlphabets } from "./parser";
+
+describe("accent 提示盘（2026-09-27 裁决：13 个变音全覆盖）", () => {
+  it("ACCENT_KEYS 恰为 13 个，且覆盖 rare 变音 â û ë ï ü", () => {
+    expect(ACCENT_KEYS).toHaveLength(13);
+    expect(new Set(ACCENT_KEYS).size).toBe(13);
+    for (const a of ["é", "à", "è", "ù", "â", "ê", "î", "ô", "û", "ë", "ï", "ü", "ç"]) {
+      expect(ACCENT_KEYS, `缺键位 ${a}`).toContain(a);
+    }
+  });
+
+  it("accentsInWord：命中单词内实际出现的变音（含新词卡 théâtre / maïs / Noël / goût / aigüe）", () => {
+    // 一个词可含多个变音：théâtre = é + â（按 ACCENT_KEYS 顺序返回）
+    expect(accentsInWord("théâtre")).toEqual(["é", "â"]);
+    expect(accentsInWord("maïs")).toEqual(["ï"]);
+    expect(accentsInWord("Noël")).toEqual(["ë"]);
+    expect(accentsInWord("goût")).toEqual(["û"]);
+    expect(accentsInWord("aigüe")).toEqual(["ü"]);
+    expect(accentsInWord("leçon")).toEqual(["ç"]);
+    expect(accentsInWord("château")).toEqual(["â"]);
+    // 无变音的单词 → 提示盘不渲染（既有行为）
+    expect(accentsInWord("pomme")).toEqual([]);
+  });
+
+  it("短变音词 là / où 不入拼词池（2 瓦片 < MIN_TILES；2026-09-28 裁决）", () => {
+    // 裁决：à / ù 卡的代表词只作翻卡与描红，不进拼词（否则 2 瓦片题过低龄）
+    expect(isSpellingEligible("là")).toBe(false);
+    expect(isSpellingEligible("où")).toBe(false);
+    const pool = buildSpellingPool(getAllWords(), getAllAlphabets());
+    expect(pool.some((w) => w.fr.toLowerCase() === "là")).toBe(false);
+    expect(pool.some((w) => w.fr.toLowerCase() === "où")).toBe(false);
+    // 但变音卡的其它代表词应正常入池（例：aiguë / maïs / Noël）
+    for (const w of ["aiguë", "maïs", "noël"]) {
+      expect(pool.some((x) => x.fr.toLowerCase() === w), `${w} 应在池中`).toBe(true);
+    }
+  });
+});
 
 describe("splitTiles（瓦片拆分）", () => {
   it("普通单词逐字符拆分并小写化", () => {

@@ -29,7 +29,7 @@ export function usePlaylist(opts: {
   const { count, buildItems, gapMs = 400, speechRate } = opts;
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [playing, setPlaying] = useState(false);
-  const [langMode, setLangMode] = useState<LangMode>("fr");
+  const [langMode, setLangModeState] = useState<LangMode>("fr");
   const runIdRef = useRef(0);
 
   useEffect(() => {
@@ -80,13 +80,12 @@ export function usePlaylist(opts: {
     [playing, activeIndex, stop, start]
   );
 
-  // 语言模式切换时停止（避免半途混播两种模式）
-  useEffect(() => {
-    runIdRef.current++;
-    cancelSpeech();
-    setPlaying(false);
-    setActiveIndex(null);
-  }, [langMode]);
+  // 仅在用户改变语言时停止；同值选择不打断正在播放的清单。
+  const setLangMode = useCallback((mode: LangMode) => {
+    if (mode === langMode) return;
+    stop();
+    setLangModeState(mode);
+  }, [langMode, stop]);
 
   // 卸载时停止
   useEffect(

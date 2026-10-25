@@ -3,7 +3,7 @@
  *
  * - 契约：`docs/phase-6/CONTEXT.md §2.7`（契约 G，v1.6）
  * - 规格：`docs/phase-6/trace-data-spec.md`（字段 / cursive 规则 / 变音拆笔 / 校验）
- * - 数据源：`data/trace/letter-strokes.json`（内容轨产出，**94 字形**）
+ * - 数据源：`data/trace/letter-strokes.json`（内容轨产出，**130 字形**）
  * - 边界：本文件**只读数据、只做取用与归一化**，不含判定逻辑——描红**只回放不判分**（PRD §7.5.7）
  *
  * 校验：`npm run check:trace [--strict]`（结构化校验，脚本与本文件单测同源规则）。
@@ -92,7 +92,7 @@ function buildMap(): LetterStrokeMap {
 /** 全部可用字形（键 = `${style}:${glyph}`）；不可渲染条目已被过滤 */
 export const LETTER_STROKES: LetterStrokeMap = buildMap();
 
-/** 94 个字形键（排序，稳定） */
+/** 130 个字形键（排序，稳定） */
 export const TRACE_GLYPHS: string[] = Object.keys(LETTER_STROKES).sort();
 
 // ─── 取用接口（契约 G 冻结签名）─────────────────────────────────
@@ -101,7 +101,7 @@ export function getLetterStroke(key: string): LetterStroke | undefined {
   return LETTER_STROKES[key];
 }
 
-/** 按语言 / 书写体筛选字形键；无参 = 全部（94） */
+/** 按语言 / 书写体筛选字形键；无参 = 全部（130） */
 export function listTraceGlyphs(lang?: "fr" | "en", style?: TraceStyle): string[] {
   return TRACE_GLYPHS.filter((key) => {
     const e = LETTER_STROKES[key];
@@ -124,6 +124,28 @@ export function traceGlyphChars(lang?: "fr" | "en", style?: TraceStyle): string[
     }
   }
   return out;
+}
+
+/** 变音字形教学顺序（对齐 `packs/frcursive/accentcase.md`）；未列出的排在末尾 */
+const ACCENT_ORDER = ["é", "à", "è", "ù", "â", "ê", "î", "ô", "û", "ë", "ï", "ü", "ç"];
+
+/**
+ * **变音字形**字符清单（字母表 A–Z / a–z 之外的字形）。
+ *
+ * 用途：描红入口除字母卡外，再按**数据侧清单**兜底列一次变音字形——内容侧若还没给某个
+ * 变音建卡，数据里的 13 个变音（print / cursive 各一套）也不会没有入口
+ * （T6-08 验收 ①⑤「变音全量可回放」）。`data/alphabets.md` 自 2026-09-27 起已含 13 张变音卡，
+ * 故此清单通常为空（调用方自行去重）。
+ * 英语不含变音字形（`langs` 无 `en`）→ 返回空数组。
+ */
+export function accentGlyphChars(lang?: "fr" | "en"): string[] {
+  const rank = (g: string) => {
+    const i = ACCENT_ORDER.indexOf(g);
+    return i < 0 ? ACCENT_ORDER.length : i;
+  };
+  return traceGlyphChars(lang)
+    .filter((g) => !/^[A-Za-z]$/.test(g))
+    .sort((a, b) => rank(a) - rank(b));
 }
 
 /**
@@ -185,13 +207,16 @@ export function strokeDisplayRoles(entry: LetterStroke): StrokeKind[] {
   });
 }
 
-/** 四线格参考线（含 baseline 加粗）；cursive 附加倾斜引导线端点 */
-export function guideLines(entry: LetterStroke): {
+/**
+ * 四线格参考线（含 baseline 加粗）；cursive 附加倾斜引导线端点。
+ * v1.8：入参收窄成 `TraceGuides`（原先只需 entry.guides，却把整个 LetterStroke 类型绑到了渲染层，
+ * 汉字 board 模式没有 LetterStroke）。调用点仅 InkTrace 与其单测。
+ */
+export function guideLines(g: TraceGuides): {
   y: number;
   weight: "thin" | "base" | "thick";
   label: keyof Omit<TraceGuides, "slant">;
 }[] {
-  const g = entry.guides;
   return [
     { y: g.ascender, weight: "thin", label: "ascender" },
     { y: g.capHeight, weight: "thin", label: "capHeight" },

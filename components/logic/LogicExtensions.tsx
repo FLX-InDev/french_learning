@@ -75,7 +75,6 @@ function MazeGame() {
     <div className="grid gap-0.5" style={{ gridTemplateColumns: `repeat(${maze.cols}, 1fr)` }}>
       {Array.from({ length: maze.rows }, (_, r) => Array.from({ length: maze.cols }, (_, c) => {
         const isHere = r === pos[0] && c === pos[1]; const cell = maze.grid[r][c];
-        const b = [cell.top && "bt", cell.right && "br", cell.bottom && "bb", cell.left && "bl"].filter(Boolean).join(" ");
         return <div key={`${r}${c}`} className={"min-h-[36px] flex items-center justify-center text-lg border-gray-300 " + (cell.top ? "border-t-2 " : "") + (cell.right ? "border-r-2 " : "") + (cell.bottom ? "border-b-2 " : "") + (cell.left ? "border-l-2 " : "")}>
           {isHere ? "🦊" : r === 0 && c === 0 ? "🚪" : r === maze.rows - 1 && c === maze.cols - 1 ? "⭐" : ""}</div>;
       }))}

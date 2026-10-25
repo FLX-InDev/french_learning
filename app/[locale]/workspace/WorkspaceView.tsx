@@ -51,6 +51,7 @@ import {
   toChoiceQuizQuestion,
   type MathKind,
 } from "@/lib/mathGenerator";
+import { formatMathAnswer } from "@/lib/mathAnswer";
 import {
   generateLogicQuestion,
   logicToChoiceQuestion,
@@ -58,6 +59,7 @@ import {
   type LogicKind,
 } from "@/lib/logicEngine";
 import { useAppState } from "@/components/AppStateProvider";
+import { useHydrated } from "@/components/useHydrated";
 import { useI18n, localizedHref } from "@/lib/i18n";
 // ── 拆分出的展示组件（见 components/workspace/）──
 import { LiveQuizModal } from "@/components/workspace/LiveQuizModal";
@@ -96,13 +98,9 @@ export default function WorkspaceView({
     "idle" | "recording" | "denied" | "unsupported" | "error"
   >("idle");
   const [recMsg, setRecMsg] = useState<string>("");
-  const [asrSupported, setAsrSupported] = useState<boolean | null>(null);
+  const hydrated = useHydrated();
+  const asrSupported = hydrated ? isSpeechRecognitionSupported() : null;
   const [useTtsBackend, setUseTtsBackend] = useState(false);
-  const [lastSpeakSummary, setLastSpeakSummary] = useState<{
-    avg: number;
-    passed: number;
-    total: number;
-  } | null>(null);
   const [liveReview, setLiveReview] = useState(false);
   // 真实计时（F52/BUG-3）：会话开始时间戳，提交时换算分钟
   const [liveStartedAt, setLiveStartedAt] = useState<number>(() => Date.now());
@@ -110,11 +108,6 @@ export default function WorkspaceView({
   const [mistakeFilter, setMistakeFilter] = useState<"all" | Subject>("all");
   // 全局语速：家长中心设置（0.75 慢速 / 0.9 正常），TTS 双轨同步生效
   const speechRate = ws?.settings.speechRate ?? NORMAL_SPEECH_RATE;
-
-  // 能力检测：浏览器是否支持语音识别（决定跟读题型是否可用）
-  useEffect(() => {
-    setAsrSupported(isSpeechRecognitionSupported());
-  }, []);
 
   // TTS 方案检测：read-aloud-sf 可用则走后端，否则回退浏览器内置语音
   useEffect(() => {
@@ -294,9 +287,9 @@ export default function WorkspaceView({
     setLiveReview(false);
     setLiveOpen(true);
   }
-  function startReview() {
+  function startReview(startedAt: number) {
     if (visibleMistakes.length === 0) return;
-    setLiveStartedAt(Date.now());
+    setLiveStartedAt(startedAt);
     const lvl = ws?.profile.level ?? "L3";
     const t = todayStr();
 
@@ -467,7 +460,8 @@ export default function WorkspaceView({
       const result = scorePronunciation(
         q.targetText as string,
         cands,
-        q.targetLang as SpeakLang
+        q.targetLang as SpeakLang,
+        locale
       );
 
       setSpeakResults((prev) =>
@@ -529,9 +523,6 @@ export default function WorkspaceView({
     const avg = Math.round(
       scores.reduce((s, n) => s + n, 0) / (scores.length || 1)
     );
-    const passed = scores.filter((s) =>
-      isPronunciationPass(s, ws.profile.level)
-    ).length;
     const t = todayStr();
 
     const newSession: StudySession = {
@@ -554,7 +545,6 @@ export default function WorkspaceView({
     ];
     persist({ ...ws, sessions, points: pts });
     setLiveSubmitted(true);
-    setLastSpeakSummary({ avg, passed, total: scores.length });
   }
 
   // Esc 关闭弹窗
@@ -954,7 +944,7 @@ export default function WorkspaceView({
                 );
               })}
             </div>
-            <button className="btn-primary mb-3" onClick={startReview}>
+            <button className="btn-primary mb-3" onClick={() => startReview(Date.now())}>
               {tr("workspace.reviewMistakes", {
                 count: String(visibleMistakes.length),
               })}
@@ -983,22 +973,28 @@ export default function WorkspaceView({
                     </span>
                   </div>
                   <div className="text-sm font-semibold text-gray-800 italic mt-1">
-                    « {m.q.fr} »
+                    {m.subject === "math" ? m.q[locale] : `« ${m.q.fr} »`}
                   </div>
                   <div className="text-xs mt-1 flex flex-wrap gap-x-3 gap-y-1">
                     <span className="text-red-500">
                       {tr("workspace.yourAnswer", {
-                        answer: m.q.options[m.q.userIndex ?? 0],
+                        answer: m.subject === "math"
+                          ? formatMathAnswer(m.q.options[m.q.userIndex ?? 0], locale)
+                          : m.q.options[m.q.userIndex ?? 0],
                       })}
                     </span>
                     <span className="text-green-600">
                       {tr("workspace.correctAnswer", {
-                        answer: m.q.options[m.q.correctIndex],
+                        answer: m.subject === "math"
+                          ? formatMathAnswer(m.q.options[m.q.correctIndex], locale)
+                          : m.q.options[m.q.correctIndex],
                       })}
                     </span>
                   </div>
                   <div className="text-xs text-gray-500 mt-1">
-                    {m.q.explanation}
+                    {m.subject === "math"
+                      ? `${m.q[locale]} = ${formatMathAnswer(m.q.options[m.q.correctIndex], locale)}`
+                      : m.q.explanation}
                   </div>
                 </div>
               ))}

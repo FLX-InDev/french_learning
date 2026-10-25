@@ -1,0 +1,10 @@
+{
+  "hanziJudge.hintIdle": "沿着虚线慢慢描，笔顺会提示但不打分",
+  "hanziJudge.hintRetryStart": "从绿色小圆点起笔，再试一次",
+  "hanziJudge.hintOffPath": "沿着虚线慢慢描",
+  "hanziJudge.hintIncomplete": "这一笔还没写完，再试一次",
+  "hanziJudge.hintOtherStroke": "这是第 {k} 笔，先写第 {n} 笔",
+  "hanziJudge.hintOneByOne": "一笔一笔写，写完抬起手",
+  "hanziJudge.progress": "第 {i} / {n} 笔",
+  "hanziJudge.done": "全部写完啦，写得很好！"
+}

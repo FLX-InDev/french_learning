@@ -35,17 +35,16 @@ export function useConfetti(): { active: boolean; fire: () => void } {
 
 export function Confetti({ active }: { active: boolean }) {
   const reduced = usePrefersReducedMotion();
-  const [visible, setVisible] = useState(false);
+  return active && !reduced ? <ConfettiBurst /> : null;
+}
+
+function ConfettiBurst() {
+  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    if (!active || reduced) {
-      setVisible(false);
-      return;
-    }
-    setVisible(true);
     const id = window.setTimeout(() => setVisible(false), 1600);
     return () => window.clearTimeout(id);
-  }, [active, reduced]);
+  }, []);
 
   if (!visible) return null;
 

@@ -1,0 +1,10 @@
+{
+  "hanziJudge.hintIdle": "Suis la ligne pointillée doucement : l'ordre est guidé, jamais noté",
+  "hanziJudge.hintRetryStart": "Repars du point vert",
+  "hanziJudge.hintOffPath": "Suis la ligne pointillée, doucement",
+  "hanziJudge.hintIncomplete": "Ce trait n'est pas fini — réessaie",
+  "hanziJudge.hintOtherStroke": "C'est le trait {k} ; écris d'abord le {n}",
+  "hanziJudge.hintOneByOne": "Un trait à la fois, lève le doigt",
+  "hanziJudge.progress": "Trait {i} sur {n}",
+  "hanziJudge.done": "Tous les traits sont finis — bravo !"
+}

@@ -224,7 +224,7 @@ describe("scorePronunciation", () => {
     expect(r.feedback.join()).toContain("置信度较低");
   });
 
-  it("反馈按语言给不同要点", () => {
+  it("反馈按跟读语言给不同要点", () => {
     const fr = scorePronunciation("Bonjour", [
       { transcript: "bonjour", confidence: 1 },
     ], "fr");
@@ -233,6 +233,29 @@ describe("scorePronunciation", () => {
     ], "en");
     expect(fr.feedback.join()).toContain("联诵");
     expect(en.feedback.join()).toContain("元音");
+  });
+
+  it("反馈随界面语言取词（en/fr 界面不再出中文；缺 key 会回退成字面量而被捕获）", () => {
+    const en = scorePronunciation("Bonjour", [{ transcript: "bonjour", confidence: 1 }], "fr", "en");
+    expect(en.feedback.join(" | ")).toContain("liaisons");
+    expect(en.feedback.join(" | ")).not.toMatch(/[一-鿿]/);
+
+    const fr = scorePronunciation("Bonjour", [{ transcript: "bonjour", confidence: 1 }], "fr", "fr");
+    expect(fr.feedback.join(" | ")).toContain("voyelles nasales");
+    expect(fr.feedback.join(" | ")).not.toMatch(/[一-鿿]/);
+  });
+
+  it("词表超过 5 个时走 *More 模板并插值 {shown}/{count}", () => {
+    const r = scorePronunciation("a b c d e f g", [
+      { transcript: "a", confidence: 0.9 },
+    ], "fr", "en");
+    expect(r.feedback.join()).toContain("showing 5 of 6");
+    expect(r.feedback.join()).toContain("b, c, d, e, f");
+  });
+
+  it("中文界面词表分隔符为顿号", () => {
+    const r = scorePronunciation("a b c", [{ transcript: "a", confidence: 0.9 }], "fr", "zh");
+    expect(r.feedback.join()).toContain("漏读或发音不清：b、c");
   });
 
   it("分数始终落在 0-100 区间", () => {

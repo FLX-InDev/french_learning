@@ -16,6 +16,7 @@
   "trace.styleCursive": "手写体",
   "trace.noData": "该字形暂无笔顺数据",
   "trace.additiveNote": "描红为附加练习，翻卡与点读不受影响",
+  "trace.accents": "变音字母",
   "trace.letterPrev": "上一个字母",
   "trace.letterNext": "下一个字母",
   "trace.letterOf": "第 {i} / {n} 个字母"

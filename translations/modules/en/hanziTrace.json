@@ -1,0 +1,12 @@
+{
+  "hanziTrace.title": "Character Tracing",
+  "hanziTrace.bandLabel": "Starter band (ages 3–4, one-piece characters of 1–2 strokes)",
+  "hanziTrace.strokesOf": "{n} stroke(s) in this character",
+  "hanziTrace.replayNote": "Strokes are checked gently — never scored",
+  "hanziTrace.charOf": "Character {i} / {n}",
+  "hanziTrace.charPrev": "Previous character",
+  "hanziTrace.charNext": "Next character",
+  "hanziTrace.noData": "No character trace data yet",
+  "hanziTrace.attribution": "Stroke skeletons come from the open-source hanzi-writer-data font library (Arphic fonts, ARPHIC Public License 1.1); stroke order is checked stroke by stroke against GF 0023-2020.",
+  "hanziTrace.licenceLink": "Read the licence text"
+}

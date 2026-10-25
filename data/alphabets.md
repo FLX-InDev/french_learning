@@ -1,11 +1,13 @@
 ---
 type: alphabet
-levels: [L1, L2, L3]
 ---
 
 # 字母表
 
-> NEEDS_REVIEW：C1 种子内容（AI 初稿），需法语母语者校对后移除本标记。
+> 学段：字母表**不分学段归属**（2026-09-27 裁决）——文件级 `levels` 已移除（空 = 不限），
+> 与 `AlphabetCard` 无 `level` 字段一致；页面按语言 Tab 展示，不按学段过滤。
+> NEEDS_REVIEW：**A–Z 26 张字母卡**为 C1 种子内容（AI 初稿），需法语母语者校对后移除本标记。
+> （**变音 13 张**已于 2026-09-28 经项目方 review 并修订，标记已移除，见下。）
 > 格式：每张卡以 `- letter:` 起头，`- word:` 为代表词三语，`- example:` 为例句（可选），
 > `- lang:` 在 `##` 分组内只需声明一次。
 
@@ -56,7 +58,7 @@ levels: [L1, L2, L3]
 - letter: Ii
 - emoji: 🏝️
 - word: 岛 | island | île
-- example: 岛上很安静。| The island is quiet. | L'île est tranquille.
+- example: 岛上很安静。| The island is quiet. | Cette île est très tranquille.
 
 - letter: Jj
 - emoji: 🧸
@@ -143,6 +145,77 @@ levels: [L1, L2, L3]
 - word: 斑马 | zebra | zèbre
 - example: 斑马有条纹。| The zebra has stripes. | Le zèbre a des rayures.
 
+> ── 变音字母卡（T6-08 配套，2026-09-27 新增；**2026-09-28 校对通过**）────────────
+> 代表词 / 例句已于 2026-09-28 经项目方 review 并修订；`ü` 采用传统拼写 **`aiguë`**（原稿 `aigüe` 为 1990 改革形）。
+> `à` / `ù` 的代表词 `là` / `où` 为 2 瓦片短词，**按裁决只作翻卡与描红，不入拼词池**（3–7 瓦片规则）。
+> 变音字母在法语中只用于小写（大写不加重音），故 `letter` 为单字符形态（如 `é`）；
+> 这 13 个字形与笔顺数据（`data/trace/`：print / cursive 各一套）一一对应，可直接描红。
+
+- letter: é
+- emoji: 🐘
+- word: 大象 | elephant | éléphant
+- example: 大象的鼻子很长。| The elephant has a long trunk. | L'éléphant a une longue trompe.
+
+- letter: à
+- emoji: 👉
+- word: 那里 | there | là
+- example: 我的书在那里。| My book is over there. | Mon livre est là.
+
+- letter: è
+- emoji: 👨
+- word: 爸爸 | father | père
+- example: 爸爸在读报纸。| Dad is reading the newspaper. | Mon père lit le journal.
+
+- letter: ù
+- emoji: ❓
+- word: 哪里 | where | où
+- example: 你在哪里？| Where are you? | Où es-tu ?
+
+- letter: â
+- emoji: 🎭
+- word: 剧院 | theatre | théâtre
+- example: 我们去剧院看戏。| We go to the theatre. | Nous allons voir une pièce au théâtre.
+
+- letter: ê
+- emoji: 🎉
+- word: 节日 | party | fête
+- example: 今天是节日！| Today is a party! | Aujourd'hui, c'est la fête !
+
+- letter: î
+- emoji: 📦
+- word: 盒子 | box | boîte
+- example: 盒子里有个玩具。| There is a toy in the box. | Il y a un jouet dans la boîte.
+
+- letter: ô
+- emoji: 🏨
+- word: 旅馆 | hotel | hôtel
+- example: 我们住在旅馆。| We are staying at a hotel. | Nous passons la nuit à l'hôtel.
+
+- letter: û
+- emoji: 😋
+- word: 味道 | taste | goût
+- example: 这个味道真好。| This tastes good. | Ce plat a un bon goût.
+
+- letter: ë
+- emoji: 🎄
+- word: 圣诞节 | Christmas | Noël
+- example: 圣诞节我们唱歌。| We sing at Christmas. | À Noël, nous chantons des chansons.
+
+- letter: ï
+- emoji: 🌽
+- word: 玉米 | corn | maïs
+- example: 我喜欢玉米。| I like corn. | J'aime manger du maïs.
+
+- letter: ü
+- emoji: 🔺
+- word: 尖锐的 | sharp | aiguë
+- example: 疼痛很剧烈。| The pain is sharp. | La douleur est aiguë.
+
+- letter: ç
+- emoji: 📖
+- word: 课程 | lesson | leçon
+- example: 今天的课很有趣。| Today's lesson is fun. | La leçon du jour est amusante.
+
 ## English
 
 - lang: en
@@ -181,7 +254,7 @@ levels: [L1, L2, L3]
 
 - letter: Ii
 - emoji: 🍦
-- word: 冰淇淋 | ice cream | glace
+- word: 冰淇淋 | ice cream | crème glacée
 
 - letter: Jj
 - emoji: 🧃
@@ -209,7 +282,7 @@ levels: [L1, L2, L3]
 
 - letter: Pp
 - emoji: 🐧
-- word: 企鹅 | penguin | manchot
+- word: 企鹅 | penguin | penguin
 
 - letter: Qq
 - emoji: 👑

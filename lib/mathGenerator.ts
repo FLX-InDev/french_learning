@@ -26,7 +26,9 @@ export type MathKind =
   | "placeValue"
   | "sequence"
   | "clock"
-  | "money"
+  | "shape"
+  | "motif"
+  | "countFr"
   | "wordProblem"
   | "mul"
   | "lengthUnit"
@@ -49,12 +51,44 @@ export type ArithVisual = {
 export type PlaceValueVisual = { tens: number; ones: number; hundreds?: number };
 export type SequenceVisual = { items: (number | "?")[]; step: number };
 export type ClockVisual = { hour: number; minute: 0 | 15 | 30 | 45 };
-export type MoneyVisual = {
-  mode: "count" | "pay";
-  currency: "CNY" | "EUR";
-  notes: number[];
-  price?: number;
+
+export type ShapeName =
+  | "cercle"
+  | "carré"
+  | "triangle"
+  | "rectangle"
+  | "étoile"
+  | "cœur";
+export type ColorName = "rouge" | "bleu" | "jaune" | "vert" | "violet";
+
+export type ShapeVisual = { type: "shape"; shape: ShapeName; color: ColorName };
+/** items 为 `shape|color` 编码 token，null = ? 位 */
+export type MotifVisual = { type: "motif"; items: (string | null)[] };
+export type CountFrVisual = {
+  type: "countFr";
+  shape: ShapeName;
+  color: ColorName;
+  count: number;
 };
+
+/** 图形接龙 token 编码：答案与选项都是语言中立的 `shape|color` 串 */
+export function motifToken(shape: ShapeName, color: ColorName): string {
+  return `${shape}|${color}`;
+}
+export function decodeMotifToken(
+  s: string
+): { shape: ShapeName; color: ColorName } | null {
+  const [shape, color] = s.split("|");
+  if (
+    shape &&
+    color &&
+    FR_SHAPES.includes(shape as ShapeName) &&
+    SHAPE_COLORS.some((c) => c.name === color)
+  ) {
+    return { shape: shape as ShapeName, color: color as ColorName };
+  }
+  return null;
+}
 export type WordProblemVisual = {
   emoji: string;
   a: number;
@@ -120,7 +154,9 @@ export type MathVisual =
   | PlaceValueVisual
   | SequenceVisual
   | ClockVisual
-  | MoneyVisual
+  | ShapeVisual
+  | MotifVisual
+  | CountFrVisual
   | WordProblemVisual
   | LengthUnitVisual
   | MassUnitVisual
@@ -220,6 +256,48 @@ const COMPARE_MAX: Record<Level, number> = {
 };
 
 const EMOJI_POOL = ["🍎", "🐦", "🐟", "🌸", "⭐", "🎈", "🍪", "🐞"] as const;
+
+// ─── 图形与数（L3「Formes et nombres」词表，选项即法语目标词）────
+
+export const FR_SHAPES: readonly ShapeName[] = [
+  "cercle",
+  "carré",
+  "triangle",
+  "rectangle",
+  "étoile",
+  "cœur",
+];
+
+export const SHAPE_COLORS: readonly { name: ColorName; hex: string }[] = [
+  { name: "rouge", hex: "#ef4444" },
+  { name: "bleu", hex: "#3b82f6" },
+  { name: "jaune", hex: "#facc15" },
+  { name: "vert", hex: "#22c55e" },
+  { name: "violet", hex: "#a855f7" },
+];
+
+export const FR_NUMBERS: readonly string[] = [
+  "un",
+  "deux",
+  "trois",
+  "quatre",
+  "cinq",
+  "six",
+  "sept",
+  "huit",
+  "neuf",
+  "dix",
+];
+
+/** 老题库中文答案 → 法语图形名（固定题桥接用） */
+const SHAPE_ZH_ALIAS: Record<string, ShapeName> = {
+  圆形: "cercle",
+  正方形: "carré",
+  三角形: "triangle",
+  长方形: "rectangle",
+  五角星: "étoile",
+  心形: "cœur",
+};
 
 // ─── choice 干扰项（复用 workspace 数值邻近策略）─────────────────
 
@@ -333,6 +411,43 @@ function timeStr(hour: number, minute: number): string {
   return `${hour}:${String(minute).padStart(2, "0")}`;
 }
 
+/** 时钟题通用题干：指针位置由表盘插图呈现，题干不做文字描述 */
+const CLOCK_PROMPT: Tri = {
+  zh: "钟面上是几点？",
+  en: "What time is it?",
+  fr: "Il est quelle heure ?",
+};
+
+/** 钟面选项：正确答案 + 邻近干扰（h:mm 数字格式，三语下语言中立） */
+function clockOptions(
+  hour: number,
+  minute: number,
+  level: Level,
+  rng: Rng
+): string[] {
+  const optionCount = getOptionCount(level);
+  const answer = timeStr(hour, minute);
+  const others = shuffled(rng, [
+    timeStr((hour % 12) + 1, minute),
+    timeStr(hour, minute === 30 ? 0 : 30),
+    timeStr(((hour + 1) % 12) + 1, minute === 0 ? 30 : 0),
+  ]);
+  return shuffled(rng, [answer, ...others.slice(0, Math.max(1, optionCount - 1))]).slice(
+    0,
+    optionCount
+  );
+}
+
+/** 图形法语名选项：正确词 + 其他图形名（三语下选项恒为法语目标词） */
+function shapeNameOptions(
+  shape: ShapeName,
+  rng: Rng,
+  optionCount: number
+): string[] {
+  const others = shuffled(rng, FR_SHAPES.filter((s) => s !== shape));
+  return shuffled(rng, [shape, ...others.slice(0, optionCount - 1)]);
+}
+
 // ─── L6 竖式（乘除竖式感知，CE2）───────────────────────────────
 /** 合法余数范围 1..除数-1 内的非当前余数（用于干扰项） */
 function divisorBound(divisor: number, remainder: number): number {
@@ -342,7 +457,7 @@ function divisorBound(divisor: number, remainder: number): number {
 // 子模式：
 //   mul         一位数 × 两位数（竖式），答案 = 积
 //   divExact    两位数 ÷ 一位数（整除），答案 = 商
-//   divRemainder 两位数 ÷ 一位数（有余数），答案 = "商 余 余数"（choice）
+//   divRemainder 两位数 ÷ 一位数（有余数），答案 token = "3r2"（choice）
 function generateMulDiv(level: Level, rng: Rng): {
   visual: MulDivVisual;
   answer: string;
@@ -399,7 +514,7 @@ function generateMulDiv(level: Level, rng: Rng): {
     result: quotient,
     remainder,
   };
-  return { visual, answer: `${quotient} 余 ${remainder}` };
+  return { visual, answer: `${quotient}r${remainder}` };
 }
 
 // ─── L6 分数初步（CE2）─────────────────────────────────────────
@@ -575,9 +690,10 @@ export function generateMathQuestion(params: GenerateMathParams): MathQuestion {
 
     case "compare": {
       const max = COMPARE_MAX[level];
-      const left = randInt(rng, 0, max);
-      let right = randInt(rng, 0, max);
-      if (left === right) right = (right + 1) % (max + 1);
+      // 两侧至少 1 个：某侧为 0 时「?」右侧一片空白，幼儿会当作渲染故障
+      const left = randInt(rng, 1, max);
+      let right = randInt(rng, 1, max);
+      if (left === right) right = (right % max) + 1;
       const answer = left > right ? ">" : left < right ? "<" : "=";
       const emoji = pick(rng, EMOJI_POOL);
       const visual: CompareVisual = {
@@ -702,15 +818,24 @@ export function generateMathQuestion(params: GenerateMathParams): MathQuestion {
       const minute = pick(rng, minutePool);
       const visual: ClockVisual = { hour, minute };
       const answer = timeStr(hour, minute);
-      const others = shuffled(
-        rng,
-        [
-          timeStr(((hour % 12) + 1) as number, minute),
-          timeStr(hour, minute === 30 ? 0 : 30),
-          timeStr(((hour + 1) % 12) + 1, minute === 0 ? 30 : 0),
-        ]
-      );
-      const opts = shuffled(rng, [answer, ...others.slice(0, Math.max(1, optionCount - 1))]);
+      return {
+        id,
+        subject: "math",
+        level,
+        kind,
+        source: "generated",
+        prompt: CLOCK_PROMPT,
+        answer,
+        visual,
+        inputMode: "choice",
+        options: clockOptions(hour, minute, level, rng),
+      };
+    }
+
+    case "shape": {
+      const shape = pick(rng, FR_SHAPES);
+      const color = pick(rng, SHAPE_COLORS);
+      const visual: ShapeVisual = { type: "shape", shape, color: color.name };
       return {
         id,
         subject: "math",
@@ -718,40 +843,91 @@ export function generateMathQuestion(params: GenerateMathParams): MathQuestion {
         kind,
         source: "generated",
         prompt: {
-          zh: "钟面上是几点？",
-          en: "What time is it?",
-          fr: "Il est quelle heure ?",
+          zh: "这是什么图形？用法语选出它的名字。",
+          en: "Which French word names this shape?",
+          fr: "Comment dit-on cette forme en français ?",
+        },
+        answer: shape,
+        visual,
+        inputMode: "choice",
+        options: shapeNameOptions(shape, rng, optionCount),
+      };
+    }
+
+    case "motif": {
+      // 5 格序列，末位为 ?；周期 ABAB / AABB / ABC
+      const shapes = shuffled(rng, [...FR_SHAPES]);
+      const colors = shuffled(rng, [...SHAPE_COLORS]);
+      const t = (i: number) => motifToken(shapes[i % shapes.length], colors[i % colors.length].name);
+      const mode = pick(rng, ["ABAB", "AABB", "ABC"] as const);
+      let cycle: string[];
+      if (mode === "ABAB") cycle = [t(0), t(1)];
+      else if (mode === "AABB") cycle = [t(0), t(0), t(1), t(1)];
+      else cycle = [t(0), t(1), t(2)];
+      const items: (string | null)[] = [0, 1, 2, 3].map((i) => cycle[i % cycle.length]);
+      const answer = cycle[4 % cycle.length];
+      items.push(null);
+      const visual: MotifVisual = { type: "motif", items };
+      // 干扰项优先取序列中已出现的其他 token（幼儿从见过的里选）
+      const seen = shuffled(rng, Array.from(new Set(items.filter((x): x is string => !!x && x !== answer))));
+      const allCombos = shuffled(
+        rng,
+        FR_SHAPES.flatMap((sh) =>
+          SHAPE_COLORS.map((c) => motifToken(sh, c.name)).filter((tk) => tk !== answer)
+        )
+      );
+      const set = new Set<string>([answer]);
+      for (const c of [...seen, ...allCombos]) {
+        if (set.size >= optionCount) break;
+        set.add(c);
+      }
+      return {
+        id,
+        subject: "math",
+        level,
+        kind,
+        source: "generated",
+        prompt: {
+          zh: "看图形的排列规律，? 处是哪个？",
+          en: "Find the pattern. Which shape comes next?",
+          fr: "Trouve le rythme. Quelle forme vient après ?",
         },
         answer,
         visual,
         inputMode: "choice",
-        options: opts.slice(0, optionCount),
+        options: shuffled(rng, Array.from(set)).slice(0, optionCount),
       };
     }
 
-    case "money": {
-      const currency: "CNY" | "EUR" = level === "L3" ? "CNY" : rng() < 0.7 ? "CNY" : "EUR";
-      const notePool =
-        currency === "CNY"
-          ? level === "L3"
-            ? [1, 5, 10]
-            : [1, 5, 10, 20, 50]
-          : [1, 2, 5, 10, 20];
-      const notes: number[] = [];
-      const n = randInt(rng, 1, level === "L3" ? 3 : 4);
-      for (let i = 0; i < n; i++) notes.push(pick(rng, notePool));
-      const total = notes.reduce((s, v) => s + v, 0);
-      const visual: MoneyVisual = { mode: "count", currency, notes };
-      return mk(
-        {
-          zh: "这些钱一共是多少元？",
-          en: "How much money in total?",
-          fr: "Combien d'argent en tout ?",
+    case "countFr": {
+      const count = randInt(rng, 1, FR_NUMBERS.length);
+      const shape = pick(rng, FR_SHAPES);
+      const color = pick(rng, SHAPE_COLORS);
+      const visual: CountFrVisual = { type: "countFr", shape, color: color.name, count };
+      const set = new Set<string>([FR_NUMBERS[count - 1]]);
+      for (const i of shuffled(
+        rng,
+        FR_NUMBERS.map((_, i) => i + 1).filter((n) => n !== count)
+      )) {
+        if (set.size >= optionCount) break;
+        set.add(FR_NUMBERS[i - 1]);
+      }
+      return {
+        id,
+        subject: "math",
+        level,
+        kind,
+        source: "generated",
+        prompt: {
+          zh: "数一数，用法语选出数量！",
+          en: "Count them, then pick the French number!",
+          fr: "Compte, puis choisis le nombre en français !",
         },
-        String(total),
+        answer: FR_NUMBERS[count - 1],
         visual,
-        { unit: currency === "CNY" ? "元" : "欧元" }
-      );
+        inputMode: "choice",
+        options: shuffled(rng, Array.from(set)),
+      };
     }
 
     case "wordProblem": {
@@ -851,9 +1027,9 @@ export function generateMathQuestion(params: GenerateMathParams): MathQuestion {
         { shape: "⏛", hasAxis: false, name: "梯形" },
       ] as const;
       const { shape, hasAxis } = pick(rng, symShapes);
-      const answer = hasAxis ? "是" : "不是";
+      const answer = hasAxis ? "yes" : "no";
       const visual: AxisSymmetryVisual = { type: "symmetry", shape, hasAxis };
-      const opts = shuffled(rng, ["是", "不是"]);
+      const opts = shuffled(rng, ["yes", "no"]);
       return {
         id,
         subject: "math",
@@ -896,15 +1072,15 @@ export function generateMathQuestion(params: GenerateMathParams): MathQuestion {
       if (exact) {
         return mk(prompt, answer, visual, { inputMode: "keypad" });
       }
-      // 有余数：答案 "商 余 余数" 无法用数字键盘表达 → choice
+      // 有余数：答案 token（如 "3r2"）无法用数字键盘表达 → choice
       const quotient = visual.result;
       const remainder = visual.remainder;
       const candidates = [
-        `${quotient} 余 ${remainder - 1}`,
-        `${quotient} 余 ${remainder + 1}`,
-        `${quotient - 1} 余 ${remainder}`,
-        `${quotient + 1} 余 ${remainder}`,
-        `${quotient} 余 ${divisorBound(visual.b, remainder)}`,
+        `${quotient}r${remainder - 1}`,
+        `${quotient}r${remainder + 1}`,
+        `${quotient - 1}r${remainder}`,
+        `${quotient + 1}r${remainder}`,
+        `${quotient}r${divisorBound(visual.b, remainder)}`,
       ].filter((s) => s !== answer);
       const others = shuffled(rng, Array.from(new Set(candidates)));
       return {
@@ -980,7 +1156,13 @@ export function generateMathQuiz(params: {
   const out: MathQuestion[] = [];
 
   const fixed = (params.fixedItems ?? []).filter(
-    (it) => it.kind === kind || kind === "add" // 兜底：add 关卡可混入任意固定题
+    (it) =>
+      it.kind === kind ||
+      // 应用题本质是加减运算，仅允许同学段混入 add 关；
+      // 旧的「add 混入任意固定题」兜底会把时钟等题混进加法关（BUG）
+      (kind === "add" &&
+        it.kind === "wordProblem" &&
+        (it.level === null || it.level === level))
   );
   for (const item of fixed.slice(0, count)) {
     out.push(mathQuestionFromFixedItem(item, level));
@@ -1015,24 +1197,110 @@ function arithKey(q: MathQuestion): string | null {
 }
 
 /** math-bank.md 固定题 → source:"fixed" 的 MathQuestion（同管线渲染） */
+/** 中文时间文本（"3 点" / "4 点半" / "4:30"）→ 对等指针的表盘 visual */
+function clockVisualFromText(ans: string): ClockVisual | null {
+  const m = ans
+    .replace(/\s+/g, "")
+    .match(/^(\d{1,2})(点半|点|:([0-5]?\d))?$/);
+  if (!m) return null;
+  const hour = Number(m[1]);
+  if (hour < 1 || hour > 12) return null;
+  if (m[3] !== undefined) {
+    const minute = Number(m[3]);
+    if (minute === 0 || minute === 15 || minute === 30 || minute === 45)
+      return { hour, minute };
+    return null;
+  }
+  if (m[2] === "点半") return { hour, minute: 30 };
+  return { hour, minute: 0 };
+}
+
 export function mathQuestionFromFixedItem(
   item: MathItem,
   level?: Level
 ): MathQuestion {
   const answer = item.answerTri?.zh ?? item.answer;
   const kind = (item.kind as MathKind) || "wordProblem";
+  const qLevel = level ?? item.level ?? "L3";
+
+  if (kind === "axisSymmetry") {
+    return {
+      id: `fixed_${item.id}`,
+      subject: "math",
+      level: qLevel,
+      kind,
+      source: "fixed",
+      fixedId: item.id,
+      prompt: item.prompt,
+      answer: normalizeAnswer(answer),
+      inputMode: "choice",
+      options: ["yes", "no"],
+      explanation: item.explanation,
+    };
+  }
+
+  // 时钟固定题：题干即钟面描述 → 挂对等表盘 visual 并转选择题。
+  // 数字键盘输入不了「点/半」，选项用语言中立的 h:mm；
+  // 种子取条目 id，保证同卷同选项（可重放）。
+  const clockVisual = kind === "clock" ? clockVisualFromText(answer) : null;
+  if (clockVisual) {
+    const rng = mulberry32(seedFromString(`fixed_${item.id}`));
+    const timeAnswer = timeStr(clockVisual.hour, clockVisual.minute);
+    return {
+      id: `fixed_${item.id}`,
+      subject: "math",
+      level: qLevel,
+      kind,
+      source: "fixed",
+      fixedId: item.id,
+      // 与生成题一致：题干不再文字描述指针位置，时间信息由表盘插图呈现
+      prompt: CLOCK_PROMPT,
+      answer: timeAnswer,
+      inputMode: "choice",
+      options: clockOptions(clockVisual.hour, clockVisual.minute, qLevel, rng),
+      explanation: item.explanation,
+      visual: clockVisual,
+    };
+  }
+
+  // 图形固定题：答案为法语图形名（或中文图形名经映射），词无法键盘输入
+  // → 转「看图选法语名」选择题（种子取条目 id，可重放）
+  if (kind === "shape") {
+    const norm = answer.trim().toLowerCase();
+    const shape =
+      (FR_SHAPES as readonly string[]).includes(norm)
+        ? (norm as ShapeName)
+        : SHAPE_ZH_ALIAS[answer.trim()] ?? null;
+    if (shape) {
+      const rng = mulberry32(seedFromString(`fixed_${item.id}`));
+      return {
+        id: `fixed_${item.id}`,
+        subject: "math",
+        level: qLevel,
+        kind,
+        source: "fixed",
+        fixedId: item.id,
+        prompt: item.prompt,
+        answer: shape,
+        inputMode: "choice",
+        options: shapeNameOptions(shape, rng, getOptionCount(qLevel)),
+        explanation: item.explanation,
+      };
+    }
+  }
+
   return {
     id: `fixed_${item.id}`,
     subject: "math",
-    level: level ?? item.level ?? "L3",
+    level: qLevel,
     kind,
     source: "fixed",
     fixedId: item.id,
     prompt: item.prompt,
     answer,
-    image: item.answerTri?.zh,
     inputMode: "keypad",
     explanation: item.explanation,
+    // 不再把答案塞进 image 字段（题面直接泄露答案）
   };
 }
 
@@ -1104,10 +1372,10 @@ function seededShuffle<T>(arr: T[], rng: Rng): T[] {
 }
 
 /**
- * MathQuestion → 4 选项选择题（Phase 3 错题复习/每日挑战用）：
- * keypad 题在弹窗里没有键盘，转为 4 选 1——干扰项按答案类型生成
- * （数值 ±1–10 / 比较符号 / 相邻整点）；非数值答案退化为单选项。
- * userAnswer（孩子的错误作答）会注入选项并在结果中定位 userIndex，
+ * MathQuestion → 选择题（Phase 3 错题复习/每日挑战用）：
+ * choice 题保留全部原选项与顺序；keypad 题在弹窗里没有键盘，
+ * 按答案类型生成干扰项（数值 ±1–10 / 比较符号 / 相邻整点）。
+ * userAnswer（孩子的错误作答）会注入数字题选项并在结果中定位 userIndex，
  * 保证错题本能显示「你的答案 / 正确答案」。
  */
 export function toChoiceQuizQuestion(
@@ -1118,7 +1386,9 @@ export function toChoiceQuizQuestion(
   const ans = mq.answer;
   let options: string[];
   let userIndex: number | null = null;
-  if (ans === ">" || ans === "<" || ans === "=") {
+  if (mq.inputMode === "choice" && mq.options?.length) {
+    options = mq.options.slice();
+  } else if (ans === ">" || ans === "<" || ans === "=") {
     options = seededShuffle([">", "<", "="], rng);
   } else if (/^\d+$/.test(ans)) {
     const n = parseInt(ans, 10);
@@ -1181,5 +1451,15 @@ export function toChoiceQuizQuestion(
 }
 
 export function normalizeAnswer(s: string): string {
-  return s.trim().replace(/\s+/g, "").replace("：", ":");
+  const cleaned = s.trim().replace(/\s+/g, "").replace("：", ":");
+  // Accept persisted Chinese answers without rewriting stored sessions or scores.
+  if (cleaned === "是") return "yes";
+  if (cleaned === "不是") return "no";
+  const remainder = cleaned.match(/^(\d+)(?:r|余)(\d+)$/i);
+  if (remainder) return `${remainder[1]}r${remainder[2]}`;
+  // Fractions and incomplete compound answers must never become a leading integer.
+  if (/^\d+(?:\/|r|余)/i.test(cleaned)) return cleaned;
+  // Numeric keypad answers may omit unit suffixes, while clock minutes stay intact.
+  const num = cleaned.match(/^(\d+(?::\d+)?)(?:[a-z\u3400-\u9fff]+)?$/i);
+  return num ? num[1] : cleaned;
 }

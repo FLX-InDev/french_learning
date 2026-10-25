@@ -12,9 +12,8 @@ import {
   type Sudoku9Payload,
 } from "./logicEngine";
 import { generateSudoku9Emoji } from "./logicPuzzles";
-import { mulberry32, seedFromString } from "./mathGenerator";
+import { mulberry32 } from "./mathGenerator";
 import type { LogicItem } from "./contentTypes";
-import type { Level } from "./levels";
 
 describe("pattern（找规律）", () => {
   it("L1 全部为 AB 模式（核心 2 项、呈现 6 项、末位挖空）", () => {

@@ -1,0 +1,10 @@
+{
+  "hanziJudge.hintIdle": "Follow the dashed line slowly — order is hinted, never scored",
+  "hanziJudge.hintRetryStart": "Start again on the green dot",
+  "hanziJudge.hintOffPath": "Follow the dashed line, slowly",
+  "hanziJudge.hintIncomplete": "This stroke isn't finished — try again",
+  "hanziJudge.hintOtherStroke": "That's stroke {k}; write stroke {n} first",
+  "hanziJudge.hintOneByOne": "One stroke at a time, lift your finger",
+  "hanziJudge.progress": "Stroke {i} of {n}",
+  "hanziJudge.done": "All strokes done — nicely done!"
+}

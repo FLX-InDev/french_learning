@@ -12,6 +12,7 @@ import { Confetti, useConfetti } from "@/components/Confetti";
 import { PopIn, StarReveal } from "@/components/celebrate";
 import { cancelSpeech, configureSpeech, playSfx, speak } from "@/lib/audioManager";
 import { mulberry32, seedFromString } from "@/lib/mathGenerator";
+import { formatMathAnswer } from "@/lib/mathAnswer";
 import { logicToChoiceQuestion } from "@/lib/logicEngine";
 import {
   dailyItemToQuizQuestion,
@@ -67,8 +68,9 @@ export function DailyChallenge({
   const [feedback, setFeedback] = useState<null | "correct" | "wrong">(null);
   const feedbackTimer = useRef<number | null>(null);
   // 真实计时（F52/BUG-3）：挑战开始时间戳
-  const startedAtRef = useRef(Date.now());
+  const startedAtRef = useRef(0);
   const confetti = useConfetti();
+  const ready = state !== null;
 
   const level = state?.profile.level ?? "L3";
   const cfg = getLevelConfig(level);
@@ -103,7 +105,7 @@ export function DailyChallenge({
           })
         : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state !== null, level, today, pool, words, alphabets, phonics]
+    [ready, level, today, pool, words, alphabets, phonics]
   );
 
   const doneToday = !!state?.taskFlags[`daily_${today}`];
@@ -142,6 +144,8 @@ export function DailyChallenge({
   }
 
   function next() {
+    if (feedbackTimer.current) window.clearTimeout(feedbackTimer.current);
+    setFeedback(null);
     setRevealed(false);
     if (index + 1 < items.length) {
       setIndex(index + 1);
@@ -370,7 +374,7 @@ function DailyItemView({
   onSpell: (correct: boolean) => void;
   onPlay: (text: string) => void;
 }) {
-  const { t: i18nT } = useI18n();
+  const { t: i18nT, locale } = useI18n();
   const [keypad, setKeypad] = useState("");
 
   if (item.mode === "spell") {
@@ -418,7 +422,7 @@ function DailyItemView({
                       : "border-gray-100 bg-white text-gray-700 hover:border-purple-200")
                   }
                 >
-                  {opt}
+                  {formatMathAnswer(opt, locale)}
                 </button>
               ))}
             </div>

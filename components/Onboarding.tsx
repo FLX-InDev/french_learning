@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useAppState } from "./AppStateProvider";
 import { LevelPicker } from "./LevelPicker";
 import { DAILY_LIMIT_OPTIONS, DEFAULT_DAILY_LIMIT_MIN } from "@/lib/workspace";

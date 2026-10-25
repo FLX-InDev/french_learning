@@ -128,7 +128,7 @@ export async function speak(
       if (res.ok && gen === generation) {
         const blob = await res.blob();
         if (gen !== generation) return;
-        await playAudioUrl(URL.createObjectURL(blob), gen);
+        await playAudioUrl(URL.createObjectURL(blob));
         return;
       }
       console.warn("[audioManager] 后端 TTS 请求失败，回退浏览器语音:", res.status);
@@ -141,7 +141,7 @@ export async function speak(
 }
 
 /** 播放一段音频 URL（卡拉OK audio 字段预留路径也走这里）；end/error/pause 均视为结束 */
-export function playAudioUrl(url: string, gen: number = generation): Promise<void> {
+export function playAudioUrl(url: string): Promise<void> {
   return new Promise((resolve) => {
     const audio = new Audio(url);
     audio.playbackRate = playbackRate(speechRate);

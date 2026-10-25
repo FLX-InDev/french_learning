@@ -4,6 +4,7 @@ import type { SpeechScore } from "@/lib/pronunciation";
 import type { QuizMode, QuizQuestion, SpeakLang } from "@/lib/workspace";
 import { SpeakQuizCard } from "./SpeakQuizCard";
 import { useI18n } from "@/lib/i18n";
+import { formatMathAnswer } from "@/lib/mathAnswer";
 
 /**
  * 自主测验弹窗内容（选择 / 听力 / 跟读三模式）。
@@ -45,7 +46,7 @@ export function LiveQuizModal({
   onRecognize: (i: number) => void;
   onClose: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const labels = ["A", "B", "C", "D"];
   const isSpeak = mode === "speak";
   // 跟读题：提交条件是全部识别完毕（无 null）
@@ -176,6 +177,7 @@ export function LiveQuizModal({
               />
             );
           }
+          const isMath = q.subject === "math";
           const hidden = mode === "listen" && !revealed.has(i) && !submitted;
           return (
             <div key={i} className="bg-purple-50 rounded-xl p-3">
@@ -200,7 +202,7 @@ export function LiveQuizModal({
                     {t('dailyChallenge.showOriginal')}
                   </button>
                 ) : (
-                  <span className="italic">« {q.fr} » 是什么意思？</span>
+                  <span className="italic">{isMath ? q[locale] : `« ${q.fr} » 是什么意思？`}</span>
                 )}
               </div>
               <div className="space-y-1.5">
@@ -244,7 +246,7 @@ export function LiveQuizModal({
                       }
                     >
                       <span className={badgeCls}>{badgeText}</span>
-                      <span className="text-sm text-gray-800">{opt}</span>
+                      <span className="text-sm text-gray-800">{isMath ? formatMathAnswer(opt, locale) : opt}</span>
                     </div>
                   );
                 })}

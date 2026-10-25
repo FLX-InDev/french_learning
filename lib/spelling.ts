@@ -22,8 +22,31 @@ export type SpellingWord = {
   source: "word" | "alphabet";
 };
 
-/** accent 提示盘键位 */
-export const ACCENT_KEYS = ["é", "è", "ê", "à", "ù", "î", "ô", "ç"] as const;
+/**
+ * accent 提示盘键位：**13 个变音全覆盖**（2026-09-27 裁决，原为 PRD §7.5.4 P0 档 8 键）。
+ * 顺序对齐 `data/trace/packs/frcursive/accentcase.md`，与 `accentGlyphChars("fr")` 一致。
+ */
+export const ACCENT_KEYS = [
+  "é",
+  "à",
+  "è",
+  "ù",
+  "â",
+  "ê",
+  "î",
+  "ô",
+  "û",
+  "ë",
+  "ï",
+  "ü",
+  "ç",
+] as const;
+
+/** 单词中实际出现的提示盘键位（顺序同 `ACCENT_KEYS`）——供拼词卡高亮与一键放置 */
+export function accentsInWord(fr: string): string[] {
+  const tiles = splitTiles(fr);
+  return ACCENT_KEYS.filter((a) => tiles.includes(a));
+}
 
 /** 瓦片数范围：PRD §7.5.3 基础 3–6，为覆盖 château（7 瓦片）等变音符代表词放宽到 7 */
 export const MIN_TILES = 3;

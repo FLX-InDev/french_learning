@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { useI18n, localizedHref } from "@/lib/i18n";
 import { useAppState } from "./AppStateProvider";
 import { LevelPicker } from "./LevelPicker";
@@ -240,26 +240,53 @@ export function ParentsCenter({
             const hidden = state.settings.hiddenContent.includes(item.type);
             const meta = CONTENT_META[item.type];
             return (
-              <label
-                key={item.filename}
-                className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl"
-              >
-                <input
-                  type="checkbox"
-                  className="w-5 h-5"
-                  checked={!hidden}
-                  onChange={() => toggleContent(item.type)}
-                />
-                <span className="text-xl">{meta.emoji}</span>
-                <span className="flex-1 min-w-0">
-                  <span className="block font-semibold text-sm text-gray-800">
-                    {t(meta.nameKey)}
+              <Fragment key={item.filename}>
+                <label
+                  className="flex items-center gap-3 p-3 border border-gray-100 rounded-xl"
+                >
+                  <input
+                    type="checkbox"
+                    className="w-5 h-5"
+                    checked={!hidden}
+                    onChange={() => toggleContent(item.type)}
+                  />
+                  <span className="text-xl">{meta.emoji}</span>
+                  <span className="flex-1 min-w-0">
+                    <span className="block font-semibold text-sm text-gray-800">
+                      {t(meta.nameKey)}
+                    </span>
+                    <span className="block text-xs text-gray-400 truncate">
+                      {item.filename} · {counts[item.type] ?? 0} {t('parentsCenter.items')}
+                    </span>
                   </span>
-                  <span className="block text-xs text-gray-400 truncate">
-                    {item.filename} · {counts[item.type] ?? 0} {t('parentsCenter.items')}
-                  </span>
-                </span>
-              </label>
+                </label>
+                {item.type === "math" && (
+                  <label className="flex items-center gap-3 p-3 border border-purple-100 bg-purple-50/50 rounded-xl ml-10">
+                    <input
+                      type="checkbox"
+                      className="w-5 h-5"
+                      checked={state.settings.mathFreePlay}
+                      onChange={() =>
+                        update((s) => ({
+                          ...s,
+                          settings: {
+                            ...s.settings,
+                            mathFreePlay: !s.settings.mathFreePlay,
+                          },
+                        }))
+                      }
+                    />
+                    <span className="flex-1 min-w-0">
+                      <span className="block font-semibold text-sm text-gray-800">
+                        {t('parentsCenter.mathFreePlay')}
+                      </span>
+                      <span className="block text-xs text-gray-400">
+                        {t('parentsCenter.mathFreePlayDesc')}
+                      </span>
+                    </span>
+                  </label>
+                )}
+              </Fragment>
             );
           })}
         </div>

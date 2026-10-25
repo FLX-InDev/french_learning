@@ -23,17 +23,18 @@ export function MathMap() {
     return <div className="py-20 text-center text-gray-400">{t("workspace.loading")}</div>;
   }
 
-  // 线性解锁：本学段关卡按顺序，前一关 ≥1 星才解锁下一关
+  // 线性解锁：本学段关卡按顺序，前一关 ≥1 星才解锁下一关（家长中心可切全显示）
   const stageOrder = groups.flatMap((g) => g.stages.map((s) => s.id));
+  const freePlay = state.settings.mathFreePlay;
   const unlockIndex = (() => {
     for (let i = 0; i < stageOrder.length; i++) {
       if ((state.rewards.levelStars[stageOrder[i]] ?? 0) === 0) return i;
     }
     return stageOrder.length - 1;
   })();
-  const unlocked = new Set(stageOrder.slice(0, unlockIndex + 1));
-  const nextStageId = stageOrder[unlockIndex];
-
+  const unlocked = new Set(
+    freePlay ? stageOrder : stageOrder.slice(0, unlockIndex + 1)
+  );
   function nodeState(stage: MathStage): "done" | "current" | "locked" {
     if (!unlocked.has(stage.id)) return "locked";
     return (state?.rewards.levelStars[stage.id] ?? 0) > 0 ? "done" : "current";
@@ -91,9 +92,6 @@ export function MathMap() {
               </div>
             </div>
             <div className="flex flex-col items-end gap-1 shrink-0">
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-600">
-                {t("math.chinaProgressBadge", { progress: group.cnProgress })}
-              </span>
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-purple-50 text-purple-600">
                 {group.frBenchmark}
               </span>

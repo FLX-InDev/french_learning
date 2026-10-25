@@ -1,7 +1,6 @@
 "use client";
 
-import Link from "next/link";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAppState } from "@/components/AppStateProvider";
 import { useI18n } from "@/lib/i18n";
 import { LOGIC_DOMAINS } from "@/lib/mathCurriculum";
@@ -172,7 +171,7 @@ function LogicQuizRunner({
         setFinished({ acc });
       }, 900);
     },
-    [q, feedback, results, index, questions, domainId, update]
+    [q, feedback, results, index, questions, domainId, domainTitle, t, update]
   );
 
   if (!state) return null;
@@ -283,7 +282,6 @@ function PatternBoard({
   locked: boolean;
   onAnswer: (a: string) => void;
 }) {
-  const { t } = useI18n();
   const p = q.payload as Extract<LogicQuestion["payload"], { type: "pattern" }>;
   return (
     <div className="space-y-5">
@@ -333,7 +331,6 @@ function OddOneBoard({
   locked: boolean;
   onAnswer: (a: string) => void;
 }) {
-  const { t } = useI18n();
   const p = q.payload as Extract<LogicQuestion["payload"], { type: "oddOne" }>;
   return (
     <div className="flex items-center justify-center gap-4 flex-wrap">
@@ -387,13 +384,14 @@ function ClassifyBoard({
   }, []);
 
   const onPointerUp = useCallback(
-    (e: PointerEvent) => {
+    function endDrag(e: PointerEvent) {
       const drag = dragRef.current;
       dragRef.current = null;
       setGhost(null);
       window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
-      if (!drag || locked) return;
+      window.removeEventListener("pointerup", endDrag);
+      window.removeEventListener("pointercancel", endDrag);
+      if (!drag || locked || e.type === "pointercancel") return;
 
       const el = document.elementFromPoint(e.clientX, e.clientY);
       const target = el?.closest("[data-basket]") as HTMLElement | null;
@@ -415,12 +413,20 @@ function ClassifyBoard({
     [locked, onPointerMove]
   );
 
+  useEffect(() => () => {
+    dragRef.current = null;
+    window.removeEventListener("pointermove", onPointerMove);
+    window.removeEventListener("pointerup", onPointerUp);
+    window.removeEventListener("pointercancel", onPointerUp);
+  }, [onPointerMove, onPointerUp]);
+
   const startDrag = (id: string) => (e: React.PointerEvent) => {
     if (locked) return;
     dragRef.current = { id };
     setGhost({ id, x: e.clientX, y: e.clientY });
     window.addEventListener("pointermove", onPointerMove);
     window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
   };
 
   function allAssigned() {

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { usePrefersReducedMotion } from "./useMotionPrefs";
+import { useHydrated } from "./useHydrated";
 import { useI18n } from "@/lib/i18n";
 
 // Lottie 渲染器懒加载（不阻塞 LCP；加载失败静默降级 emoji）
@@ -32,19 +33,41 @@ export function Mascot({
   className?: string;
 }) {
   const { t } = useI18n();
+  const hydrated = useHydrated();
   const reduced = usePrefersReducedMotion();
-  const [data, setData] = useState<object | null>(null);
+  const fallback = (
+    <span
+      className="select-none"
+      style={{ fontSize: size * 0.78, lineHeight: 1 }}
+      role="img"
+      aria-label={t('mascot.name')}
+    >
+      🦊
+    </span>
+  );
+
+  return (
+    <div
+      className={"inline-flex items-center justify-center " + className}
+      style={{ width: size, height: size }}
+      aria-hidden="true"
+      data-mood={mood}
+    >
+      {hydrated && !reduced ? (
+        <MascotAnimation key={mood} mood={mood} fallback={fallback} />
+      ) : fallback}
+    </div>
+  );
+}
+
+function MascotAnimation({ mood, fallback }: { mood: MascotMood; fallback: ReactNode }) {
+  const key = `felix-${mood}`;
+  const [data, setData] = useState<object | null>(() => cache.get(key) ?? null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    if (reduced) return; // 减少动态：直接静态 emoji
+    if (data !== null) return;
     let alive = true;
-    const key = `felix-${mood}`;
-    const cached = cache.get(key);
-    if (cached) {
-      setData(cached);
-      return;
-    }
     fetch(`/lottie/${key}.json`)
       .then((r) => {
         if (!r.ok) throw new Error(String(r.status));
@@ -60,34 +83,8 @@ export function Mascot({
     return () => {
       alive = false;
     };
-  }, [mood, reduced]);
+  }, [key, data]);
 
-  const showLottie = !reduced && !failed && data !== null;
-
-  return (
-    <div
-      className={"inline-flex items-center justify-center " + className}
-      style={{ width: size, height: size }}
-      aria-hidden="true"
-      data-mood={mood}
-    >
-      {showLottie ? (
-        <Lottie
-          src={data}
-          loop
-          autoplay
-          className="w-full h-full"
-        />
-      ) : (
-        <span
-          className="select-none"
-          style={{ fontSize: size * 0.78, lineHeight: 1 }}
-          role="img"
-          aria-label={t('mascot.name')}
-        >
-          🦊
-        </span>
-      )}
-    </div>
-  );
+  if (failed || data === null) return fallback;
+  return <Lottie src={data} loop autoplay className="w-full h-full" />;
 }

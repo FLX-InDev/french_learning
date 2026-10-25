@@ -18,6 +18,7 @@ import {
   generateMathQuestion,
   mulberry32,
   normalizeAnswer,
+  decodeMotifToken,
   type MathQuestion,
 } from "@/lib/mathGenerator";
 import { stageKindsForLevel } from "@/lib/mathCurriculum";
@@ -34,7 +35,7 @@ import {
 } from "@/lib/race";
 import { addRaceRecord, loadRaceRecords } from "@/lib/raceStore";
 import { KeypadInput } from "@/components/KeypadInput";
-import { MathQuestionCard } from "@/components/MathQuestionCard";
+import { MathQuestionCard, ShapeGlyph } from "@/components/MathQuestionCard";
 import { RaceBoard } from "./RaceBoard";
 
 type Phase = "idle" | "running" | "done";
@@ -69,7 +70,7 @@ function RaceGameInner({ level }: { level: Level }) {
   const [input, setInput] = useState("");
   const [feedback, setFeedback] = useState<null | "ok" | "no">(null);
   const [remainingSec, setRemainingSec] = useState<number>(recommended);
-  const [records, setRecords] = useState<RaceRecord[]>([]);
+  const [records, setRecords] = useState<RaceRecord[]>(loadRaceRecords);
 
   // 计分真源走 ref（settle 闭包稳定，倒计时 effect 不因作答而重启）
   const progressRef = useRef<RaceProgress>(INITIAL_RACE_PROGRESS);
@@ -81,12 +82,8 @@ function RaceGameInner({ level }: { level: Level }) {
 
   const kinds = useMemo(() => stageKindsForLevel(level), [level]);
 
-  // 挂载后读榜（SSR 安全：raceStore 内部已判 window）
-  useEffect(() => {
-    setRecords(loadRaceRecords());
-    return () => {
-      if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
-    };
+  useEffect(() => () => {
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
   }, []);
 
   const makeQuestion = useCallback((): MathQuestion => {
@@ -303,17 +300,29 @@ function RaceGameInner({ level }: { level: Level }) {
           {/* 输入：choice 选项 / 数字键盘 */}
           {question.inputMode === "choice" && question.options ? (
             <div className="grid grid-cols-2 gap-3">
-              {question.options.map((opt) => (
-                <button
-                  key={opt}
-                  type="button"
-                  disabled={!!feedback}
-                  onClick={() => submitAnswer(opt)}
-                  className="rounded-xl border-2 border-purple-100 bg-white hover:border-purple-400 hover:shadow-sm min-h-[56px] text-xl font-extrabold text-gray-800 transition"
-                >
-                  {opt}
-                </button>
-              ))}
+              {question.options.map((opt) => {
+                const token =
+                  question.kind === "motif" ? decodeMotifToken(opt) : null;
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    disabled={!!feedback}
+                    onClick={() => submitAnswer(opt)}
+                    className="rounded-xl border-2 border-purple-100 bg-white hover:border-purple-400 hover:shadow-sm min-h-[56px] text-xl font-extrabold text-gray-800 transition"
+                  >
+                    {token ? (
+                      <ShapeGlyph
+                        shape={token.shape}
+                        color={token.color}
+                        className="w-10 h-10 mx-auto"
+                      />
+                    ) : (
+                      opt
+                    )}
+                  </button>
+                );
+              })}
             </div>
           ) : (
             <KeypadInput

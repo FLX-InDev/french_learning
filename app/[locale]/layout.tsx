@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+import { isLocale } from "@/lib/workspace";
+import "../globals.css";
 import { AppStateProvider } from "@/components/AppStateProvider";
 import { I18nProvider } from "@/lib/i18n";
 import { AppNav } from "@/components/AppNav";
@@ -14,6 +17,8 @@ import { pageMeta } from "@/lib/metaDict";
  * 语言唯一真源 = URL 段 `[locale]`；语言切换器改写地址栏前缀，
  * Provider 仍把设置里的 locale 同步落库（localStorage + cookie），供旧地址重定向兜底。
  */
+export const viewport = { width: "device-width", initialScale: 1 };
+
 export function generateStaticParams() {
   return UI_LOCALES.map((locale) => ({ locale }));
 }
@@ -33,21 +38,22 @@ export default function LocaleLayout({
   children: React.ReactNode;
   params: { locale: string };
 }) {
+  if (!isLocale(params.locale)) notFound();
+
   return (
-    <AppStateProvider>
-      <I18nProvider initialLocale={params.locale}>
-        <AppNav />
-
-        {/* Main Content */}
-        <main className="max-w-5xl mx-auto px-4 py-8">{children}</main>
-
-        <AppFooter />
-
-        {/* 首次启动引导 + 时长护眼 + BGM 全局控制（客户端全局层） */}
-        <Onboarding />
-        <ScreenTimeGuard />
-        <BgmController />
-      </I18nProvider>
-    </AppStateProvider>
+    <html lang={params.locale}>
+      <body className="min-h-screen">
+        <AppStateProvider>
+          <I18nProvider initialLocale={params.locale}>
+            <AppNav />
+            <main className="max-w-5xl mx-auto px-4 py-8">{children}</main>
+            <AppFooter />
+            <Onboarding />
+            <ScreenTimeGuard />
+            <BgmController />
+          </I18nProvider>
+        </AppStateProvider>
+      </body>
+    </html>
   );
 }

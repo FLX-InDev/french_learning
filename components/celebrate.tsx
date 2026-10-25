@@ -10,12 +10,15 @@ import { useI18n } from "@/lib/i18n";
  * 每颗间隔 420ms 弹出，伴随 star 音效（触发矩阵：0.6s/颗，不可打断）。
  */
 export function StarReveal({ stars }: { stars: number }) {
+  const count = Math.min(3, Math.max(1, Math.round(stars)));
+  return <StarRevealInner key={count} count={count} />;
+}
+
+function StarRevealInner({ count }: { count: number }) {
   const { t } = useI18n();
   const [lit, setLit] = useState(0);
-  const count = Math.min(3, Math.max(1, Math.round(stars)));
 
   useEffect(() => {
-    setLit(0);
     let n = 0;
     const id = window.setInterval(() => {
       n++;

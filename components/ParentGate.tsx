@@ -21,7 +21,6 @@ export function ParentGate({
   onPass,
   onCancel,
   title,
-  hint,
 }: {
   onPass: () => void;
   onCancel?: () => void;

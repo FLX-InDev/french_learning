@@ -1,12 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useAppState } from "@/components/AppStateProvider";
 import { useI18n } from "@/lib/i18n";
 import { DialoguePlayer } from "@/components/dialogues/DialoguePlayer";
 import { TriTitle, otherLocales } from "@/components/TriTitle";
 import { cancelSpeech, speak } from "@/lib/audioManager";
-import type { Sentence, Story } from "@/lib/parser";
+import type { Sentence } from "@/lib/parser";
 import type { Dialogue } from "@/lib/contentTypes";
 
 /** 情绪卡 12 张（T5B.2，PRD §7.9.4）：纯点击 + 语音，L1 可用 */
@@ -46,7 +45,6 @@ const SCENES = [
 export function LifeView({ sentences, dialogues }: { sentences: Sentence[]; dialogues: Dialogue[] }) {
   const { t, locale } = useI18n();
   const [o1, o2] = otherLocales(locale);
-  const { state } = useAppState();
   const [activeScene, setActiveScene] = useState<string | null>(null);
   const [activeEmotion, setActiveEmotion] = useState<number | null>(null);
 

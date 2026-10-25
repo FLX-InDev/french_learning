@@ -11,21 +11,23 @@
  * 切分体系由 `card.parts` 决定（法语 L1–L3 为音节、L4+ 为字素；英语为 CVC 三卡）。
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { cancelSpeech, playSfx, speak } from "@/lib/audioManager";
 import { mulberry32, seedFromString } from "@/lib/mathGenerator";
 import type { PhonicsCard } from "@/lib/phonics";
 
-export function PhonicsCardView({
-  card,
-  onSolved,
-  compact,
-}: {
+type PhonicsCardViewProps = {
   card: PhonicsCard;
   onSolved?: (ok: boolean) => void;
   compact?: boolean;
-}) {
+};
+
+export function PhonicsCardView(props: PhonicsCardViewProps) {
+  return <PhonicsCardAttempt key={props.card.id} {...props} />;
+}
+
+function PhonicsCardAttempt({ card, onSolved, compact }: PhonicsCardViewProps) {
   const { t } = useI18n();
   const [placed, setPlaced] = useState<number[]>([]);
   const [checked, setChecked] = useState(false);
@@ -42,11 +44,6 @@ export function PhonicsCardView({
     }
     return arr;
   }, [card.id, card.parts]);
-
-  useEffect(() => {
-    setPlaced([]);
-    setChecked(false);
-  }, [card.id]);
 
   const target = card.parts.join("");
   const assembled = placed.map((idx) => scrambled[idx].p).join("");

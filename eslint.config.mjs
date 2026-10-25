@@ -36,7 +36,9 @@ const overrides = [
   },
   {
     // Node 工具脚本（CJS）：非 TS/React 代码，豁免 TS 与 React 规则
-    files: ["scripts/**/*.cjs"],
+    // （scripts/ = 数据管线与校验；tools/ = 内容制作工具，如 ABeeZee 骨架提取；
+    //   data/trace/** = 描红数据侧管线，如汉字骨架 build / 同步脚本）
+    files: ["scripts/**/*.cjs", "tools/**/*.cjs", "data/trace/**/*.cjs"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",
       "@typescript-eslint/no-unused-vars": "off",
@@ -44,4 +46,6 @@ const overrides = [
   },
 ];
 
-export default [...nextConfigs, ...overrides];
+const config = [...nextConfigs, ...overrides];
+
+export default config;

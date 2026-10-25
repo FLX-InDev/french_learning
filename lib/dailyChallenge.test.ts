@@ -5,7 +5,7 @@ import {
   dailyItemToQuizQuestion,
   type DailyItem,
 } from "./dailyChallenge";
-import { expandDailyMix, type Subject } from "./levels";
+import type { Subject } from "./levels";
 import {
   mulberry32,
   seedFromString,

@@ -99,8 +99,10 @@ export const MATH_CURRICULUM: Record<Level, MathGroup[]> = {
     g("l3-clock", "🕒", ["认识时钟", "Clock", "L'heure"], "认识整点时钟", "≈ GS", [
       s("l3-clock-1", "clock", ["整点", "On the hour", "Heures pleines"], 8),
     ]),
-    g("l3-money", "💰", ["认识人民币", "Money", "La monnaie"], "人民币面值", "≈ GS", [
-      s("l3-money-1", "money", ["认面值与数钱", "Notes and coins", "Billets et pièces"], 8),
+    g("l3-formes", "🔷", ["图形与数", "Shapes & numbers", "Formes et nombres"], "图形认名·规律·法语数数", "≈ GS", [
+      s("l3-shape-1", "shape", ["图形认名", "Name the shape", "Nomme la forme"], 8),
+      s("l3-motif-1", "motif", ["图形接龙", "Shape patterns", "Suites de formes"], 8),
+      s("l3-nombre-1", "countFr", ["法语数数", "Count in French", "Compter en français"], 8),
     ]),
   ],
   L4: [

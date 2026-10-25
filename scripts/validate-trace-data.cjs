@@ -27,14 +27,16 @@ const path = require("path");
 const ROOT = path.resolve(__dirname, "..");
 const DEFAULT_DIR = path.join(ROOT, "data", "trace");
 
-// ── 规范字形集合（94）────────────────────────────────────────────
+// ── 规范字形集合（130 = print 26+26+13 / cursive 26+26+13）────────
 const LOWER = "abcdefghijklmnopqrstuvwxyz".split("");
 const UPPER = LOWER.map((c) => c.toUpperCase());
-const ACCENTED = ["é", "è", "ê", "à", "ù", "î", "ô", "ç"];
+/** 常用变音 13 个（顺序对齐 packs/frcursive/accentcase.md） */
+const ACCENTED = ["é", "à", "è", "ù", "â", "ê", "î", "ô", "û", "ë", "ï", "ü", "ç"];
 
 const GROUPS = [
   { name: "print 大写", style: "print", glyphs: UPPER, langs: ["en", "fr"] },
   { name: "print 小写", style: "print", glyphs: LOWER, langs: ["en", "fr"] },
+  { name: "cursive 大写", style: "cursive", glyphs: UPPER, langs: ["fr"] },
   { name: "cursive 小写", style: "cursive", glyphs: LOWER, langs: ["fr"] },
   { name: "print 变音", style: "print", glyphs: ACCENTED, langs: ["fr"] },
   { name: "cursive 变音", style: "cursive", glyphs: ACCENTED, langs: ["fr"] },
@@ -63,7 +65,13 @@ function collectFiles() {
   if (!fs.existsSync(DEFAULT_DIR)) return [];
   return fs
     .readdirSync(DEFAULT_DIR)
-    .filter((f) => f.endsWith(".json") && !f.endsWith(".template.json"))
+    .filter(
+      (f) =>
+        f.endsWith(".json") &&
+        !f.endsWith(".template.json") &&
+        // 构建产物索引不是字形表（键为 styles/total/generatedAt 等），不参与字形校验
+        f !== "index.json"
+    )
     .map((f) => path.join(DEFAULT_DIR, f));
 }
 

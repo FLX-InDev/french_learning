@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { useHydrated } from "./useHydrated";
 import { useAppState } from "./AppStateProvider";
 import { ParentGate } from "./ParentGate";
 import { Mascot } from "./Mascot";
@@ -10,7 +11,7 @@ import { useI18n, localizedHref } from "@/lib/i18n";
 import { ImageFallback } from "./ImageFallback";
 import { SUBJECT_ICONS, SUBJECT_EMOJI_FALLBACK, type SubjectIconKey } from "@/lib/imageAssets";
 import type { ContentType, AlphabetCard, Word } from "@/lib/contentTypes";
-import type { Sentence, Story } from "@/lib/parser";
+import type { Sentence } from "@/lib/parser";
 import { getLevelConfig, levelLabel } from "@/lib/levels";
 import type { ContentStats } from "@/lib/parser";
 
@@ -125,15 +126,12 @@ export function HomeView({
 }) {
   const { state } = useAppState();
   const { t, locale } = useI18n();
-  const [greet, setGreet] = useState(GREETINGS[0]);
+  const hydrated = useHydrated();
+  const [randomGreeting] = useState(() => GREETINGS[Math.floor(Math.random() * GREETINGS.length)]);
+  const greet = hydrated ? randomGreeting : GREETINGS[0];
   const [gateOpen, setGateOpen] = useState(false);
 
-  // 首屏问候随机（放在 effect 中，避免服务端/客户端渲染不一致）
-  useEffect(() => {
-    setGreet(GREETINGS[Math.floor(Math.random() * GREETINGS.length)]);
-  }, []);
-
-  const hidden = state?.settings.hiddenContent ?? [];
+  const hidden = state?.settings.hiddenContent;
   const level = state?.profile.level ?? "L3";
   const cfg = getLevelConfig(level);
 
@@ -141,7 +139,7 @@ export function HomeView({
     () =>
       ENTRIES.filter((e) => {
         const inManifest = e.dependsOn.some((t) => enabled.includes(t));
-        const allHidden = e.dependsOn.every((t) => hidden.includes(t));
+        const allHidden = e.dependsOn.every((t) => hidden?.includes(t));
         return inManifest && !allHidden;
       }),
     [enabled, hidden]

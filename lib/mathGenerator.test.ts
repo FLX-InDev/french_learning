@@ -9,11 +9,10 @@ import {
   toChoiceQuizQuestion,
   toQuizQuestion,
   type ArithVisual,
+  type CompareVisual,
 } from "./mathGenerator";
 import type { MathItem } from "./contentTypes";
 import type { Level } from "./levels";
-
-const LEVELS: Level[] = ["L1", "L2", "L3", "L4", "L5", "L6"];
 
 function arith(q: { visual?: unknown }): ArithVisual {
   return q.visual as ArithVisual;
@@ -174,16 +173,73 @@ describe("clock", () => {
   });
 });
 
-describe("money", () => {
-  it("L3 为 CNY 面值组合，答案 = 面值之和", () => {
+describe("shape（图形认名）", () => {
+  it("choice 题：选项唯一、全为法语图形名且含正确答案", () => {
     const rng = mulberry32(400);
+    const FR = ["cercle", "carré", "triangle", "rectangle", "étoile", "cœur"];
     for (let i = 0; i < 30; i++) {
-      const q = generateMathQuestion({ level: "L3", kind: "money", rng });
-      const v = q.visual as { currency: string; notes: number[] };
-      expect(v.currency).toBe("CNY");
-      for (const n of v.notes) expect([1, 5, 10]).toContain(n);
-      expect(Number(q.answer)).toBe(v.notes.reduce((s, x) => s + x, 0));
+      const q = generateMathQuestion({ level: "L3", kind: "shape", rng });
+      expect(q.inputMode).toBe("choice");
+      expect(FR).toContain(q.answer);
+      expect(q.options).toContain(q.answer);
+      expect(new Set(q.options).size).toBe(q.options!.length);
+      for (const o of q.options!) expect(FR).toContain(o);
+      const v = q.visual as { type: string; shape: string; color: string };
+      expect(v.type).toBe("shape");
+      expect(v.shape).toBe(q.answer);
     }
+  });
+});
+
+describe("motif（图形接龙）", () => {
+  it("5 格序列末位为 ?；周期自洽；选项唯一含正确 token", () => {
+    const rng = mulberry32(410);
+    const FR = ["cercle", "carré", "triangle", "rectangle", "étoile", "cœur"];
+    const COLORS = ["rouge", "bleu", "jaune", "vert", "violet"];
+    for (let i = 0; i < 30; i++) {
+      const q = generateMathQuestion({ level: "L3", kind: "motif", rng });
+      const v = q.visual as { type: string; items: (string | null)[] };
+      expect(v.type).toBe("motif");
+      expect(v.items).toHaveLength(5);
+      expect(v.items[4]).toBeNull();
+      expect(q.answer).toMatch(/^[^|]+\|[a-zàéû]+$/);
+      const [ansShape, ansColor] = q.answer.split("|");
+      expect(FR).toContain(ansShape);
+      expect(COLORS).toContain(ansColor);
+      // 序列周期性：前 4 项可由答案与周期长 2/3 推出（至少满足周期 2 或 3）
+      const its = v.items.slice(0, 4) as string[];
+      // 周期性：存在周期长 L∈{2,3,4}（ABAB/ABC/AABB）使序列与答案自洽
+      const periodic = [2, 3, 4].some((L) => {
+        for (let i = L; i < 4; i++) if (its[i] !== its[i - L]) return false;
+        return q.answer === its[4 % L];
+      });
+      expect(periodic).toBe(true);
+      expect(q.options).toContain(q.answer);
+      expect(new Set(q.options).size).toBe(q.options!.length);
+      expect(q.inputMode).toBe("choice");
+    }
+  });
+});
+
+describe("countFr（法语数数）", () => {
+  it("count 1–10，答案为对应法语数词，选项唯一", () => {
+    const rng = mulberry32(420);
+    const WORDS = ["un", "deux", "trois", "quatre", "cinq", "six", "sept", "huit", "neuf", "dix"];
+    const seen = new Set<number>();
+    for (let i = 0; i < 60; i++) {
+      const q = generateMathQuestion({ level: "L3", kind: "countFr", rng });
+      const v = q.visual as { type: string; count: number };
+      expect(v.type).toBe("countFr");
+      expect(v.count).toBeGreaterThanOrEqual(1);
+      expect(v.count).toBeLessThanOrEqual(10);
+      expect(q.answer).toBe(WORDS[v.count - 1]);
+      expect(q.options).toContain(q.answer);
+      expect(new Set(q.options).size).toBe(q.options!.length);
+      for (const o of q.options!) expect(WORDS).toContain(o);
+      expect(q.inputMode).toBe("choice");
+      seen.add(v.count);
+    }
+    expect(seen.size).toBeGreaterThan(3); // 覆盖多个数量而非固定值
   });
 });
 
@@ -250,7 +306,7 @@ describe("generateMathQuiz", () => {
     }
   });
 
-  it("固定题置于卷首并与生成题混合", () => {
+  it("固定题置于卷首并与生成题混合（同 kind）", () => {
     const fixedItem: MathItem = {
       id: "math-9",
       level: "L3",
@@ -260,14 +316,50 @@ describe("generateMathQuiz", () => {
     };
     const quiz = generateMathQuiz({
       level: "L3",
-      kind: "add",
-      count: 10,
+      kind: "clock",
+      count: 8,
       seed: "mix",
       fixedItems: [fixedItem],
     });
     expect(quiz[0].source).toBe("fixed");
     expect(quiz[0].fixedId).toBe("math-9");
-    expect(quiz.filter((q) => q.source === "generated").length).toBe(9);
+    expect(quiz.filter((q) => q.source === "generated").length).toBe(7);
+  });
+
+  it("add 关仅混入同学段应用题固定题（时钟题不得混入加法关）", () => {
+    const clock: MathItem = {
+      id: "clock-1",
+      level: "L3",
+      kind: "clock",
+      prompt: { zh: "钟面上是几点？", en: "What time?", fr: "Il est quelle heure ?" },
+      answer: "3 点",
+    };
+    const word: MathItem = {
+      id: "word-1",
+      level: "L4",
+      kind: "wordProblem",
+      prompt: { zh: "树上有 5 只鸟，又飞来 3 只？", en: "5 birds + 3?", fr: "5 oiseaux + 3 ?" },
+      answer: "8 只",
+    };
+    const quiz = generateMathQuiz({
+      level: "L4",
+      kind: "add",
+      count: 10,
+      seed: "mix-add",
+      fixedItems: [clock, word],
+    });
+    expect(quiz[0].fixedId).toBe("word-1");
+    expect(quiz.some((q) => q.fixedId === "clock-1")).toBe(false);
+
+    // 学段不匹配的应用题也不混入（L3 加法关不收 L4 应用题）
+    const l3 = generateMathQuiz({
+      level: "L3",
+      kind: "add",
+      count: 10,
+      seed: "mix-add-l3",
+      fixedItems: [word],
+    });
+    expect(l3.every((q) => q.source === "generated")).toBe(true);
   });
 });
 
@@ -298,12 +390,25 @@ describe("inputMode 与 options", () => {
       expect(new Set(q.options).size).toBe(q.options?.length);
     }
   });
+
+  it("compare 两侧数量至少为 1 且不相等（避免「?」右侧空白）", () => {
+    const rng = mulberry32(1234);
+    for (const level of ["L1", "L2", "L3", "L4", "L5", "L6"] as const) {
+      for (let i = 0; i < 30; i++) {
+        const q = generateMathQuestion({ level, kind: "compare", rng });
+        const v = q.visual as CompareVisual;
+        expect(v.left.count).toBeGreaterThanOrEqual(1);
+        expect(v.right.count).toBeGreaterThanOrEqual(1);
+        expect(v.left.count).not.toBe(v.right.count);
+      }
+    }
+  });
 });
 
 // ─── 固定题与错题本对接 ─────────────────────────────────────────
 
 describe("mathQuestionFromFixedItem / toQuizQuestion", () => {
-  it("固定题转换保留 source/fixedId/prompt", () => {
+  it("时钟固定题转 choice：答案/选项为语言中立 h:mm，保留 source/fixedId/prompt", () => {
     const item: MathItem = {
       id: "math-1",
       level: "L3",
@@ -315,8 +420,46 @@ describe("mathQuestionFromFixedItem / toQuizQuestion", () => {
     const q = mathQuestionFromFixedItem(item, "L3");
     expect(q.source).toBe("fixed");
     expect(q.fixedId).toBe("math-1");
-    expect(q.answer).toBe("3 点");
     expect(q.subject).toBe("math");
+    expect(q.inputMode).toBe("choice");
+    // 题干与生成题一致：不再文字描述指针位置
+    expect(q.prompt).toEqual({
+      zh: "钟面上是几点？",
+      en: "What time is it?",
+      fr: "Il est quelle heure ?",
+    });
+    expect(q.answer).toBe("3:00");
+    expect(q.options).toContain("3:00");
+    // 选项唯一（按钮以文本作 key）
+    expect(new Set(q.options).size).toBe(q.options!.length);
+    // 同 id 可重放：两次转换选项一致
+    const q2 = mathQuestionFromFixedItem(item, "L3");
+    expect(q2.options).toEqual(q.options);
+  });
+
+  it("shape 固定题：法语答案与中文答案均转图形名选择题", () => {
+    const base: MathItem = {
+      id: "math-s1",
+      level: "L1",
+      kind: "shape",
+      prompt: { zh: "圆圆的没角？", en: "Round?", fr: "Ronde ?" },
+      answer: "cercle",
+      answerTri: { zh: "cercle", en: "circle", fr: "cercle" },
+    };
+    const q = mathQuestionFromFixedItem(base, "L3");
+    expect(q.inputMode).toBe("choice");
+    expect(q.answer).toBe("cercle");
+    expect(q.options).toContain("cercle");
+    expect(new Set(q.options).size).toBe(q.options!.length);
+
+    // 老中文答案经映射同样可转
+    const legacy = mathQuestionFromFixedItem(
+      { ...base, id: "math-s2", answer: "三角形", answerTri: { zh: "三角形", en: "triangle", fr: "triangle" } },
+      "L3"
+    );
+    expect(legacy.inputMode).toBe("choice");
+    expect(legacy.answer).toBe("triangle");
+    expect(legacy.options).toContain("triangle");
   });
 
   it("keypad 题：答对记 userIndex=0，答错记 null（进错题本）", () => {
@@ -340,9 +483,34 @@ describe("mathQuestionFromFixedItem / toQuizQuestion", () => {
     expect(bad.options[bad.userIndex as number]).toBe(wrongChoice);
   });
 
-  it("normalizeAnswer 去空白并统一冒号", () => {
+  it("normalizeAnswer 去空白、统一冒号，并剥离数字答案的单位后缀", () => {
     expect(normalizeAnswer(" 3 : 00 ")).toBe("3:00");
     expect(normalizeAnswer("12")).toBe("12");
+    // 固定题答案带中文单位：键盘只能输数字，判等取前导数字
+    expect(normalizeAnswer("3 点")).toBe("3");
+    expect(normalizeAnswer("100 厘米")).toBe("100");
+    expect(normalizeAnswer("8 只")).toBe("8");
+    expect(normalizeAnswer(">")).toBe(">");
+    expect(normalizeAnswer("不是")).toBe("no");
+  });
+
+  it("时钟固定题按答案文本挂对等表盘 visual，且不再把答案渲染进题面", () => {
+    const item: MathItem = {
+      id: "math-c",
+      level: "L3",
+      kind: "clock",
+      prompt: { zh: "短针指 3、长针指 12，是几点？", en: "t", fr: "t" },
+      answer: "3 点",
+      answerTri: { zh: "3 点", en: "3 o'clock", fr: "3 heures" },
+    };
+    const q = mathQuestionFromFixedItem(item, "L3");
+    expect(q.visual).toEqual({ hour: 3, minute: 0 });
+    expect(q.image).toBeUndefined();
+    const half = mathQuestionFromFixedItem(
+      { ...item, id: "math-h", answer: "4 点半", answerTri: { ...item.answerTri!, zh: "4 点半" } },
+      "L3"
+    );
+    expect(half.visual).toEqual({ hour: 4, minute: 30 });
   });
 });
 
@@ -395,7 +563,7 @@ describe("toChoiceQuizQuestion", () => {
     expect(q.options).toContain(mq.answer);
   });
 
-  it("时间答案：选项共享分钟位、小时不同", () => {
+  it("无现有选项的时间答案：选项共享分钟位、小时不同", () => {
     const mq = generateMathQuestion({
       level: "L4",
       kind: "clock",
@@ -404,7 +572,7 @@ describe("toChoiceQuizQuestion", () => {
       index: 0,
     });
     expect(mq.answer).toMatch(/^\d{1,2}:\d{2}$/);
-    const q = toChoiceQuizQuestion(mq, mulberry32(13));
+    const q = toChoiceQuizQuestion({ ...mq, options: undefined }, mulberry32(13));
     expect(q.options).toContain(mq.answer);
     const minutes = new Set(q.options.map((o) => o.split(":")[1]));
     expect(minutes.size).toBe(1);
@@ -469,7 +637,7 @@ describe("axisSymmetry（轴对称判断）", () => {
       expect(q.kind).toBe("axisSymmetry");
       const v = q.visual as { type: "symmetry"; shape: string; hasAxis: boolean };
       expect(v.type).toBe("symmetry");
-      expect(q.answer).toBe(v.hasAxis ? "是" : "不是");
+      expect(q.answer).toBe(v.hasAxis ? "yes" : "no");
       expect(q.inputMode).toBe("choice");
       expect(q.options).toContain(q.answer);
       expect(new Set(q.options).size).toBe(q.options!.length);
@@ -525,7 +693,7 @@ describe("mulDiv（竖式：乘/除）", () => {
           expect(q.answer).toBe(String(v.result));
           expect(q.inputMode).toBe("keypad");
         } else {
-          expect(q.answer).toBe(`${v.result} 余 ${v.remainder}`);
+          expect(q.answer).toBe(`${v.result}r${v.remainder}`);
           expect(q.inputMode).toBe("choice");
           expect(q.options).toContain(q.answer);
         }

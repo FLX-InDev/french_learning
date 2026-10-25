@@ -6,6 +6,7 @@ import { useAppState } from "@/components/AppStateProvider";
 import { useI18n } from "@/lib/i18n";
 import {
   ACCENT_KEYS,
+  accentsInWord,
   isSpellingCorrect,
   scrambleTiles,
   splitTiles,
@@ -26,16 +27,18 @@ import type { Level } from "@/lib/levels";
  * - 拼词游戏（/alphabets 页）：父组件传入新 word 即进入下一题；
  * - 每日挑战拼写题：传入 word + onResult，由挑战卷编排结算。
  */
-export function SpellingAttempt({
-  word,
-  onResult,
-  compact,
-}: {
+type SpellingAttemptProps = {
   word: SpellingWord;
   /** 结果回调（对/错各回调一次；父组件据此记错词/积分/推进） */
   onResult?: (correct: boolean) => void;
   compact?: boolean;
-}) {
+};
+
+export function SpellingAttempt(props: SpellingAttemptProps) {
+  return <SpellingAttemptInner key={props.word.id} {...props} />;
+}
+
+function SpellingAttemptInner({ word, onResult, compact }: SpellingAttemptProps) {
   const { state, update } = useAppState();
   const { t } = useI18n();
   const speechRate = state?.settings.speechRate ?? 0.9;
@@ -54,12 +57,6 @@ export function SpellingAttempt({
     () => scrambleTiles(target, mulberry32(seedFromString("spell_" + word.fr))),
     [target, word.fr]
   );
-
-  // 切换单词时重置
-  useEffect(() => {
-    setPlaced([]);
-    setChecked(false);
-  }, [word.id]);
 
   const correct =
     checked && isSpellingCorrect(placed.map((i) => scrambled[i]), word.fr);
@@ -116,10 +113,7 @@ export function SpellingAttempt({
     void speak(word.fr, "fr");
   }
 
-  const inWordAccents = useMemo(
-    () => ACCENT_KEYS.filter((a) => target.includes(a)),
-    [target]
-  );
+  const inWordAccents = useMemo(() => accentsInWord(word.fr), [word.fr]);
 
   return (
     <div
@@ -204,9 +198,10 @@ export function SpellingAttempt({
         })}
       </div>
 
-      {/* accent 提示盘（PRD §7.5.4：单词含变音符时高亮提示，点击自动放置） */}
+      {/* accent 提示盘（PRD §7.5.4：单词含变音符时高亮提示，点击自动放置）
+          13 键（2026-09-27 裁决全量覆盖）→ 窄屏（320px）自动换行 */}
       {inWordAccents.length > 0 && (
-        <div className="flex items-center justify-center gap-1.5 mt-3">
+        <div className="flex flex-wrap items-center justify-center gap-1.5 mt-3">
           <span className="text-[11px] text-gray-400 mr-1">{t('spelling.accentHint')}：</span>
           {ACCENT_KEYS.map((a) => {
             const has = inWordAccents.includes(a);

@@ -297,6 +297,8 @@ export type Settings = {
   dailyLimitMin: number;
   /** 家长中心隐藏的内容类型（运行时过滤，叠加在 manifest 之上） */
   hiddenContent: ContentType[];
+  /** 数学关卡全显示模式（家长中心切换）：false = 闯关顺序解锁，true = 全部关卡直接可进 */
+  mathFreePlay: boolean;
 };
 
 export type ScreenTime = { date: string; usedSec: number };
@@ -378,6 +380,7 @@ export function createInitialState(level: Level = DEFAULT_LEVEL): AppState {
       tapSfxOn: false,
       dailyLimitMin: DEFAULT_DAILY_LIMIT_MIN,
       hiddenContent: [],
+      mathFreePlay: false,
     },
     screenTime: { date: todayStr(), usedSec: 0 },
     sessions: [],
@@ -430,6 +433,7 @@ function normalizeV2(raw: Record<string, unknown>): AppState {
       hiddenContent: Array.isArray(settings.hiddenContent)
         ? (settings.hiddenContent as ContentType[])
         : [],
+      mathFreePlay: settings.mathFreePlay === true,
     },
     screenTime: {
       date: screenTime.date || base.screenTime.date,

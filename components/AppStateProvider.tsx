@@ -6,9 +6,9 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
+import { useHydrated } from "./useHydrated";
 import {
   addUsedTime,
   loadState,
@@ -42,12 +42,9 @@ const AppStateContext = createContext<AppStateCtx | null>(null);
  * - 所有页面/组件通过 useAppState() 读写 `profile.level`（学段唯一真源）。
  */
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<AppState | null>(null);
-
-  // 首屏读取（避免 SSR 与客户端不一致：状态只在客户端装载）
-  useEffect(() => {
-    setState(loadState());
-  }, []);
+  const hydrated = useHydrated();
+  const [loadedState, setState] = useState(loadState);
+  const state = hydrated ? loadedState : null;
 
   useEffect(() => {
     if (state) saveState(state);

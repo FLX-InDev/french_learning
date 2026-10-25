@@ -4,7 +4,7 @@
  * 界面三语 i18n 核心（Phase 6 T6-01，PRD §7.13.8 / Dev-Plan §11.3 M13）
  *
  * 设计要点：
- * - 语言状态唯一真源 = `AppState.settings.locale`（持久化，刷新保持）；
+ * - 语言状态唯一真源 = URL 语言段，设置仅作无段地址的持久化兜底；
  * - 字典聚合 = 基础 chrome（`translations/<locale>.json`）+ 各功能模块
  *   （`translations/modules/<locale>/<module>.json`，见 `lib/i18nModules.ts`）；
  * - JSON 一律用 ESM `import`（禁止 `require(...).default`——JSON 模块没有 `.default`）；
@@ -21,48 +21,13 @@ import {
 } from "react";
 import { useAppState } from "@/components/AppStateProvider";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "./workspace";
-import { moduleDictionaries } from "./i18nModules";
-
-import zhBase from "@/translations/zh.json";
-import enBase from "@/translations/en.json";
-import frBase from "@/translations/fr.json";
+import { translate } from "./i18nDict";
 
 export type { Locale };
-export type Translations = Record<string, string>;
+export type { Translations } from "./i18nDict";
 
 /** 语言路由白名单与链接工具（C1 方案①；纯函数在 localeRoute.ts，服务端亦可导入） */
 export { UI_LOCALES, localizedHref, pathWithoutLocale } from "./localeRoute";
-
-/** 基础界面 chrome（导航/页脚/各页面文案） */
-const BASE: Record<Locale, Translations> = {
-  zh: zhBase as Translations,
-  en: enBase as Translations,
-  fr: frBase as Translations,
-};
-
-function buildDictionary(locale: Locale): Translations {
-  return { ...BASE[locale], ...moduleDictionaries(locale) };
-}
-
-const DICTIONARIES: Record<Locale, Translations> = {
-  zh: buildDictionary("zh"),
-  en: buildDictionary("en"),
-  fr: buildDictionary("fr"),
-};
-
-function interpolate(template: string, vars?: Record<string, string>): string {
-  if (!vars) return template;
-  return template.replace(/\{(\w+)\}/g, (_, key) => vars[key] ?? `{${key}}`);
-}
-
-function translate(
-  key: string,
-  vars: Record<string, string> | undefined,
-  locale: Locale
-): string {
-  const dict = DICTIONARIES[locale] ?? DICTIONARIES[DEFAULT_LOCALE];
-  return interpolate(dict[key] ?? key, vars);
-}
 
 type I18nCtx = {
   locale: Locale;

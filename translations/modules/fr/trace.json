@@ -16,6 +16,7 @@
   "trace.styleCursive": "Cursive",
   "trace.noData": "Pas encore de données de tracé pour ce glyphe",
   "trace.additiveNote": "Le tracé est un exercice supplémentaire — les cartes et la lecture restent inchangées",
+  "trace.accents": "Accents",
   "trace.letterPrev": "Lettre précédente",
   "trace.letterNext": "Lettre suivante",
   "trace.letterOf": "Lettre {i} sur {n}"

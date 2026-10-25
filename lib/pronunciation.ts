@@ -1,4 +1,9 @@
 import type { SpeakLang } from "./workspace";
+import { DEFAULT_LOCALE, type Locale } from "./workspace";
+import { translate } from "./i18nDict";
+
+/** 反馈文案的默认界面语言（调用方不传 locale 时保持历史中文行为） */
+const DEFAULT_FEEDBACK_LOCALE: Locale = DEFAULT_LOCALE;
 
 // ─── Types ───────────────────────────────────────────────────────
 
@@ -137,11 +142,13 @@ function clamp(n: number, lo: number, hi: number): number {
 /**
  * 核心打分：词级 F1（权重 0.7）与识别置信度（权重 0.3）加权，映射到 0-100。
  * 候选为空或识别不到语音 → 0 分。
+ * `locale` 仅决定反馈文案语言（界面语言），不影响打分算法。
  */
 export function scorePronunciation(
   target: string,
   cands: Candidate[],
-  lang: SpeakLang
+  lang: SpeakLang,
+  locale: Locale = DEFAULT_FEEDBACK_LOCALE
 ): SpeechScore {
   const targetWords = tokenize(target);
 
@@ -156,7 +163,7 @@ export function scorePronunciation(
       recall: 0,
       confidence: 0,
     };
-    return { ...base, feedback: buildFeedback(base, lang) };
+    return { ...base, feedback: buildFeedback(base, lang, locale) };
   }
 
   const best = pickBestCandidate(target, cands);
@@ -186,52 +193,65 @@ export function scorePronunciation(
     recall,
     confidence: conf,
   };
-  return { ...base, feedback: buildFeedback(base, lang) };
+  return { ...base, feedback: buildFeedback(base, lang, locale) };
 }
 
 // ─── Feedback ────────────────────────────────────────────────────
 
-const LANG_TIP: Record<SpeakLang, string> = {
-  fr: "法语要点：注意联诵（liaison）与鼻化元音，词末辅音通常不发音。",
-  en: "英语要点：注意元音长短与词尾辅音，th（θ/ð）与 r 是常见难点。",
+/** 反馈文案随界面语言取 `pronunciation.*` key（默认 zh 保持既有行为） */
+
+const LANG_TIP_KEY: Record<SpeakLang, string> = {
+  fr: "pronunciation.tipFr",
+  en: "pronunciation.tipEn",
 };
 
-function bandTip(score: number): string {
-  if (score >= 85) return "发音清晰准确，继续保持！";
-  if (score >= 70) return "整体正确，注意个别单词的清晰度。";
-  if (score >= 55) return "基本能听懂，建议放慢语速、多跟读几遍。";
-  return "识别度较低，建议先反复听原音，再逐词模仿。";
+function bandTipKey(score: number): string {
+  if (score >= 85) return "pronunciation.bandHigh";
+  if (score >= 70) return "pronunciation.bandGood";
+  if (score >= 55) return "pronunciation.bandMid";
+  return "pronunciation.bandLow";
 }
 
-function joinWords(words: string[], max = 5): string {
-  const shown = words.slice(0, max).join("、");
-  return words.length > max ? `${shown} 等 ${words.length} 个` : shown;
+/** ≤max 全量展示；超出时截断并走 `*More` 模板（{words} 前 max 个 + {count} 总数） */
+const WORD_LIST_MAX = 5;
+
+function wordVars(words: string[], sep: string, key: string, locale: Locale): string {
+  if (words.length <= WORD_LIST_MAX) {
+    return translate(key, { words: words.join(sep) }, locale);
+  }
+  return translate(`${key}More`, {
+    words: words.slice(0, WORD_LIST_MAX).join(sep),
+    count: String(words.length),
+    shown: String(WORD_LIST_MAX),
+  }, locale);
 }
 
 export function buildFeedback(
   s: Omit<SpeechScore, "feedback">,
-  lang: SpeakLang
+  lang: SpeakLang,
+  locale: Locale = DEFAULT_FEEDBACK_LOCALE
 ): string[] {
   const tips: string[] = [];
+  const listSep = locale === "zh" ? "、" : ", ";
 
   if (!s.transcript || s.matched.length === 0) {
-    tips.push("未检测到有效语音，请靠近麦克风后重试。");
-    tips.push(LANG_TIP[lang]);
+    tips.push(translate("pronunciation.noSpeech", undefined, locale));
+    tips.push(translate(LANG_TIP_KEY[lang], undefined, locale));
     return tips;
   }
 
-  tips.push(bandTip(s.score));
+  tips.push(translate(bandTipKey(s.score), undefined, locale));
 
   if (s.missing.length > 0) {
-    tips.push(`漏读或发音不清：${joinWords(s.missing)}`);
+    tips.push(wordVars(s.missing, listSep, "pronunciation.missingWords", locale));
   }
   if (s.extra.length > 0) {
-    tips.push(`多读或夹杂了额外词：${joinWords(s.extra)}`);
+    tips.push(wordVars(s.extra, listSep, "pronunciation.extraWords", locale));
   }
   if (s.confidence < 0.6 && s.matched.length > 0) {
-    tips.push("识别置信度较低，建议在安静环境下重试。");
+    tips.push(translate("pronunciation.lowConfidence", undefined, locale));
   }
 
-  tips.push(LANG_TIP[lang]);
+  tips.push(translate(LANG_TIP_KEY[lang], undefined, locale));
   return tips;
 }

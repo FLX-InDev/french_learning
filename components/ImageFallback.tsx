@@ -1,4 +1,5 @@
 import { useState, useCallback, type ReactNode } from "react";
+import Image from "next/image";
 
 /**
  * 统一图片组件（PRD §10.2 / G-6）
@@ -54,12 +55,12 @@ export function ImageFallback({
       role="img"
       aria-label={alt}
     >
-      <img
+      <Image
         src={src}
         alt={alt}
         width={size}
         height={size}
-        loading={shouldLazy ? "lazy" : undefined}
+        loading={shouldLazy ? "lazy" : "eager"}
         decoding="async"
         onError={handleError}
         className="h-full w-full object-contain"

@@ -1,0 +1,12 @@
+{
+  "hanziTrace.title": "汉字描红",
+  "hanziTrace.bandLabel": "启蒙档（3–4 岁，1–2 画独体字）",
+  "hanziTrace.strokesOf": "本字共 {n} 笔",
+  "hanziTrace.replayNote": "笔顺会判对错，但不打分、不扣分",
+  "hanziTrace.charOf": "第 {i} / {n} 个字",
+  "hanziTrace.charPrev": "上一个字",
+  "hanziTrace.charNext": "下一个字",
+  "hanziTrace.noData": "暂无汉字描红数据",
+  "hanziTrace.attribution": "字形骨架来自开源字库 hanzi-writer-data（Arphic 字体，ARPHIC Public License 1.1）；笔顺依 GF 0023-2020《通用规范汉字笔顺规范》逐笔核对。",
+  "hanziTrace.licenceLink": "查看授权原文"
+}

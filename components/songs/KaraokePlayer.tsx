@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n, localizedHref } from "@/lib/i18n";
+import { translate } from "@/lib/i18nDict";
 import { TriTitle } from "@/components/TriTitle";
 import { useAppState } from "@/components/AppStateProvider";
 import {
   cancelSpeech,
   configureSpeech,
   pause,
-  playAudioUrl,
   speak,
   speechGeneration,
 } from "@/lib/audioManager";
@@ -38,164 +38,200 @@ const LANG_ROWS: { key: Exclude<KaraokeLang, "all">; badge: string }[] = [
  * - song.audio 字段预留：有真人音频时切换音频驱动（按时间戳高亮）。
  */
 export function KaraokePlayer({ song }: { song: Song }) {
-  const { t, locale } = useI18n();
-  const { state, update } = useAppState();
+  // 换歌只重建播放会话，保留用户的语言和跟唱选择。
   const [langMode, setLangMode] = useState<KaraokeLang>("all");
   const [singAlong, setSingAlong] = useState(false);
-  const [activeLine, setActiveLine] = useState<number | null>(null);
-  const [activeLang, setActiveLang] = useState<Language | null>(null);
-  const [playing, setPlaying] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(null);
-  const [finished, setFinished] = useState(false);
-  // 跟唱评分（T5C.5）：ASR 接入，及格线比跟读放宽 10 分
-  const pr = usePronunciationCheck();
-  const [singScore, setSingScore] = useState<{ line: number; score: number } | null>(null);
-  const taskRecordedRef = useRef(false);
-  const audioTimeRef = useRef<HTMLAudioElement | null>(null);
-  const langModeRef = useRef<KaraokeLang>(langMode);
-  const singAlongRef = useRef(singAlong);
+  return (
+    <KaraokeSession key={song.id} initialSong={song} langMode={langMode}
+      setLangMode={setLangMode} singAlong={singAlong} setSingAlong={setSingAlong} />
+  );
+}
 
+function languagesFor(mode: KaraokeLang): Language[] {
+  return mode === "all" ? ["zh", "en", "fr"] : [mode];
+}
+
+type PlayIntent = { startLine: number; languages: Language[] };
+
+function KaraokeSession({ initialSong, langMode, setLangMode, singAlong, setSingAlong }: {
+  initialSong: Song;
+  langMode: KaraokeLang;
+  setLangMode: (mode: KaraokeLang) => void;
+  singAlong: boolean;
+  setSingAlong: (value: boolean) => void;
+}) {
+  // 同一个 id 对应固定内容；存档/locale 更新或父级复制对象都不重开播放。
+  const [song] = useState(initialSong);
+  const { t, locale } = useI18n();
+  const { state, update } = useAppState();
+  const [intent, setIntent] = useState<PlayIntent | null>(() =>
+    song.lines.length ? { startLine: 0, languages: languagesFor(langMode) } : null
+  );
+  // 自动播放意图和首句游标属于初始状态，不在 mount effect 内补写。
+  const [activeLine, setActiveLine] = useState<number | null>(intent ? 0 : null);
+  const [activeLang, setActiveLang] = useState<Language | null>(
+    intent && !song.audio ? intent.languages[0] : null
+  );
+  const [playing, setPlaying] = useState(!!intent);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [finished, setFinished] = useState(!intent);
+  const { start: startPronunciation, cancel: cancelPronunciation, asrSupported } = usePronunciationCheck();
   const speechRate = state?.settings.speechRate ?? 0.9;
   const level = state?.profile.level ?? "L3";
-  langModeRef.current = langMode;
-  singAlongRef.current = singAlong;
+  const optionsRef = useRef({ langMode, singAlong, level, asrSupported });
+  const localeRef = useRef(locale);
+  useEffect(() => {
+    optionsRef.current = { langMode, singAlong, level, asrSupported };
+    localeRef.current = locale;
+  }, [langMode, singAlong, level, asrSupported, locale]);
+  useEffect(() => {
+    configureSpeech(speechRate);
+  }, [speechRate]);
 
-  /** ≥80% 完成即记「音乐任务」+5 分（每歌每天一次，F4.6） */
+  /** ≥80% 完成即记「音乐任务」+5 分；在更新函数中检查最新存档。 */
   const recordTask = useCallback(() => {
-    if (!update || !state) return;
     const key = `song_${song.id}`;
     const today = new Date();
     const ds =
-      today.getFullYear() +
-      "-" +
-      String(today.getMonth() + 1).padStart(2, "0") +
-      "-" +
+      today.getFullYear() + "-" +
+      String(today.getMonth() + 1).padStart(2, "0") + "-" +
       String(today.getDate()).padStart(2, "0");
-    if (state.taskFlags[key] === ds) return;
-    update((s) => ({
+    const reason = translate("karaoke.rewardListen", undefined, localeRef.current);
+    update((s) => s.taskFlags[key] === ds ? s : ({
       ...s,
       taskFlags: { ...s.taskFlags, [key]: ds },
-      points: addPoints(s.points, 5, t("karaoke.rewardListen")),
+      points: addPoints(s.points, 5, reason),
     }));
-  }, [update, state, song.id, t]);
+  }, [update, song.id]);
 
-  const stop = useCallback(() => {
+  const stop = () => {
     cancelSpeech();
-    if (audioTimeRef.current) {
-      audioTimeRef.current.pause();
-      audioTimeRef.current = null;
-    }
+    cancelPronunciation();
+    setIntent(null);
     setPlaying(false);
     setActiveLine(null);
     setActiveLang(null);
     setCountdown(null);
-  }, []);
+  };
 
-  /** TTS 逐句播放循环（generation 守卫，随时可停） */
-  const playFrom = useCallback(
-    async (startLine: number) => {
-      cancelSpeech();
-      configureSpeech(speechRate);
-      const gen = speechGeneration();
-      setPlaying(true);
-      setFinished(false);
-      if (startLine === 0) taskRecordedRef.current = false;
-
-      for (let i = startLine; i < song.lines.length; i++) {
-        if (speechGeneration() !== gen) return;
-        setActiveLine(i);
-        const langs: Language[] =
-          langModeRef.current === "all" ? ["zh", "en", "fr"] : [langModeRef.current];
-        for (const lang of langs) {
-          if (speechGeneration() !== gen) return;
-          setActiveLang(lang);
-          await speak(song.lines[i][lang], lang);
-        }
-        if (speechGeneration() !== gen) return;
-
-        // 进度任务：完成句数占比 ≥ 80%（F4.6）
-        if (!taskRecordedRef.current && (i + 1) / song.lines.length >= 0.8) {
-          taskRecordedRef.current = true;
-          recordTask();
-        }
-
-        if (singAlongRef.current) {
-          // 跟我唱：3 秒倒计时（PRD §7.4.3，评分版 T5C.5）
-          for (let c = 3; c >= 1; c--) {
-            if (speechGeneration() !== gen) return;
-            setCountdown(c);
-            await pause(1000);
-          }
-          if (speechGeneration() !== gen) return;
-          setCountdown(null);
-          // 跟唱评分：启动 ASR 识别当前句
-          if (pr.asrSupported) {
-            pr.start(song.lines[i].fr, "fr", level, (r, passed) => {
-              setSingScore({ line: i, score: r.score });
-              playSfx(passed ? "correct" : "encourage");
-            });
-            // 等待评分完成（最长 5s）
-            await pause(5000);
-          }
-          if (speechGeneration() !== gen) return;
-        } else {
-          await pause(800); // 句间停顿（PRD §7.4.2）
-        }
-      }
-      if (speechGeneration() !== gen) return;
-      setActiveLine(null);
-      setActiveLang(null);
-      setPlaying(false);
-      setFinished(true);
-    },
-    [song, speechRate, recordTask]
-  );
-
-  /** 真人音频驱动（audio 字段 + time 时间戳；当前内容包为空，预留 P2 资产） */
-  const playAudioTrack = useCallback(async () => {
-    if (!song.audio) return;
+  const playFrom = (startLine: number) => {
+    if (!song.lines[startLine]) return;
     cancelSpeech();
-    const gen = speechGeneration();
+    cancelPronunciation();
+    const languages = languagesFor(langMode);
+    setIntent({ startLine, languages });
     setPlaying(true);
     setFinished(false);
-    taskRecordedRef.current = false;
-    const audio = new Audio(song.audio);
-    audioTimeRef.current = audio;
-    audio.ontimeupdate = () => {
-      const t = audio.currentTime;
-      let idx = 0;
-      song.lines.forEach((line, i) => {
-        if (line.time !== undefined && line.time <= t) idx = i;
-      });
-      setActiveLine(idx);
-      if (!taskRecordedRef.current && audio.duration > 0 && t / audio.duration >= 0.8) {
-        taskRecordedRef.current = true;
-        recordTask();
-      }
-    };
-    audio.onended = () => {
-      if (speechGeneration() === gen) {
+    setActiveLine(startLine);
+    setActiveLang(song.audio ? null : languages[0]);
+    setCountdown(null);
+  };
+
+  useEffect(() => {
+    if (!intent) return;
+    cancelSpeech();
+    const gen = speechGeneration();
+    let live = true;
+    let taskRecorded = false;
+    const cancelled = () => !live || speechGeneration() !== gen;
+    let audio: HTMLAudioElement | null = null;
+
+    if (song.audio) {
+      // 真人音频由媒体事件推进高亮/完成；跳句按时间戳定位。
+      const track = new Audio(song.audio);
+      audio = track;
+      track.onloadedmetadata = () => {
+        if (!cancelled()) track.currentTime = song.lines[intent.startLine].time ?? 0;
+      };
+      track.ontimeupdate = () => {
+        if (cancelled()) return;
+        let idx = 0;
+        song.lines.forEach((line, i) => {
+          if (line.time !== undefined && line.time <= track.currentTime) idx = i;
+        });
+        setActiveLine(idx);
+        if (!taskRecorded && track.duration > 0 && track.currentTime / track.duration >= 0.8) {
+          taskRecorded = true;
+          recordTask();
+        }
+      };
+      track.onended = () => {
+        if (cancelled()) return;
         setPlaying(false);
         setActiveLine(null);
         setFinished(true);
+      };
+      const playbackFailed = () => {
+        if (cancelled()) return;
+        setPlaying(false);
+        setActiveLine(null);
+      };
+      track.onerror = playbackFailed;
+      track.play().catch(playbackFailed);
+    } else {
+      const run = async () => {
+        let languages = intent.languages;
+        for (let i = intent.startLine; i < song.lines.length; i++) {
+          for (let j = 0; j < languages.length; j++) {
+            if (cancelled()) return;
+            const lang = languages[j];
+            await speak(song.lines[i][lang], lang);
+            if (cancelled()) return;
+            if (j + 1 < languages.length) setActiveLang(languages[j + 1]);
+          }
+
+          if (!taskRecorded && (i + 1) / song.lines.length >= 0.8) {
+            taskRecorded = true;
+            recordTask();
+          }
+          if (optionsRef.current.singAlong) {
+            for (let c = 3; c >= 1; c--) {
+              setCountdown(c);
+              await pause(1000);
+              if (cancelled()) return;
+            }
+            setCountdown(null);
+            const { asrSupported, level } = optionsRef.current;
+            if (asrSupported) {
+              startPronunciation(song.lines[i].fr, "fr", level, (_result, passed) => {
+                if (!cancelled()) playSfx(passed ? "correct" : "encourage");
+              });
+              await pause(5000);
+              if (cancelled()) return;
+              cancelPronunciation();
+            }
+          } else {
+            await pause(800);
+            if (cancelled()) return;
+          }
+          if (i + 1 < song.lines.length) {
+            languages = languagesFor(optionsRef.current.langMode);
+            setActiveLine(i + 1);
+            setActiveLang(languages[0]);
+          }
+        }
+        if (cancelled()) return;
+        setActiveLine(null);
+        setActiveLang(null);
+        setPlaying(false);
+        setFinished(true);
+      };
+      run();
+    }
+
+    return () => {
+      live = false;
+      cancelSpeech();
+      cancelPronunciation();
+      if (audio) {
+        audio.onloadedmetadata = null;
+        audio.ontimeupdate = null;
+        audio.onended = null;
+        audio.onerror = null;
+        audio.pause();
       }
     };
-    await audio.play().catch(() => setPlaying(false));
-    void gen;
-  }, [song, recordTask]);
-
-  // 进入播放页自动从第 1 句开始（PRD §7.4.2）；audio 字段存在则走音频驱动
-  useEffect(() => {
-    if (song.audio) void playAudioTrack();
-    else void playFrom(0);
-    return () => {
-      cancelSpeech();
-      if (audioTimeRef.current) audioTimeRef.current.pause();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [song.id]);
-
-  const hasAudio = !!song.audio;
+  }, [intent, song, recordTask, startPronunciation, cancelPronunciation]);
 
   return (
     <div className="max-w-xl mx-auto space-y-4">
@@ -231,7 +267,7 @@ export function KaraokePlayer({ song }: { song: Song }) {
           ))}
         </div>
         <button
-          onClick={() => setSingAlong((v) => !v)}
+          onClick={() => setSingAlong(!singAlong)}
           aria-pressed={singAlong}
           className={
             "text-xs px-3 py-1.5 rounded-full font-medium transition min-h-[36px] " +
@@ -248,7 +284,7 @@ export function KaraokePlayer({ song }: { song: Song }) {
               ? "bg-red-50 text-red-500 hover:bg-red-100"
               : "bg-purple-600 text-white hover:bg-purple-700")
           }
-          onClick={() => (playing ? stop() : void (hasAudio ? playAudioTrack() : playFrom(0)))}
+          onClick={() => (playing ? stop() : playFrom(0))}
           aria-label={playing ? t("karaoke.stop") : t("karaoke.play")}
         >
           {playing ? t("karaoke.stopBtn") : t("karaoke.playBtn")}
@@ -262,7 +298,7 @@ export function KaraokePlayer({ song }: { song: Song }) {
           return (
             <button
               key={i}
-              onClick={() => (playing && active ? stop() : void (hasAudio ? playAudioTrack() : playFrom(i)))}
+              onClick={() => (playing && active ? stop() : playFrom(i))}
               className={
                 "w-full text-left rounded-xl border p-3 transition-all " +
                 (active

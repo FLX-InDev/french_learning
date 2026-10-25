@@ -2,7 +2,7 @@
  * 逻辑扩展生成器（Phase 5C T5C.2）：数独（4/6 宫）、迷宫、演绎推理。
  * 全部纯函数 + 可注入 Rng 种子，保证确定性（同种子同盘面）。
  */
-import { mulberry32, seedFromString, type Rng } from "./mathGenerator";
+import { mulberry32, type Rng } from "./mathGenerator";
 
 // ── 数独生成器（4 宫 2×2 / 6 宫 2×3）─────────────────────────────
 

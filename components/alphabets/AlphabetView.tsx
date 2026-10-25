@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useAppState } from "@/components/AppStateProvider";
 import { FlashCard } from "@/components/FlashCard";
@@ -13,7 +13,8 @@ import {
   type SpellingWord,
 } from "@/lib/spelling";
 import { InkTrace } from "./InkTrace";
-import { resolveTraceKey } from "./letterStrokes";
+import { HanziTraceView } from "@/components/hanzi/HanziTraceView";
+import { accentGlyphChars, resolveTraceKey } from "./letterStrokes";
 import type { AlphabetCard, Word } from "@/lib/contentTypes";
 
 /**
@@ -58,10 +59,20 @@ export function AlphabetView({
   const spellWord: SpellingWord | undefined =
     spellPool.length > 0 ? spellPool[spellIdx % spellPool.length] : undefined;
 
-  // 描红练习（T6-08）：仅列出当前语言有笔顺数据的字母；教学提示为附加通道，不判分
-  const traceLetters = useMemo(
+  // 描红练习（T6-08）：仅列出当前语言有笔顺数据的字母；教学提示为附加通道，不判分。
+  // 字母卡现含 13 张变音卡（Aa…Zz + é à è ù â ê î ô û ë ï ü ç），通常已覆盖全部字形；
+  // 这里仍补一次「数据侧清单」兜底：笔顺数据里有、内容侧却没建卡的字形也能描红（验收 ①⑤）。
+  const traceBaseLetters = useMemo(
     () => cards.map((c) => c.letter).filter((l) => resolveTraceKey(l[0] ?? "", lang) !== undefined),
     [cards, lang]
+  );
+  const traceExtraLetters = useMemo(
+    () => accentGlyphChars(lang).filter((g) => !traceBaseLetters.includes(g)),
+    [lang, traceBaseLetters]
+  );
+  const traceLetters = useMemo(
+    () => [...traceBaseLetters, ...traceExtraLetters],
+    [traceBaseLetters, traceExtraLetters]
   );
   const traceLetterIdx = Math.min(traceIdx, Math.max(0, traceLetters.length - 1));
   const traceLetter = traceLetters[traceLetterIdx] ?? "Aa";
@@ -230,20 +241,27 @@ export function AlphabetView({
             <div className="flex-1 overflow-x-auto">
               <div className="flex gap-1.5 py-1">
                 {traceLetters.map((l, i) => (
-                  <button
-                    key={l}
-                    type="button"
-                    onClick={() => setTraceIdx(i)}
-                    aria-pressed={i === traceLetterIdx}
-                    className={
-                      "shrink-0 min-h-[40px] min-w-[40px] px-2 rounded-lg border-2 text-sm font-bold transition " +
-                      (i === traceLetterIdx
-                        ? "border-purple-400 bg-purple-50 text-purple-700"
-                        : "border-gray-100 text-gray-500 hover:border-purple-200")
-                    }
-                  >
-                    {l}
-                  </button>
+                  <Fragment key={l}>
+                    {i === traceBaseLetters.length && traceExtraLetters.length > 0 && (
+                      <span className="shrink-0 self-center flex items-center gap-1.5 px-1 text-[11px] text-gray-400">
+                        <span aria-hidden className="w-px h-6 bg-gray-200" />
+                        {t("trace.accents")}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setTraceIdx(i)}
+                      aria-pressed={i === traceLetterIdx}
+                      className={
+                        "shrink-0 min-h-[40px] min-w-[40px] px-2 rounded-lg border-2 text-sm font-bold transition " +
+                        (i === traceLetterIdx
+                          ? "border-purple-400 bg-purple-50 text-purple-700"
+                          : "border-gray-100 text-gray-500 hover:border-purple-200")
+                      }
+                    >
+                      {l}
+                    </button>
+                  </Fragment>
                 ))}
               </div>
             </div>
@@ -260,6 +278,9 @@ export function AlphabetView({
           <InkTrace key={`${lang}-${traceLetter}`} letter={traceLetter} lang={lang} />
         </section>
       )}
+
+      {/* 汉字描红（中文）：与法语/英语字母 Tab 无关的独立通道；按笔序给提示，但不打分（契约 H） */}
+      <HanziTraceView />
 
       {/* 翻卡弹窗 */}
       {openCard && (

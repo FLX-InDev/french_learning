@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useAppState } from "@/components/AppStateProvider";
+import { useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { otherLocales } from "@/components/TriTitle";
 import { cancelSpeech, speak, playSfx } from "@/lib/audioManager";

@@ -3,18 +3,20 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useI18n, localizedHref } from "@/lib/i18n";
+import { formatMathAnswer } from "@/lib/mathAnswer";
 import { useAppState } from "./AppStateProvider";
-import { MathQuestionCard, DecompositionSteps } from "./MathQuestionCard";
+import { MathQuestionCard, DecompositionSteps, ShapeGlyph } from "./MathQuestionCard";
 import { KeypadInput } from "./KeypadInput";
 import { Mascot } from "./Mascot";
 import { Confetti, useConfetti } from "./Confetti";
 import { StarReveal } from "./celebrate";
-import { playSfx } from "@/lib/audioManager";
+import { playSfx, speak, cancelSpeech } from "@/lib/audioManager";
 import { findStage } from "@/lib/mathCurriculum";
 import {
   generateMathQuiz,
   normalizeAnswer,
   toQuizQuestion,
+  decodeMotifToken,
   type ArithVisual,
   type MathQuestion,
 } from "@/lib/mathGenerator";
@@ -54,16 +56,15 @@ export function MathQuiz({
   const [finished, setFinished] = useState<null | { stars: number; gained: number; acc: number }>(null);
   const [showDecomp, setShowDecomp] = useState(false);
   // 真实计时（F52/BUG-3）：关卡开始时间戳
-  const startedAtRef = useRef(Date.now());
+  const startedAtRef = useRef(0);
   // 答错引导：短暂显示正确答案后再进入下一题（P-4：不打叉，用引导代替）
   const [wrongHint, setWrongHint] = useState<string | null>(null);
   const confetti = useConfetti();
 
-  // 重刷时重置计时起点（finished 回到 null 即新一轮）
+  const running = state !== null && found?.level === level && finished === null;
   useEffect(() => {
-    if (!finished) startedAtRef.current = Date.now();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [finished === null]);
+    if (running) startedAtRef.current = Date.now();
+  }, [running]);
 
   // 通关：levelup 音效 + 撒花（触发矩阵同步）
   useEffect(() => {
@@ -107,7 +108,7 @@ export function MathQuiz({
     return (
       <div className="text-center py-20">
         <p className="text-gray-500">
-          {t("math.levelLocked", { level: found.level })}
+          {t("math.levelLocked", { level: found.level, currentLevel: level })}
         </p>
         <Link href={localizedHref(locale, "/math")} className="btn-primary mt-4 inline-block">
           {t("math.backToMap")}
@@ -269,9 +270,6 @@ export function MathQuiz({
             stage: stage.title[locale],
           })}
         </h1>
-        <p className="text-[11px] text-gray-400 mt-1">
-          {t("math.chinaProgress", { progress: group.cnProgress, benchmark: group.frBenchmark })}
-        </p>
       </div>
 
       <div className="h-1.5 rounded-full bg-purple-50 overflow-hidden">
@@ -285,21 +283,49 @@ export function MathQuiz({
 
       {q.inputMode === "choice" ? (
         <div className="grid grid-cols-2 gap-3">
-          {(q.options ?? []).map((opt) => (
-            <button
-              key={opt}
-              onClick={() => setChoice(opt)}
-              aria-pressed={choice === opt}
-              className={
-                "min-h-[56px] rounded-xl border-2 text-2xl font-bold tabular-nums transition " +
-                (choice === opt
-                  ? "border-purple-500 bg-purple-50 text-purple-700"
-                  : "border-gray-100 bg-white text-gray-700 hover:border-purple-200")
-              }
-            >
-              {opt}
-            </button>
-          ))}
+          {(q.options ?? []).map((opt) => {
+            const token = q.kind === "motif" ? decodeMotifToken(opt) : null;
+            // shape/countFr 选项是法语目标词，🔊 试听不影响选择
+            const speakable = q.kind === "shape" || q.kind === "countFr";
+            return (
+              <button
+                key={opt}
+                onClick={() => setChoice(opt)}
+                aria-pressed={choice === opt}
+                className={
+                  "min-h-[56px] rounded-xl border-2 text-2xl font-bold tabular-nums transition " +
+                  (choice === opt
+                    ? "border-purple-500 bg-purple-50 text-purple-700"
+                    : "border-gray-100 bg-white text-gray-700 hover:border-purple-200")
+                }
+              >
+                {token ? (
+                  <ShapeGlyph
+                    shape={token.shape}
+                    color={token.color}
+                    className="w-12 h-12 mx-auto"
+                  />
+                ) : speakable ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span
+                      role="button"
+                      aria-label={t("math.listenOption")}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        cancelSpeech();
+                        void speak(opt, "fr");
+                      }}
+                    >
+                      🔊
+                    </span>
+                    {opt}
+                  </span>
+                ) : (
+                  formatMathAnswer(opt, locale)
+                )}
+              </button>
+            );
+          })}
         </div>
       ) : (
         <KeypadInput value={input} onChange={setInput} onSubmit={submit} />
@@ -315,10 +341,21 @@ export function MathQuiz({
         </button>
       )}
 
-      {/* 答错引导（P-4：不打叉，显示正确答案后进入下一题） */}
+      {/* 答错引导（P-4：不打叉，显示正确答案后进入下一题）；接龙题答案渲染为图块 */}
       {wrongHint !== null && (
         <div className="bg-orange-50 border border-orange-100 rounded-xl p-3 text-center text-sm text-orange-600 font-semibold">
-          {t("math.correctAnswer", { answer: wrongHint })}
+          {(() => {
+            const tk = q.kind === "motif" ? decodeMotifToken(wrongHint) : null;
+            if (tk) {
+              return (
+                <span className="inline-flex items-center gap-2 align-middle">
+                  {t("math.nextIs")}
+                  <ShapeGlyph shape={tk.shape} color={tk.color} className="w-8 h-8" />
+                </span>
+              );
+            }
+            return t("math.correctAnswer", { answer: formatMathAnswer(wrongHint, locale) });
+          })()}
         </div>
       )}
 

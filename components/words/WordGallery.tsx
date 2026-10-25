@@ -21,6 +21,7 @@ import {
 } from "@/lib/workspace";
 import { matchesLevel, type Word } from "@/lib/contentTypes";
 import type { WordStatus } from "@/lib/workspace";
+import type { Level } from "@/lib/levels";
 import { useI18n, localizedHref } from "@/lib/i18n";
 
 /**
@@ -33,9 +34,14 @@ import { useI18n, localizedHref } from "@/lib/i18n";
  * - Firefox（无 ASR）隐藏跟读区块，图鉴其余功能可用（优雅降级）。
  */
 export function WordGallery({ words }: { words: Word[] }) {
+  const { state } = useAppState();
+  const level = state?.profile.level ?? "L3";
+  return <WordGalleryInner key={level} words={words} level={level} />;
+}
+
+function WordGalleryInner({ words, level }: { words: Word[]; level: Level }) {
   const { state, update } = useAppState();
   const { t, locale } = useI18n();
-  const level = state?.profile.level ?? "L3";
   const hidden = state?.settings.hiddenContent ?? [];
   const speechRate = state?.settings.speechRate ?? 0.9;
 
@@ -44,9 +50,13 @@ export function WordGallery({ words }: { words: Word[] }) {
   const [face, setFace] = useState<"front" | "back">("front");
   const [autoplay, setAutoplay] = useState(false);
   const deckIndexRef = useRef<number | null>(null);
-  deckIndexRef.current = deckIndex;
+  useEffect(() => {
+    deckIndexRef.current = deckIndex;
+  }, [deckIndex]);
 
+  // The pronunciation hook cleans up recognition and recording on unmount.
   const pr = usePronunciationCheck();
+  useEffect(() => () => cancelSpeech(), []);
   useEffect(() => {
     configureSpeech(speechRate);
   }, [speechRate]);
@@ -70,23 +80,13 @@ export function WordGallery({ words }: { words: Word[] }) {
     [pool, activeCat]
   );
 
-  const wp = state?.wordProgress ?? {};
-  const overall = collectionStats(pool, wp);
-  const catStat = useCallback(
-    (cat: string) =>
-      collectionStats(
-        cat === "__all" ? pool : pool.filter((w) => w.category === cat),
-        wp
-      ),
-    [pool, wp]
-  );
-
-  // 学段/内容变化时复位视图
-  useEffect(() => {
-    setActiveCat("__all");
-    setDeckIndex(null);
-    setAutoplay(false);
-  }, [level]);
+  const wp = state?.wordProgress;
+  const overall = collectionStats(pool, wp ?? {});
+  const catStat = (cat: string) =>
+    collectionStats(
+      cat === "__all" ? pool : pool.filter((w) => w.category === cat),
+      wp ?? {}
+    );
 
   const markProgress = useCallback(
     (id: string, status: WordStatus) => {
@@ -98,9 +98,11 @@ export function WordGallery({ words }: { words: Word[] }) {
     [update]
   );
 
+  const deckOpen = deckIndex !== null;
+  // Only opening/closing restarts playback; committed indices feed the running loop.
   // 磨耳朵自动轮播：三语轮读 + 标记 heard，每张 ≈3s（PRD §7.6.2）
   useEffect(() => {
-    if (!autoplay || deckIndex === null || list.length === 0) return;
+    if (!autoplay || !deckOpen || list.length === 0) return;
     let stopped = false;
     void (async () => {
       while (!stopped) {
@@ -125,8 +127,7 @@ export function WordGallery({ words }: { words: Word[] }) {
       stopped = true;
       cancelSpeech();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [autoplay, deckIndex === null, activeCat, list.length]);
+  }, [autoplay, deckOpen, list, markProgress]);
 
   if (hidden.includes("word")) {
     return (
@@ -183,6 +184,7 @@ export function WordGallery({ words }: { words: Word[] }) {
                 key={key}
                 onClick={() => {
                   playSfx("tap");
+                  pr.reset();
                   setActiveCat(key);
                   setDeckIndex(null);
                   setAutoplay(false);
@@ -210,7 +212,7 @@ export function WordGallery({ words }: { words: Word[] }) {
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
           {list.map((w, i) => {
-            const st = wp[w.id];
+            const st = wp?.[w.id];
             return (
               <button
                 key={w.id}

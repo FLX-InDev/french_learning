@@ -9,12 +9,9 @@ import {
   getAllStories,
   getAllWords,
   getContentStats,
-  parseDialoguesFromFile,
   parseFrontMatter,
   parseManifest,
   parseMarkdown,
-  parseSongsFromFile,
-  parseWordsFromFile,
 } from "./parser";
 import { matchesLevel } from "./contentTypes";
 
@@ -234,11 +231,27 @@ describe("六类新内容解析", () => {
     expect(new Set(d.turns.map((t) => t.role)).size).toBe(2);
   });
 
-  it("alphabets.md：52 张字母卡（法/英各 26）", () => {
+  it("alphabets.md：65 张字母卡（法 39 = 26 字母 + 13 变音；英 26）", () => {
     const cards = getAllAlphabets();
-    expect(cards).toHaveLength(52);
-    expect(cards.filter((c) => c.lang === "fr")).toHaveLength(26);
+    expect(cards).toHaveLength(65);
+    const fr = cards.filter((c) => c.lang === "fr");
+    expect(fr).toHaveLength(39);
     expect(cards.filter((c) => c.lang === "en")).toHaveLength(26);
+    // 13 张变音卡（T6-08 配套）：单字符形态，与笔顺数据一一对应
+    const accents = fr.filter((c) => !/^[A-Za-z]{2}$/.test(c.letter));
+    expect(accents).toHaveLength(13);
+    expect(accents.map((c) => c.letter).sort()).toEqual(
+      ["à", "â", "ç", "è", "é", "ê", "ë", "î", "ï", "ô", "ù", "û", "ü"].sort()
+    );
+    accents.forEach((c) => {
+      expect(c.word.fr, `${c.letter} 代表词`).toBeTruthy();
+      expect(c.emoji, `${c.letter} emoji`).toBeTruthy();
+    });
+    // R2 裁决（2026-09-28）：ü 用传统拼写 aiguë；à / ù 用 2 瓦片短词 là / où（只作卡片，不入拼词池）
+    const byLetter = new Map(accents.map((c) => [c.letter, c.word.fr]));
+    expect(byLetter.get("ü")).toBe("aiguë");
+    expect(byLetter.get("à")).toBe("là");
+    expect(byLetter.get("ù")).toBe("où");
   });
 
   it("math-bank.md / logic-bank.md：固定题含 kind 与答案", () => {

@@ -1,0 +1,12 @@
+{
+  "hanziTrace.title": "Tracé des sinogrammes",
+  "hanziTrace.bandLabel": "Niveau découverte (3–4 ans, sinogrammes de 1 à 2 traits)",
+  "hanziTrace.strokesOf": "{n} trait(s) pour ce sinogramme",
+  "hanziTrace.replayNote": "Les traits sont vérifiés doucement, jamais notés",
+  "hanziTrace.charOf": "Sinogramme {i} / {n}",
+  "hanziTrace.charPrev": "Sinogramme précédent",
+  "hanziTrace.charNext": "Sinogramme suivant",
+  "hanziTrace.noData": "Pas encore de données de tracé",
+  "hanziTrace.attribution": "Les squelettes de traits proviennent de la police open source hanzi-writer-data (polices Arphic, ARPHIC Public License 1.1) ; l'ordre des traits est vérifié trait par trait selon la norme GF 0023-2020.",
+  "hanziTrace.licenceLink": "Lire la licence"
+}

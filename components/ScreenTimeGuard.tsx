@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useI18n, localizedHref } from "@/lib/i18n";
 import { useAppState } from "./AppStateProvider";
 import { ParentGate } from "./ParentGate";
-import { isTimeUp } from "@/lib/workspace";
+import { isTimeUp, todayStr } from "@/lib/workspace";
 import { setScreenTimePaused } from "@/lib/screenTimePause";
 
 /** 连续使用多久弹出休息提示 */
@@ -14,11 +14,10 @@ const BREAK_SEC = 30;
 /** 家长门解锁一次延长的时长 */
 const EXTEND_SEC = 10 * 60;
 
-function msLeftToday(): number {
-  const now = new Date();
+function msLeftToday(now: number): number {
   const next = new Date(now);
   next.setHours(24, 0, 0, 0);
-  return next.getTime() - now.getTime();
+  return next.getTime() - now;
 }
 
 function hhmmss(ms: number): string {
@@ -40,9 +39,10 @@ export function ScreenTimeGuard() {
   const [gateOpen, setGateOpen] = useState(false);
   const [breakLeft, setBreakLeft] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
-  const lastBreakRef = useRef(0);
+  const today = todayStr();
+  const lastBreakRef = useRef({ date: today, used: 0 });
 
-  const used = state?.screenTime.usedSec ?? 0;
+  const used = state?.screenTime.date === today ? state.screenTime.usedSec : 0;
   const limit = state?.settings.dailyLimitMin ?? 0;
   const timeUp = !!state && isTimeUp(state.screenTime, limit);
 
@@ -54,24 +54,27 @@ export function ScreenTimeGuard() {
 
   // 连续使用 15 分钟 → 休息遮罩
   useEffect(() => {
+    if (lastBreakRef.current.date !== today) lastBreakRef.current = { date: today, used: 0 };
     if (!state || timeUp) return;
     if (breakLeft !== null) return; // 已在休息中：不再重复触发
-    if (used - lastBreakRef.current >= BREAK_EVERY_SEC) {
+    if (used - lastBreakRef.current.used >= BREAK_EVERY_SEC) {
       // 先落基线：否则倒计时期间 used 持续增长会反复满足条件、把倒计时重置回 30s
-      lastBreakRef.current = used;
+      lastBreakRef.current = { date: today, used };
       setBreakLeft(BREAK_SEC);
     }
-  }, [used, timeUp, state, breakLeft]);
+  }, [used, timeUp, state, breakLeft, today]);
 
   // 休息倒计时（只依赖 breakLeft，保证每秒稳定递减）
   useEffect(() => {
     if (breakLeft === null) return;
-    if (breakLeft <= 0) {
-      lastBreakRef.current = usedRef.current;
-      setBreakLeft(null);
-      return;
-    }
-    const id = window.setTimeout(() => setBreakLeft((v) => (v ?? 1) - 1), 1000);
+    const id = window.setTimeout(() => {
+      if (breakLeft <= 1) {
+        lastBreakRef.current = { date: todayStr(), used: usedRef.current };
+        setBreakLeft(null);
+      } else {
+        setBreakLeft(breakLeft - 1);
+      }
+    }, 1000);
     return () => window.clearTimeout(id);
   }, [breakLeft]);
 
@@ -102,7 +105,7 @@ export function ScreenTimeGuard() {
             {t('screenTime.limitReached', { min: String(state.settings.dailyLimitMin) })}
           </p>
           <div className="text-3xl font-extrabold text-purple-600 mt-4 tabular-nums">
-            {hhmmss(msLeftToday())}
+            {hhmmss(msLeftToday(now))}
           </div>
           <p className="text-xs text-gray-400 mt-1">{t('screenTime.restoreAfter')}</p>
           <div className="flex flex-col gap-2 mt-6">
@@ -151,10 +154,7 @@ export function ScreenTimeGuard() {
               usedSec: Math.max(0, s.screenTime.usedSec - EXTEND_SEC),
             },
           }));
-          lastBreakRef.current = Math.max(
-            0,
-            state.screenTime.usedSec - EXTEND_SEC
-          );
+          lastBreakRef.current = { date: today, used: Math.max(0, used - EXTEND_SEC) };
           setGateOpen(false);
         }}
       />

@@ -28,9 +28,43 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe("ScreenTimeGuard", () => {
+  it("updates tomorrow's countdown every second and releases the limit across midnight", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 9, 24, 23, 59, 58));
+    seed({ screenTime: { date: todayStr(), usedSec: 1200 } });
+    render(<AppStateProvider><ScreenTimeGuard /></AppStateProvider>);
+    expect(screen.getByText("00:00:02")).toBeTruthy();
+    act(() => vi.advanceTimersByTime(1000));
+    expect(screen.getByText("00:00:01")).toBeTruthy();
+    act(() => vi.advanceTimersByTime(1000));
+    expect(screen.queryByText(/今天学得很棒/)).toBeNull();
+    act(() => vi.advanceTimersByTime(3000));
+    expect(saved().screenTime.date).toBe(todayStr());
+    expect(saved().screenTime.usedSec).toBe(5);
+  });
+
+  it("extends by ten minutes only after the real parent gate is passed", async () => {
+    seed({ screenTime: { date: todayStr(), usedSec: 1200 } });
+    render(<AppStateProvider><ScreenTimeGuard /></AppStateProvider>);
+    fireEvent.click(screen.getByText(/家长解锁/));
+    let now = 0;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    fireEvent.pointerDown(screen.getByLabelText("长按 3 秒进行家长验证"));
+    now = 3100;
+    await act(async () => { await new Promise<void>(resolve => requestAnimationFrame(() => resolve())); });
+    const numbers = screen.getByText(/\d+\s*\+\s*\d+\s*=\s*\?/).textContent!.match(/(\d+)\s*\+\s*(\d+)/)!;
+    fireEvent.change(screen.getByLabelText("请输入算式答案"), { target: { value: String(Number(numbers[1]) + Number(numbers[2])) } });
+    fireEvent.click(screen.getByText("确定"));
+    expect(saved().screenTime.usedSec).toBe(600);
+    expect(screen.queryByText(/今天学得很棒/)).toBeNull();
+    expect(screen.queryByText(/^\d+s$/)).toBeNull();
+  });
+
   it("时长未用尽时不遮罩", () => {
     seed({ settings: { ...createInitialState().settings, dailyLimitMin: 20 }, screenTime: { date: todayStr(), usedSec: 60 } });
     render(

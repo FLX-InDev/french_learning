@@ -10,9 +10,10 @@ import {
 } from "@/lib/voiceConfig";
 import { pickBestVoice } from "@/lib/webSpeechVoice";
 import { useAppState } from "@/components/AppStateProvider";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, type Locale } from "@/lib/i18n";
+import { translate } from "@/lib/i18nDict";
 
-/** 音频语言 → 语言名 i18n key（显示随界面语言，不用 VOICE_CONFIG.label） */
+/** 音频语言 → 语言名 i18n key（显示随界面语言） */
 const LANG_NAME_KEY: Record<Language, string> = {
   zh: "lang.nameZh",
   en: "lang.nameEn",
@@ -68,7 +69,11 @@ export default function PlayButton({
   lang,
   size = "md",
 }: PlayButtonProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const localeRef = useRef<Locale>(locale);
+  useEffect(() => {
+    localeRef.current = locale;
+  }, [locale]);
   const [status, setStatus] = useState<"idle" | "playing" | "loading">("idle");
   const [provider, setProvider] = useState<TTSProvider>("webspeech");
   // 全局语速（家长中心设置：0.75 慢速 / 0.9 正常，F5.2）
@@ -89,13 +94,13 @@ export default function PlayButton({
       .then((data) => {
         if (data.provider !== "webspeech" && data.available) {
           setProvider("backend");
-          console.log(`[PlayButton] ${t('playbutton.ttsProviderBackend', { provider: data.provider })}`);
+          console.log(`[PlayButton] ${translate('playbutton.ttsProviderBackend', { provider: data.provider }, localeRef.current)}`);
         } else {
-          console.log(`[PlayButton] ${t('playbutton.ttsProviderWebSpeech')}`);
+          console.log(`[PlayButton] ${translate('playbutton.ttsProviderWebSpeech', undefined, localeRef.current)}`);
         }
       })
       .catch(() => {
-        console.log(`[PlayButton] ${t('playbutton.ttsConfigError')}`);
+        console.log(`[PlayButton] ${translate('playbutton.ttsConfigError', undefined, localeRef.current)}`);
       });
   }, []);
 
@@ -170,7 +175,7 @@ export default function PlayButton({
     };
     utterance.onerror = (e) => {
       if (e.error !== "canceled") {
-        console.warn(`[PlayButton] ${t('playbutton.webspeechError')}:`, e.error);
+        console.warn(`[PlayButton] ${translate('playbutton.webspeechError', undefined, localeRef.current)}:`, e.error);
       }
       utteranceRef.current = null;
       setStatus("idle");
@@ -195,7 +200,7 @@ export default function PlayButton({
       if (!response.ok) {
         const errorData = await response.json().catch(() => null);
         console.error(
-          "[PlayButton] " + t('playbutton.requestFailed'),
+          "[PlayButton] " + translate('playbutton.requestFailed', undefined, localeRef.current),
           response.status,
           errorData?.error || response.statusText
         );
@@ -216,7 +221,7 @@ export default function PlayButton({
         setStatus("idle");
       };
       audio.onerror = () => {
-        console.warn(`[PlayButton] ${t('playbutton.audioPlayError')}`);
+        console.warn(`[PlayButton] ${translate('playbutton.audioPlayError', undefined, localeRef.current)}`);
         URL.revokeObjectURL(url);
         audioRef.current = null;
         setStatus("idle");
@@ -225,7 +230,7 @@ export default function PlayButton({
       audioRef.current = audio;
       await audio.play();
     } catch (err) {
-      console.error(`[PlayButton] ${t('playbutton.callError')}:`, err);
+      console.error(`[PlayButton] ${translate('playbutton.callError', undefined, localeRef.current)}:`, err);
       setStatus("idle");
     }
   }, [text, lang, speechRate]);
